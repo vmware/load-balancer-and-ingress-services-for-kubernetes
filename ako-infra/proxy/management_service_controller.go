@@ -149,13 +149,13 @@ func (c *ManagementServiceController) GetManagementService() (map[string]interfa
 func (c *ManagementServiceController) validateManagementServiceConfig(serviceObj map[string]interface{}) bool {
 	spec, ok := serviceObj["spec"].(map[string]interface{})
 	if !ok {
-		utils.AviLog.Debugf("ManagementService spec not found or invalid format")
+		utils.AviLog.Infof("ManagementService spec not found or invalid format")
 		return false
 	}
 
 	managementAddresses, ok := spec["managementAddresses"].([]interface{})
 	if !ok || len(managementAddresses) == 0 {
-		utils.AviLog.Debugf("ManagementService managementAddresses not found or empty")
+		utils.AviLog.Infof("ManagementService managementAddresses not found or empty")
 		return false
 	}
 
@@ -168,13 +168,13 @@ func (c *ManagementServiceController) validateManagementServiceConfig(serviceObj
 		}
 	}
 	if !addressFound {
-		utils.AviLog.Debugf("ManagementService expected address %s not found in managementAddresses", expectedAddress)
+		utils.AviLog.Infof("ManagementService expected address %s not found in managementAddresses", expectedAddress)
 		return false
 	}
 
 	ports, ok := spec["ports"].([]interface{})
 	if !ok || len(ports) == 0 {
-		utils.AviLog.Debugf("ManagementService ports not found or empty")
+		utils.AviLog.Infof("ManagementService ports not found or empty")
 		return false
 	}
 
@@ -190,7 +190,7 @@ func (c *ManagementServiceController) validateManagementServiceConfig(serviceObj
 								portFound = true
 								break
 							} else {
-								utils.AviLog.Debugf("ManagementService CA certificate mismatch: expected length %d, got length %d", len(expectedCaCert), len(caCert))
+								utils.AviLog.Infof("ManagementService CA certificate mismatch: expected length %d, got length %d", len(expectedCaCert), len(caCert))
 							}
 						}
 					}
@@ -200,11 +200,11 @@ func (c *ManagementServiceController) validateManagementServiceConfig(serviceObj
 	}
 
 	if !portFound {
-		utils.AviLog.Debugf("ManagementService expected port configuration not found")
+		utils.AviLog.Infof("ManagementService expected port configuration not found")
 		return false
 	}
 
-	utils.AviLog.Debugf("ManagementService configuration validation passed: address=%s, port=%d, hostname=%s, ca_cert_length=%d",
+	utils.AviLog.Infof("ManagementService configuration validation passed: address=%s, port=%d, hostname=%s, ca_cert_length=%d",
 		expectedAddress, c.servicePort, expectedAddress, len(utils.SharedCtrlProp().GetAllCtrlProp()[utils.ENV_CTRL_CADATA]))
 	return true
 }
@@ -377,17 +377,17 @@ func (c *ManagementServiceController) GetManagementServiceGrant(namespace string
 func (c *ManagementServiceController) validateManagementServiceGrantConfig(grantObj map[string]interface{}) bool {
 	spec, ok := grantObj["spec"].(map[string]interface{})
 	if !ok {
-		utils.AviLog.Debugf("ManagementServiceAccessGrant spec not found or invalid format")
+		utils.AviLog.Infof("ManagementServiceAccessGrant spec not found or invalid format")
 		return false
 	}
 
 	managementServiceRef, ok := spec["managementServiceRef"].(string)
 	if !ok || managementServiceRef != c.serviceName {
-		utils.AviLog.Debugf("ManagementServiceAccessGrant managementServiceRef mismatch: expected %s, got %s", c.serviceName, managementServiceRef)
+		utils.AviLog.Infof("ManagementServiceAccessGrant managementServiceRef mismatch: expected %s, got %s", c.serviceName, managementServiceRef)
 		return false
 	}
 
-	utils.AviLog.Debugf("ManagementServiceAccessGrant configuration validation passed: managementServiceRef=%s",
+	utils.AviLog.Infof("ManagementServiceAccessGrant configuration validation passed: managementServiceRef=%s",
 		managementServiceRef)
 	return true
 }
@@ -506,7 +506,7 @@ func HandleNamespaceGrantDelete(obj interface{}) {
 	}
 
 	if !namespaceHasSEG(namespace) {
-		utils.AviLog.Debugf("VKS ManagementServiceGrant: namespace %s did not have SEG annotation, skipping", namespace.Name)
+		utils.AviLog.Infof("VKS ManagementServiceGrant: namespace %s did not have SEG annotation, skipping", namespace.Name)
 		return
 	}
 
@@ -524,7 +524,7 @@ func HandleNamespaceGrantDelete(obj interface{}) {
 
 // ReconcileManagementServiceGrants ensures ManagementServiceGrants exist for all namespaces with SEG annotations
 func ReconcileManagementServiceGrants() {
-	utils.AviLog.Debugf("VKS reconciler: reconciling ManagementServiceGrants")
+	utils.AviLog.Infof("VKS reconciler: reconciling ManagementServiceGrants")
 
 	controller := NewManagementServiceController()
 	if controller == nil {
@@ -535,13 +535,13 @@ func ReconcileManagementServiceGrants() {
 	// Get all namespaces
 	informers := utils.GetInformers()
 	if informers == nil || informers.NSInformer == nil {
-		utils.AviLog.Debugf("VKS reconciler: namespace informer not initialized yet, skipping reconciliation")
+		utils.AviLog.Infof("VKS reconciler: namespace informer not initialized yet, skipping reconciliation")
 		return
 	}
 
 	lister := informers.NSInformer.Lister()
 	if lister == nil {
-		utils.AviLog.Debugf("VKS reconciler: namespace lister not available yet, skipping reconciliation")
+		utils.AviLog.Infof("VKS reconciler: namespace lister not available yet, skipping reconciliation")
 		return
 	}
 
@@ -562,7 +562,7 @@ func ReconcileManagementServiceGrants() {
 		}
 	}
 
-	utils.AviLog.Debugf("VKS reconciler: reconciled %d ManagementServiceGrants", grantCount)
+	utils.AviLog.Infof("VKS reconciler: reconciled %d ManagementServiceGrants", grantCount)
 }
 
 func namespaceHasSEG(namespace *corev1.Namespace) bool {

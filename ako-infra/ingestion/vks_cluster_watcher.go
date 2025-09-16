@@ -180,7 +180,7 @@ func (w *VKSClusterWatcher) ProcessNextWorkItem() bool {
 			return fmt.Errorf("error processing cluster %s: %s, requeuing", key, err.Error())
 		}
 		w.workqueue.Forget(obj)
-		utils.AviLog.Debugf("Successfully processed cluster: %s", key)
+		utils.AviLog.Infof("Successfully processed cluster: %s", key)
 		return nil
 	}(obj)
 
@@ -199,7 +199,7 @@ func (w *VKSClusterWatcher) EnqueueCluster(obj interface{}, eventType string) {
 		utils.AviLog.Errorf("Error getting key for cluster: %v", err)
 		return
 	}
-	utils.AviLog.Debugf("Enqueuing cluster %s for %s", key, eventType)
+	utils.AviLog.Infof("Enqueuing cluster %s for %s", key, eventType)
 	w.workqueue.Add(key)
 }
 
@@ -209,6 +209,8 @@ func (w *VKSClusterWatcher) ProcessClusterEvent(key string) error {
 		utils.AviLog.Errorf("Invalid resource key: %s", key)
 		return nil
 	}
+
+	utils.AviLog.Infof("VKS cluster watcher: processing cluster event for %s", key)
 
 	obj, err := lib.GetDynamicInformers().ClusterInformer.Lister().ByNamespace(namespace).Get(name)
 	if err != nil {
@@ -232,7 +234,7 @@ func (w *VKSClusterWatcher) handleClusterAddOrUpdate(cluster *unstructured.Unstr
 	clusterNamespace := cluster.GetNamespace()
 
 	phase := w.GetClusterPhase(cluster)
-	utils.AviLog.Debugf("Processing cluster %s in phase: %s", clusterNameWithUID, phase)
+	utils.AviLog.Infof("Processing cluster %s in phase: %s", clusterNameWithUID, phase)
 
 	switch phase {
 	case ClusterPhaseProvisioning, ClusterPhaseProvisioned:
@@ -240,7 +242,7 @@ func (w *VKSClusterWatcher) handleClusterAddOrUpdate(cluster *unstructured.Unstr
 	case ClusterPhaseDeleting:
 		return w.handleClusterDeletion(clusterNamespace, cluster.GetName(), clusterNameWithUID)
 	default:
-		utils.AviLog.Debugf("Cluster %s/%s (UID: %s) not in provisioning/provisioned state, skipping", clusterNamespace, cluster.GetName(), cluster.GetUID())
+		utils.AviLog.Infof("Cluster %s/%s (UID: %s) not in provisioning/provisioned state, skipping", clusterNamespace, cluster.GetName(), cluster.GetUID())
 		return nil
 	}
 }
@@ -254,7 +256,7 @@ func (w *VKSClusterWatcher) HandleProvisionedCluster(cluster *unstructured.Unstr
 	shouldManage := labels != nil && labels[webhook.VKSManagedLabel] == webhook.VKSManagedLabelValueTrue
 
 	phase := w.GetClusterPhase(cluster)
-	utils.AviLog.Debugf("Processing cluster %s in phase: %s", clusterNameWithUID, phase)
+	utils.AviLog.Infof("Processing cluster %s in phase: %s", clusterNameWithUID, phase)
 
 	secretName := fmt.Sprintf("%s-avi-secret", cluster.GetName())
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -264,7 +266,7 @@ func (w *VKSClusterWatcher) HandleProvisionedCluster(cluster *unstructured.Unstr
 	_, err := utils.GetInformers().SecretInformer.Lister().Secrets(clusterNamespace).Get(secretName)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			utils.AviLog.Debugf("Secret %s/%s does not exist", clusterNamespace, secretName)
+			utils.AviLog.Infof("Secret %s/%s does not exist", clusterNamespace, secretName)
 		} else {
 			utils.AviLog.Warnf("Failed to check secret %s/%s: %v", clusterNamespace, secretName, err)
 		}
@@ -287,7 +289,7 @@ func (w *VKSClusterWatcher) HandleProvisionedCluster(cluster *unstructured.Unstr
 
 	case !shouldManage && !secretExists:
 		// Should not manage and no secret exists - already in desired state
-		utils.AviLog.Debugf("Cluster %s/%s (UID: %s) not managed by VKS and no dependencies exist", clusterNamespace, cluster.GetName(), cluster.GetUID())
+		utils.AviLog.Infof("Cluster %s/%s (UID: %s) not managed by VKS and no dependencies exist", clusterNamespace, cluster.GetName(), cluster.GetUID())
 	}
 
 	return nil
@@ -341,7 +343,7 @@ func (w *VKSClusterWatcher) cleanupClusterDependencies(ctx context.Context, clus
 	err := w.kubeClient.CoreV1().Secrets(clusterNamespace).Delete(ctx, secretName, metav1.DeleteOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			utils.AviLog.Debugf("Avi credentials secret %s/%s already deleted", clusterNamespace, secretName)
+			utils.AviLog.Infof("Avi credentials secret %s/%s already deleted", clusterNamespace, secretName)
 		} else {
 			utils.AviLog.Warnf("Failed to delete Avi credentials secret %s/%s: %v", clusterNamespace, secretName, err)
 		}
@@ -362,7 +364,7 @@ func (w *VKSClusterWatcher) getClusterNameWithUIDFromSecret(clusterName, cluster
 	if err == nil && secret.Data != nil {
 		if clusterNameBytes, exists := secret.Data["clusterName"]; exists {
 			clusterNameWithUID := string(clusterNameBytes)
-			utils.AviLog.Debugf("Retrieved cluster name with UID from secret: %s", clusterNameWithUID)
+			utils.AviLog.Infof("Retrieved cluster name with UID from secret: %s", clusterNameWithUID)
 			return clusterNameWithUID
 		}
 	}
@@ -585,6 +587,8 @@ func (w *VKSClusterWatcher) UpsertAviCredentialsSecret(ctx context.Context, clus
 	clusterNamespace := cluster.GetNamespace()
 	secretName := fmt.Sprintf("%s-avi-secret", clusterName)
 
+	utils.AviLog.Infof("VKS cluster watcher: processing secret upsert for cluster %s/%s", clusterNamespace, clusterName)
+
 	config, err := w.buildVKSClusterConfig(cluster)
 	if err != nil {
 		return fmt.Errorf("failed to build cluster configuration: %v", err)
@@ -598,6 +602,7 @@ func (w *VKSClusterWatcher) UpsertAviCredentialsSecret(ctx context.Context, clus
 	}
 
 	if errors.IsNotFound(err) {
+		utils.AviLog.Infof("VKS cluster watcher: secret %s/%s not found, creating new secret", clusterNamespace, secretName)
 		secret := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      secretName,
@@ -611,7 +616,7 @@ func (w *VKSClusterWatcher) UpsertAviCredentialsSecret(ctx context.Context, clus
 			Data: secretData,
 		}
 
-		_, err := w.kubeClient.CoreV1().Secrets(clusterNamespace).Create(ctx, secret, metav1.CreateOptions{})
+		_, err = w.kubeClient.CoreV1().Secrets(clusterNamespace).Create(ctx, secret, metav1.CreateOptions{})
 		if err != nil {
 			return fmt.Errorf("failed to create Avi credentials secret %s: %v", secretName, err)
 		}
@@ -619,11 +624,12 @@ func (w *VKSClusterWatcher) UpsertAviCredentialsSecret(ctx context.Context, clus
 		utils.AviLog.Infof("Created Avi credentials secret %s/%s for cluster %s with complete AKO configuration",
 			clusterNamespace, secretName, clusterName)
 	} else {
+		utils.AviLog.Infof("VKS cluster watcher: secret %s/%s exists, checking if update needed", clusterNamespace, secretName)
 		needsUpdate := false
 
 		for key, desiredValue := range secretData {
 			if existingValue, exists := existingSecret.Data[key]; !exists || string(existingValue) != string(desiredValue) {
-				utils.AviLog.Debugf("Secret field %s changed for cluster %s: existing='%s', desired='%s'",
+				utils.AviLog.Infof("VKS cluster watcher: Secret field %s changed for cluster %s: existing='%s', desired='%s'",
 					key, clusterName, string(existingValue), string(desiredValue))
 				needsUpdate = true
 				break
@@ -634,12 +640,14 @@ func (w *VKSClusterWatcher) UpsertAviCredentialsSecret(ctx context.Context, clus
 		if !needsUpdate {
 			for key := range existingSecret.Data {
 				if _, shouldExist := secretData[key]; !shouldExist {
-					utils.AviLog.Debugf("Secret field %s should be removed for cluster %s", key, clusterName)
+					utils.AviLog.Infof("VKS cluster watcher: Secret field %s should be removed for cluster %s", key, clusterName)
 					needsUpdate = true
 					break
 				}
 			}
 		}
+
+		utils.AviLog.Infof("VKS cluster watcher: Secret comparison result for cluster %s: needsUpdate=%t", clusterName, needsUpdate)
 
 		if needsUpdate {
 			existingSecret.Data = secretData
@@ -658,7 +666,7 @@ func (w *VKSClusterWatcher) UpsertAviCredentialsSecret(ctx context.Context, clus
 			utils.AviLog.Infof("Updated Avi credentials secret %s/%s for cluster %s with latest configuration",
 				clusterNamespace, secretName, clusterName)
 		} else {
-			utils.AviLog.Debugf("Avi credentials secret %s/%s for cluster %s is up-to-date",
+			utils.AviLog.Infof("VKS cluster watcher: Avi credentials secret %s/%s for cluster %s is up-to-date",
 				clusterNamespace, secretName, clusterName)
 		}
 	}
@@ -825,15 +833,57 @@ func StartVKSClusterWatcher(stopCh <-chan struct{}, dynamicInformers *lib.Dynami
 
 	clusterEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			utils.AviLog.Debugf("Cluster ADD event")
+			utils.AviLog.Infof("Cluster ADD event")
 			clusterWatcher.EnqueueCluster(obj, "ADD")
 		},
 		UpdateFunc: func(old, new interface{}) {
-			utils.AviLog.Debugf("Cluster UPDATE event")
-			clusterWatcher.EnqueueCluster(new, "UPDATE")
+			oldCluster, okOld := old.(*unstructured.Unstructured)
+			newCluster, okNew := new.(*unstructured.Unstructured)
+
+			if okOld && okNew {
+				// Check if this UPDATE actually matters for VKS processing
+				needsProcessing := false
+				var reasons []string
+
+				// Check VKS management label changes
+				oldLabels := oldCluster.GetLabels()
+				newLabels := newCluster.GetLabels()
+				oldVKSLabel := ""
+				newVKSLabel := ""
+				if oldLabels != nil {
+					oldVKSLabel = oldLabels[webhook.VKSManagedLabel]
+				}
+				if newLabels != nil {
+					newVKSLabel = newLabels[webhook.VKSManagedLabel]
+				}
+				if oldVKSLabel != newVKSLabel {
+					needsProcessing = true
+					reasons = append(reasons, fmt.Sprintf("VKS label changed: '%s' -> '%s'", oldVKSLabel, newVKSLabel))
+				}
+
+				// Check phase changes
+				oldPhase, _, _ := unstructured.NestedString(oldCluster.Object, "status", "phase")
+				newPhase, _, _ := unstructured.NestedString(newCluster.Object, "status", "phase")
+				if oldPhase != newPhase {
+					needsProcessing = true
+					reasons = append(reasons, fmt.Sprintf("phase changed: '%s' -> '%s'", oldPhase, newPhase))
+				}
+
+				if needsProcessing {
+					utils.AviLog.Infof("VKS cluster watcher: UPDATE event for %s/%s requires processing - %s",
+						newCluster.GetNamespace(), newCluster.GetName(), strings.Join(reasons, ", "))
+					clusterWatcher.EnqueueCluster(new, "UPDATE")
+				} else {
+					utils.AviLog.Debugf("VKS cluster watcher: UPDATE event for %s/%s skipped",
+						newCluster.GetNamespace(), newCluster.GetName())
+				}
+			} else {
+				utils.AviLog.Infof("Cluster UPDATE event")
+				clusterWatcher.EnqueueCluster(new, "UPDATE")
+			}
 		},
 		DeleteFunc: func(obj interface{}) {
-			utils.AviLog.Debugf("Cluster DELETE event")
+			utils.AviLog.Infof("Cluster DELETE event")
 			clusterWatcher.EnqueueCluster(obj, "DELETE")
 		},
 	}
@@ -873,7 +923,7 @@ func (w *VKSClusterWatcher) startPeriodicReconciler() {
 		for {
 			select {
 			case <-w.reconcileTicker.C:
-				utils.AviLog.Debugf("VKS periodic reconciler: starting reconciliation cycle")
+				utils.AviLog.Infof("VKS periodic reconciler: starting reconciliation cycle")
 				w.reconcileAllClusters()
 			case <-w.reconcileStopCh:
 				utils.AviLog.Infof("VKS periodic reconciler: stopping")
@@ -895,7 +945,7 @@ func (w *VKSClusterWatcher) stopPeriodicReconciler() {
 
 // reconcileAllClusters performs periodic reconciliation of all VKS-managed clusters
 func (w *VKSClusterWatcher) reconcileAllClusters() {
-	utils.AviLog.Debugf("VKS reconciler: starting reconciliation cycle")
+	utils.AviLog.Infof("VKS reconciler: starting reconciliation cycle")
 
 	clusterObjects, err := lib.GetDynamicInformers().ClusterInformer.Lister().List(labels.Everything())
 	if err != nil {
@@ -922,7 +972,7 @@ func (w *VKSClusterWatcher) reconcileAllClusters() {
 			activeVKSClusters[clusterNameWithUID] = true
 
 			if phase == ClusterPhaseProvisioning || phase == ClusterPhaseProvisioned {
-				utils.AviLog.Debugf("VKS reconciler: reconciling cluster %s/%s (phase: %s)",
+				utils.AviLog.Infof("VKS reconciler: reconciling cluster %s/%s (phase: %s)",
 					cluster.GetNamespace(), cluster.GetName(), phase)
 				w.EnqueueCluster(cluster, "RECONCILE")
 			}
@@ -943,7 +993,7 @@ func (w *VKSClusterWatcher) reconcileAllClusters() {
 
 // cleanupOrphanedAviObjects identifies and cleans up AVI objects belonging to deleted VKS clusters
 func (w *VKSClusterWatcher) cleanupOrphanedAviObjects(activeVKSClusters map[string]bool) int {
-	utils.AviLog.Debugf("VKS reconciler: checking for orphaned AVI objects")
+	utils.AviLog.Infof("VKS reconciler: checking for orphaned AVI objects")
 
 	orphanedSecrets := w.findOrphanedVKSSecrets(activeVKSClusters)
 	if len(orphanedSecrets) == 0 {
@@ -998,7 +1048,7 @@ func (w *VKSClusterWatcher) findOrphanedVKSSecrets(activeVKSClusters map[string]
 			"ako.kubernetes.vmware.com/managed-by": "ako-infra",
 		}))
 		if err != nil {
-			utils.AviLog.Debugf("VKS reconciler: failed to list secrets from cache in namespace %s: %v", namespace.Name, err)
+			utils.AviLog.Infof("VKS reconciler: failed to list secrets from cache in namespace %s: %v", namespace.Name, err)
 			continue
 		}
 
@@ -1008,7 +1058,7 @@ func (w *VKSClusterWatcher) findOrphanedVKSSecrets(activeVKSClusters map[string]
 
 				// Check if this cluster is still active
 				if !activeVKSClusters[clusterNameWithUID] {
-					utils.AviLog.Debugf("VKS reconciler: found orphaned secret %s/%s for deleted cluster %s",
+					utils.AviLog.Infof("VKS reconciler: found orphaned secret %s/%s for deleted cluster %s",
 						namespace.Name, secret.Name, clusterNameWithUID)
 
 					orphanedSecrets = append(orphanedSecrets, VKSSecretInfo{

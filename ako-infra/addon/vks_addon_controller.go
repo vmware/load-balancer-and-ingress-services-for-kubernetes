@@ -127,7 +127,7 @@ func CleanupGlobalAddonInstall() error {
 
 	if err != nil {
 		if errors.IsNotFound(err) {
-			utils.AviLog.Debugf("VKS addon: global AddonInstall %s/%s already deleted", VKSPublicNamespace, AKOAddonInstallName)
+			utils.AviLog.Infof("VKS addon: global AddonInstall %s/%s already deleted", VKSPublicNamespace, AKOAddonInstallName)
 			return nil
 		}
 		return fmt.Errorf("failed to delete global AddonInstall %s/%s: %v", VKSPublicNamespace, AKOAddonInstallName, err)
