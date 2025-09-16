@@ -107,6 +107,10 @@ func handleManagementServiceAPI(w http.ResponseWriter, r *http.Request, requestD
 				},
 			},
 		}
+
+		// Create corresponding Kubernetes ManagementService resource
+		createMockManagementService(requestData["management_service"].(map[string]interface{})["management_service"].(string))
+
 		json.NewEncoder(w).Encode(response)
 	} else if strings.Contains(r.URL.Path, "retrieve") {
 		// Get Management Service
@@ -123,6 +127,10 @@ func handleManagementServiceAPI(w http.ResponseWriter, r *http.Request, requestD
 		response := map[string]interface{}{
 			"status": "deleted",
 		}
+
+		// Delete corresponding Kubernetes ManagementService resource
+		deleteMockManagementService(requestData["management_service_id"].(string))
+
 		json.NewEncoder(w).Encode(response)
 	}
 }
@@ -130,15 +138,24 @@ func handleManagementServiceAPI(w http.ResponseWriter, r *http.Request, requestD
 func handleManagementServiceGrantAPI(w http.ResponseWriter, r *http.Request, requestData map[string]interface{}) {
 	if strings.Contains(r.URL.Path, "initiate") {
 		// Create Management Service Grant
+		grantData := requestData["management_service_access_grant"].(map[string]interface{})
 		response := map[string]interface{}{
 			"status": "success",
 			"management_service_access_grant": map[string]interface{}{
-				"access_grant":       requestData["management_service_access_grant"].(map[string]interface{})["access_grant"],
+				"access_grant":       grantData["access_grant"],
 				"uuid":               "mgmt-grant-uuid-integration-test",
-				"management_service": requestData["management_service_access_grant"].(map[string]interface{})["management_service"],
+				"management_service": grantData["management_service"],
 				"workload_selector":  "VIRTUAL_MACHINE",
 			},
 		}
+
+		// Create corresponding Kubernetes ManagementServiceAccessGrant resource
+		createMockManagementServiceGrant(
+			grantData["access_grant"].(string),
+			requestData["namespace"].(string),
+			grantData["management_service"].(string),
+		)
+
 		json.NewEncoder(w).Encode(response)
 	} else if strings.Contains(r.URL.Path, "retrieve") {
 		// Get Management Service Grant
@@ -155,6 +172,13 @@ func handleManagementServiceGrantAPI(w http.ResponseWriter, r *http.Request, req
 		response := map[string]interface{}{
 			"status": "deleted",
 		}
+
+		// Delete corresponding Kubernetes ManagementServiceAccessGrant resource
+		deleteMockManagementServiceGrant(
+			requestData["management_service_access_grant_id"].(string),
+			requestData["namespace"].(string),
+		)
+
 		json.NewEncoder(w).Encode(response)
 	}
 }
@@ -257,11 +281,17 @@ func setupVKSIntegrationTest(t *testing.T) (*k8sfake.Clientset, *dynamicfake.Fak
 		ClusterGVR:              "clustersList",
 		AviInfraSettingGVR:      "aviinfrasettingsList",
 		ClusterBootstrapGVR:     "clusterbootstrapsList",
+		// Add ManagementService GVRs
+		{Group: "netoperator.vmware.com", Version: "v1alpha1", Resource: "managementservices"}:            "managementservicesList",
+		{Group: "netoperator.vmware.com", Version: "v1alpha1", Resource: "managementserviceaccessgrants"}: "managementserviceaccessgrantsList",
 	}
 
 	dynamicClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToKind)
 	lib.SetDynamicClientSet(dynamicClient)
 	lib.NewDynamicInformers(dynamicClient, true)
+
+	// Set global reference for mock resource creation
+	testDynamicClient = dynamicClient
 
 	// Initialize regular informers needed by VKS cluster watcher (including namespace informer)
 	registeredInformers := []string{
@@ -508,6 +538,117 @@ func createClusterResource(name, namespace, phase string, managed bool) *unstruc
 	}
 
 	return cluster
+}
+
+// Global variable to store dynamic client reference for mock resource creation
+var testDynamicClient *dynamicfake.FakeDynamicClient
+
+// createMockManagementService creates a mock ManagementService Kubernetes resource
+func createMockManagementService(serviceName string) {
+	if testDynamicClient == nil {
+		return
+	}
+
+	managementService := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "netoperator.vmware.com/v1alpha1",
+			"kind":       "ManagementService",
+			"metadata": map[string]interface{}{
+				"name": serviceName,
+			},
+			"spec": map[string]interface{}{
+				"managementAddresses": []interface{}{"10.10.10.10"},
+				"ports": []interface{}{
+					map[string]interface{}{
+						"name":     "avi-proxy-port-443",
+						"value":    float64(443),
+						"protocol": "tcp",
+						"tls": map[string]interface{}{
+							"hostname":                  "10.10.10.10",
+							"certificateAuthorityChain": "test-ca-cert",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	gvr := schema.GroupVersionResource{
+		Group:    "netoperator.vmware.com",
+		Version:  "v1alpha1",
+		Resource: "managementservices",
+	}
+
+	testDynamicClient.Resource(gvr).Create(context.Background(), managementService, metav1.CreateOptions{})
+}
+
+// deleteMockManagementService deletes a mock ManagementService Kubernetes resource
+func deleteMockManagementService(serviceName string) {
+	if testDynamicClient == nil {
+		return
+	}
+
+	gvr := schema.GroupVersionResource{
+		Group:    "netoperator.vmware.com",
+		Version:  "v1alpha1",
+		Resource: "managementservices",
+	}
+
+	testDynamicClient.Resource(gvr).Delete(context.Background(), serviceName, metav1.DeleteOptions{})
+}
+
+// createMockManagementServiceGrant creates a mock ManagementServiceAccessGrant Kubernetes resource
+func createMockManagementServiceGrant(grantName, namespace, serviceName string) {
+	if testDynamicClient == nil {
+		return
+	}
+
+	grant := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "netoperator.vmware.com/v1alpha1",
+			"kind":       "ManagementServiceAccessGrant",
+			"metadata": map[string]interface{}{
+				"name":      grantName,
+				"namespace": namespace,
+				"ownerReferences": []interface{}{
+					map[string]interface{}{
+						"apiVersion": "netoperator.vmware.com/v1alpha1",
+						"kind":       "ManagementService",
+						"name":       serviceName,
+						"uid":        "test-management-service-uid",
+					},
+				},
+			},
+			"spec": map[string]interface{}{
+				"enabled":              true,
+				"managementServiceRef": serviceName,
+				"target":               "vm",
+			},
+		},
+	}
+
+	gvr := schema.GroupVersionResource{
+		Group:    "netoperator.vmware.com",
+		Version:  "v1alpha1",
+		Resource: "managementserviceaccessgrants",
+	}
+
+	testDynamicClient.Resource(gvr).Namespace(namespace).Create(context.Background(), grant, metav1.CreateOptions{})
+}
+
+// deleteMockManagementServiceGrant deletes a mock ManagementServiceAccessGrant Kubernetes resource
+func deleteMockManagementServiceGrant(grantName, namespace string) {
+	if testDynamicClient == nil {
+		return
+	}
+
+	gvr := schema.GroupVersionResource{
+		Group:    "netoperator.vmware.com",
+		Version:  "v1alpha1",
+		Resource: "managementserviceaccessgrants",
+	}
+
+	testDynamicClient.Resource(gvr).Namespace(namespace).Delete(context.Background(), grantName, metav1.DeleteOptions{})
 }
 
 // TestVKSCapabilityToAddonFlow tests the full flow from VKS capability enablement to addon creation

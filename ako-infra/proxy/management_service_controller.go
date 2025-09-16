@@ -27,8 +27,10 @@ import (
 
 	"gopkg.in/yaml.v2"
 
+	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 const (
@@ -75,13 +77,16 @@ func EnsureGlobalManagementService() error {
 		return fmt.Errorf("failed to create management service controller")
 	}
 
-	_, err := c.GetManagementService()
+	existingService, err := c.GetManagementService()
 	if err == nil {
-		utils.AviLog.Infof("VKS Management Service %s already exists", c.serviceName)
-		return nil
+		if c.validateManagementServiceConfig(existingService) {
+			utils.AviLog.Infof("VKS Management Service %s already exists with correct configuration", c.serviceName)
+			return nil
+		}
+		utils.AviLog.Infof("VKS Management Service %s exists but has outdated configuration, updating via AVI Controller", c.serviceName)
+	} else {
+		utils.AviLog.Infof("VKS Management Service %s not found, creating new service", c.serviceName)
 	}
-
-	utils.AviLog.Infof("VKS Management Service %s not found, creating new service", c.serviceName)
 
 	aviClient := avirest.InfraAviClientInstance()
 	if aviClient == nil {
@@ -119,31 +124,89 @@ func EnsureGlobalManagementService() error {
 }
 
 func (c *ManagementServiceController) GetManagementService() (map[string]interface{}, error) {
-	aviClient := avirest.InfraAviClientInstance()
-	if aviClient == nil {
-		return nil, fmt.Errorf("avi Controller client not available")
+	dynamicClient := lib.GetDynamicClientSet()
+	if dynamicClient == nil {
+		return nil, fmt.Errorf("dynamic client not available")
 	}
 
-	payload := map[string]interface{}{
-		"cloud_uuid":            c.cloudUUID,
-		"supervisor_id":         c.supervisorID,
-		"management_service_id": c.serviceName,
-		"vcenter_host":          c.vcenterHost,
+	gvr := schema.GroupVersionResource{
+		Group:    "netoperator.vmware.com",
+		Version:  "v1alpha1",
+		Resource: "managementservices",
 	}
-	var response interface{}
-	err := aviClient.AviSession.Post(
-		"api/vimgrvcenterruntime/retrieve/managementservice",
-		payload,
-		&response,
-	)
+
+	resource, err := dynamicClient.Resource(gvr).Get(context.TODO(), c.serviceName, metav1.GetOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("management service get API call failed: %v", err)
-	}
-	if respMap, ok := response.(map[string]interface{}); ok {
-		return respMap, nil
+		if k8serrors.IsNotFound(err) {
+			return nil, fmt.Errorf("management service not found")
+		}
+		return nil, fmt.Errorf("failed to get management service: %v", err)
 	}
 
-	return map[string]interface{}{"response": response}, nil
+	return resource.Object, nil
+}
+
+func (c *ManagementServiceController) validateManagementServiceConfig(serviceObj map[string]interface{}) bool {
+	spec, ok := serviceObj["spec"].(map[string]interface{})
+	if !ok {
+		utils.AviLog.Debugf("ManagementService spec not found or invalid format")
+		return false
+	}
+
+	managementAddresses, ok := spec["managementAddresses"].([]interface{})
+	if !ok || len(managementAddresses) == 0 {
+		utils.AviLog.Debugf("ManagementService managementAddresses not found or empty")
+		return false
+	}
+
+	expectedAddress := lib.GetControllerIP()
+	addressFound := false
+	for _, addr := range managementAddresses {
+		if addrStr, ok := addr.(string); ok && addrStr == expectedAddress {
+			addressFound = true
+			break
+		}
+	}
+	if !addressFound {
+		utils.AviLog.Debugf("ManagementService expected address %s not found in managementAddresses", expectedAddress)
+		return false
+	}
+
+	ports, ok := spec["ports"].([]interface{})
+	if !ok || len(ports) == 0 {
+		utils.AviLog.Debugf("ManagementService ports not found or empty")
+		return false
+	}
+
+	portFound := false
+	for _, portInterface := range ports {
+		if port, ok := portInterface.(map[string]interface{}); ok {
+			if value, ok := port["value"].(float64); ok && int32(value) == c.servicePort {
+				if tls, ok := port["tls"].(map[string]interface{}); ok {
+					if hostname, ok := tls["hostname"].(string); ok && hostname == expectedAddress {
+						if caCert, ok := tls["certificateAuthorityChain"].(string); ok && len(caCert) > 0 {
+							expectedCaCert := utils.SharedCtrlProp().GetAllCtrlProp()[utils.ENV_CTRL_CADATA]
+							if caCert == expectedCaCert {
+								portFound = true
+								break
+							} else {
+								utils.AviLog.Debugf("ManagementService CA certificate mismatch: expected length %d, got length %d", len(expectedCaCert), len(caCert))
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if !portFound {
+		utils.AviLog.Debugf("ManagementService expected port configuration not found")
+		return false
+	}
+
+	utils.AviLog.Debugf("ManagementService configuration validation passed: address=%s, port=%d, hostname=%s, ca_cert_length=%d",
+		expectedAddress, c.servicePort, expectedAddress, len(utils.SharedCtrlProp().GetAllCtrlProp()[utils.ENV_CTRL_CADATA]))
+	return true
 }
 
 func CleanupGlobalManagementService() error {
@@ -244,13 +307,16 @@ func getClusterConfigValues() (string, string) {
 
 func (c *ManagementServiceController) CreateManagementServiceGrant(namespace string) error {
 	grantName := fmt.Sprintf("%s-%s", namespace, VKSManagementServiceGrant)
-	_, err := c.GetManagementServiceGrant(namespace)
+	existingGrant, err := c.GetManagementServiceGrant(namespace)
 	if err == nil {
-		utils.AviLog.Infof("VKS ManagementServiceGrant %s in namespace %s already exists", grantName, namespace)
-		return nil
+		if c.validateManagementServiceGrantConfig(existingGrant) {
+			utils.AviLog.Infof("VKS ManagementServiceGrant %s in namespace %s already exists with correct configuration", grantName, namespace)
+			return nil
+		}
+		utils.AviLog.Infof("VKS ManagementServiceGrant %s in namespace %s exists but has outdated configuration, updating via AVI Controller", grantName, namespace)
+	} else {
+		utils.AviLog.Infof("VKS ManagementServiceGrant %s in namespace %s not found, creating new grant with workload selector %s", grantName, namespace, WorkloadSelectorTypeVirtualMachine)
 	}
-
-	utils.AviLog.Infof("VKS ManagementServiceGrant %s in namespace %s not found, creating new grant with workload selector %s", grantName, namespace, WorkloadSelectorTypeVirtualMachine)
 
 	aviClient := avirest.InfraAviClientInstance()
 	if aviClient == nil {
@@ -285,34 +351,45 @@ func (c *ManagementServiceController) CreateManagementServiceGrant(namespace str
 
 func (c *ManagementServiceController) GetManagementServiceGrant(namespace string) (map[string]interface{}, error) {
 	grantName := fmt.Sprintf("%s-%s", namespace, VKSManagementServiceGrant)
-	aviClient := avirest.InfraAviClientInstance()
-	if aviClient == nil {
-		return nil, fmt.Errorf("avi Controller client not available")
+
+	dynamicClient := lib.GetDynamicClientSet()
+	if dynamicClient == nil {
+		return nil, fmt.Errorf("dynamic client not available")
 	}
 
-	payload := map[string]interface{}{
-		"cloud_uuid":                         c.cloudUUID,
-		"supervisor_id":                      c.supervisorID,
-		"vcenter_host":                       c.vcenterHost,
-		"namespace":                          namespace,
-		"management_service_access_grant_id": grantName,
+	gvr := schema.GroupVersionResource{
+		Group:    "netoperator.vmware.com",
+		Version:  "v1alpha1",
+		Resource: "managementserviceaccessgrants",
 	}
 
-	var response interface{}
-	err := aviClient.AviSession.Post(
-		"api/vimgrvcenterruntime/retrieve/managementserviceaccessgrant",
-		payload,
-		&response,
-	)
+	resource, err := dynamicClient.Resource(gvr).Namespace(namespace).Get(context.TODO(), grantName, metav1.GetOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("management service grant get API call failed: %v", err)
+		if k8serrors.IsNotFound(err) {
+			return nil, fmt.Errorf("management service grant not found")
+		}
+		return nil, fmt.Errorf("failed to get management service grant: %v", err)
 	}
 
-	if respMap, ok := response.(map[string]interface{}); ok {
-		return respMap, nil
+	return resource.Object, nil
+}
+
+func (c *ManagementServiceController) validateManagementServiceGrantConfig(grantObj map[string]interface{}) bool {
+	spec, ok := grantObj["spec"].(map[string]interface{})
+	if !ok {
+		utils.AviLog.Debugf("ManagementServiceAccessGrant spec not found or invalid format")
+		return false
 	}
 
-	return map[string]interface{}{"response": response}, nil
+	managementServiceRef, ok := spec["managementServiceRef"].(string)
+	if !ok || managementServiceRef != c.serviceName {
+		utils.AviLog.Debugf("ManagementServiceAccessGrant managementServiceRef mismatch: expected %s, got %s", c.serviceName, managementServiceRef)
+		return false
+	}
+
+	utils.AviLog.Debugf("ManagementServiceAccessGrant configuration validation passed: managementServiceRef=%s",
+		managementServiceRef)
+	return true
 }
 
 func (c *ManagementServiceController) DeleteManagementServiceGrant(namespace string) error {
