@@ -572,7 +572,7 @@ func getClusterSpecificNSXTSegmentsinCloud(client *clients.AviClient, lsLRMap ma
 			utils.AviLog.Warnf("Failed to unmarshal nsxt segment runtime data, err: %v", err)
 			return err
 		}
-		if strings.HasPrefix(*sg.Name, fmt.Sprintf("avi-%s", lib.GetClusterName())) {
+		if strings.HasPrefix(*sg.Name, fmt.Sprintf("avi-%s", lib.GetClusterID())) {
 			lsLRMap[*sg.SegmentID] = *sg.Tier1ID
 		}
 	}

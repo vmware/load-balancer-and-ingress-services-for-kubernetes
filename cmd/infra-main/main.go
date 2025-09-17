@@ -91,7 +91,6 @@ func InitializeAKOInfra() {
 
 	transportZone := c.HandleVCF(stopCh, ctrlCh)
 	lib.VCFInitialized = true
-	lib.SetAKOUser()
 
 	// Checking/Setting up Avi pre-reqs
 	a := ingestion.NewAviControllerInfra(kubeClient)
@@ -110,10 +109,19 @@ func InitializeAKOInfra() {
 	}
 
 	c.AddSecretEventHandler(stopCh)
-	a.SetupSEGroup(transportZone)
+
+	clusterName := lib.GetClusterName()
+	segExists := a.SetupSEGroup(transportZone)
+	clusterName, err = a.DeriveClusterNameToBeUsedInAKOUser(segExists)
+	if err != nil {
+		utils.AviLog.Fatalf("Failed to derive Cluster name to be used in the AKO User, err: %s", err.Error())
+	}
 	c.AddAvailabilityZoneCREventHandler(stopCh)
+
+	lib.SetClusterName(clusterName)
+
 	avirest.SyncLSLRNetwork()
-	a.AnnotateSystemNamespace(lib.GetClusterID(), utils.CloudName)
+	a.AnnotateSystemNamespace(lib.GetClusterID(), utils.CloudName, clusterName)
 	c.AddNetworkInfoEventHandler(stopCh)
 	c.AddNamespaceEventHandler(stopCh)
 
