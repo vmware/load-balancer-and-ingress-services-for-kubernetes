@@ -31,6 +31,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/util/workqueue"
 )
 
 const (
@@ -41,6 +42,12 @@ const (
 	ManagementServiceRetryInterval = 10 * time.Second
 
 	WorkloadSelectorTypeVirtualMachine = "VIRTUAL_MACHINE"
+
+	VKSNamespaceWorkQueue = "vks-namespace-grant-queue"
+
+	NamespaceEventAdd    = "ADD"
+	NamespaceEventUpdate = "UPDATE"
+	NamespaceEventDelete = "DELETE"
 )
 
 type ManagementServiceController struct {
@@ -50,6 +57,134 @@ type ManagementServiceController struct {
 	controllerIPs []string
 	cloudUUID     string
 	vcenterHost   string
+}
+
+type NamespaceEvent struct {
+	EventType string
+	Namespace string
+	OldHasSEG bool
+	NewHasSEG bool
+}
+
+type NamespaceGrantProcessor struct {
+	workqueue workqueue.RateLimitingInterface //nolint:staticcheck
+	stopCh    chan struct{}
+}
+
+var namespaceProcessor *NamespaceGrantProcessor
+
+func StartNamespaceGrantProcessor() {
+	if namespaceProcessor == nil {
+		workqueue := workqueue.NewNamedRateLimitingQueue(
+			workqueue.DefaultControllerRateLimiter(), //nolint:staticcheck
+			VKSNamespaceWorkQueue,
+		)
+
+		namespaceProcessor = &NamespaceGrantProcessor{
+			workqueue: workqueue,
+			stopCh:    make(chan struct{}),
+		}
+
+		go namespaceProcessor.runWorker()
+		utils.AviLog.Infof("VKS ManagementServiceGrant: namespace processor initialized with retry queue")
+
+		// Perform one-time reconciliation at startup to ensure all grants exist
+		go func() {
+			time.Sleep(5 * time.Second)
+			ReconcileManagementServiceGrants()
+		}()
+	}
+}
+
+func StopNamespaceGrantProcessor() {
+	if namespaceProcessor != nil {
+		close(namespaceProcessor.stopCh)
+		namespaceProcessor.workqueue.ShutDown()
+		namespaceProcessor = nil
+		utils.AviLog.Infof("VKS ManagementServiceGrant: namespace processor stopped")
+	}
+}
+
+func (p *NamespaceGrantProcessor) runWorker() {
+	for p.processNextWorkItem() {
+	}
+}
+
+func (p *NamespaceGrantProcessor) processNextWorkItem() bool {
+	obj, shutdown := p.workqueue.Get()
+	if shutdown {
+		return false
+	}
+
+	err := func(obj interface{}) error {
+		defer p.workqueue.Done(obj)
+
+		event, ok := obj.(*NamespaceEvent)
+		if !ok {
+			p.workqueue.Forget(obj)
+			utils.AviLog.Errorf("VKS ManagementServiceGrant: expected NamespaceEvent in workqueue but got %#v", obj)
+			return nil
+		}
+
+		if err := p.processNamespaceEvent(event); err != nil {
+			p.workqueue.AddRateLimited(event)
+			return fmt.Errorf("error processing namespace event %s for %s: %s, requeuing", event.EventType, event.Namespace, err.Error())
+		}
+
+		p.workqueue.Forget(obj)
+		utils.AviLog.Infof("VKS ManagementServiceGrant: successfully processed %s event for namespace %s", event.EventType, event.Namespace)
+		return nil
+	}(obj)
+
+	if err != nil {
+		utils.AviLog.Errorf("VKS ManagementServiceGrant: %v", err)
+		return true
+	}
+
+	return true
+}
+
+// processNamespaceEvent handles the actual namespace event processing
+func (p *NamespaceGrantProcessor) processNamespaceEvent(event *NamespaceEvent) error {
+	if !lib.GetVPCMode() || !lib.IsVKSCapabilityActivated() {
+		return nil
+	}
+
+	controller := NewManagementServiceController()
+	if controller == nil {
+		return fmt.Errorf("failed to create ManagementServiceController")
+	}
+
+	switch event.EventType {
+	case NamespaceEventAdd:
+		if event.NewHasSEG {
+			utils.AviLog.Infof("VKS ManagementServiceGrant: namespace %s added with SEG annotation, creating grant", event.Namespace)
+			return controller.CreateManagementServiceGrant(event.Namespace)
+		}
+	case NamespaceEventUpdate:
+		if !event.OldHasSEG && event.NewHasSEG {
+			// SEG annotation was added
+			utils.AviLog.Infof("VKS ManagementServiceGrant: namespace %s now has SEG annotation, creating grant", event.Namespace)
+			return controller.CreateManagementServiceGrant(event.Namespace)
+		} else if event.OldHasSEG && !event.NewHasSEG {
+			// SEG annotation was removed
+			utils.AviLog.Infof("VKS ManagementServiceGrant: namespace %s no longer has SEG annotation, deleting grant", event.Namespace)
+			return controller.DeleteManagementServiceGrant(event.Namespace)
+		}
+	case NamespaceEventDelete:
+		if event.OldHasSEG {
+			utils.AviLog.Infof("VKS ManagementServiceGrant: namespace %s deleted, removing grant", event.Namespace)
+			return controller.DeleteManagementServiceGrant(event.Namespace)
+		}
+	}
+	return nil
+}
+
+func (p *NamespaceGrantProcessor) enqueueNamespaceEvent(event *NamespaceEvent) {
+	if p != nil {
+		utils.AviLog.Infof("VKS ManagementServiceGrant: enqueuing %s event for namespace %s", event.EventType, event.Namespace)
+		p.workqueue.Add(event)
+	}
 }
 
 func NewManagementServiceController() *ManagementServiceController {
@@ -102,10 +237,6 @@ func EnsureGlobalManagementService() error {
 			"ports": []map[string]interface{}{
 				{
 					"port": c.servicePort,
-					"tls_configuration": map[string]interface{}{
-						"certificate_authority_chain": utils.SharedCtrlProp().GetAllCtrlProp()[utils.ENV_CTRL_CADATA],
-						"hostname":                    lib.GetControllerIP(),
-					},
 				},
 			},
 		},
@@ -182,19 +313,8 @@ func (c *ManagementServiceController) validateManagementServiceConfig(serviceObj
 	for _, portInterface := range ports {
 		if port, ok := portInterface.(map[string]interface{}); ok {
 			if value, ok := port["value"].(float64); ok && int32(value) == c.servicePort {
-				if tls, ok := port["tls"].(map[string]interface{}); ok {
-					if hostname, ok := tls["hostname"].(string); ok && hostname == expectedAddress {
-						if caCert, ok := tls["certificateAuthorityChain"].(string); ok && len(caCert) > 0 {
-							expectedCaCert := utils.SharedCtrlProp().GetAllCtrlProp()[utils.ENV_CTRL_CADATA]
-							if caCert == expectedCaCert {
-								portFound = true
-								break
-							} else {
-								utils.AviLog.Infof("ManagementService CA certificate mismatch: expected length %d, got length %d", len(expectedCaCert), len(caCert))
-							}
-						}
-					}
-				}
+				portFound = true
+				break
 			}
 		}
 	}
@@ -204,8 +324,8 @@ func (c *ManagementServiceController) validateManagementServiceConfig(serviceObj
 		return false
 	}
 
-	utils.AviLog.Infof("ManagementService configuration validation passed: address=%s, port=%d, hostname=%s, ca_cert_length=%d",
-		expectedAddress, c.servicePort, expectedAddress, len(utils.SharedCtrlProp().GetAllCtrlProp()[utils.ENV_CTRL_CADATA]))
+	utils.AviLog.Infof("ManagementService configuration validation passed: address=%s, port=%d",
+		expectedAddress, c.servicePort)
 	return true
 }
 
@@ -432,20 +552,20 @@ func HandleNamespaceGrantAdd(obj interface{}) {
 		return
 	}
 
-	if !namespaceHasSEG(namespace) {
+	hasSEG := namespaceHasSEG(namespace)
+	if !hasSEG {
 		utils.AviLog.Debugf("VKS ManagementServiceGrant: namespace %s does not have SEG annotation, skipping", namespace.Name)
 		return
 	}
 
-	controller := NewManagementServiceController()
-	if controller == nil {
-		utils.AviLog.Errorf("VKS ManagementServiceGrant: failed to create controller for namespace %s", namespace.Name)
-		return
+	event := &NamespaceEvent{
+		EventType: NamespaceEventAdd,
+		Namespace: namespace.Name,
+		NewHasSEG: hasSEG,
 	}
 
-	utils.AviLog.Infof("VKS ManagementServiceGrant: namespace %s added with SEG annotation, creating grant", namespace.Name)
-	if err := controller.CreateManagementServiceGrant(namespace.Name); err != nil {
-		utils.AviLog.Errorf("VKS ManagementServiceGrant: failed to create grant for namespace %s: %v", namespace.Name, err)
+	if namespaceProcessor != nil {
+		namespaceProcessor.enqueueNamespaceEvent(event)
 	}
 }
 
@@ -473,24 +593,15 @@ func HandleNamespaceGrantUpdate(oldObj, newObj interface{}) {
 		return
 	}
 
-	controller := NewManagementServiceController()
-	if controller == nil {
-		utils.AviLog.Errorf("VKS ManagementServiceGrant: failed to create controller for namespace %s", newNamespace.Name)
-		return
+	event := &NamespaceEvent{
+		EventType: NamespaceEventUpdate,
+		Namespace: newNamespace.Name,
+		OldHasSEG: oldHasSEG,
+		NewHasSEG: newHasSEG,
 	}
 
-	if !oldHasSEG && newHasSEG {
-		// SEG annotation was added
-		utils.AviLog.Infof("VKS ManagementServiceGrant: namespace %s now has SEG annotation, creating grant", newNamespace.Name)
-		if err := controller.CreateManagementServiceGrant(newNamespace.Name); err != nil {
-			utils.AviLog.Errorf("VKS ManagementServiceGrant: failed to create grant for namespace %s: %v", newNamespace.Name, err)
-		}
-	} else if oldHasSEG && !newHasSEG {
-		// SEG annotation was removed
-		utils.AviLog.Infof("VKS ManagementServiceGrant: namespace %s no longer has SEG annotation, deleting grant", newNamespace.Name)
-		if err := controller.DeleteManagementServiceGrant(newNamespace.Name); err != nil {
-			utils.AviLog.Errorf("VKS ManagementServiceGrant: failed to delete grant for namespace %s: %v", newNamespace.Name, err)
-		}
+	if namespaceProcessor != nil {
+		namespaceProcessor.enqueueNamespaceEvent(event)
 	}
 }
 
@@ -505,64 +616,64 @@ func HandleNamespaceGrantDelete(obj interface{}) {
 		return
 	}
 
-	if !namespaceHasSEG(namespace) {
+	hasSEG := namespaceHasSEG(namespace)
+	if !hasSEG {
 		utils.AviLog.Infof("VKS ManagementServiceGrant: namespace %s did not have SEG annotation, skipping", namespace.Name)
 		return
 	}
 
-	controller := NewManagementServiceController()
-	if controller == nil {
-		utils.AviLog.Errorf("VKS ManagementServiceGrant: failed to create controller for namespace %s", namespace.Name)
-		return
+	event := &NamespaceEvent{
+		EventType: NamespaceEventDelete,
+		Namespace: namespace.Name,
+		OldHasSEG: hasSEG,
 	}
 
-	utils.AviLog.Infof("VKS ManagementServiceGrant: namespace %s deleted, removing grant", namespace.Name)
-	if err := controller.DeleteManagementServiceGrant(namespace.Name); err != nil {
-		utils.AviLog.Errorf("VKS ManagementServiceGrant: failed to delete grant for namespace %s: %v", namespace.Name, err)
+	if namespaceProcessor != nil {
+		namespaceProcessor.enqueueNamespaceEvent(event)
 	}
 }
 
-// ReconcileManagementServiceGrants ensures ManagementServiceGrants exist for all namespaces with SEG annotations
+// ReconcileManagementServiceGrants performs one-time reconciliation at startup
 func ReconcileManagementServiceGrants() {
-	utils.AviLog.Infof("VKS reconciler: reconciling ManagementServiceGrants")
-
-	controller := NewManagementServiceController()
-	if controller == nil {
-		utils.AviLog.Errorf("VKS reconciler: failed to create ManagementServiceController")
-		return
-	}
+	utils.AviLog.Infof("VKS reconciler: performing one-time startup reconciliation of ManagementServiceGrants")
 
 	// Get all namespaces
 	informers := utils.GetInformers()
 	if informers == nil || informers.NSInformer == nil {
-		utils.AviLog.Infof("VKS reconciler: namespace informer not initialized yet, skipping reconciliation")
+		utils.AviLog.Warnf("VKS reconciler: namespace informer not initialized yet, skipping startup reconciliation")
 		return
 	}
 
 	lister := informers.NSInformer.Lister()
 	if lister == nil {
-		utils.AviLog.Infof("VKS reconciler: namespace lister not available yet, skipping reconciliation")
+		utils.AviLog.Warnf("VKS reconciler: namespace lister not available yet, skipping startup reconciliation")
 		return
 	}
 
 	namespaces, err := lister.List(labels.Everything())
 	if err != nil {
-		utils.AviLog.Errorf("VKS reconciler: failed to list namespaces: %v", err)
+		utils.AviLog.Errorf("VKS reconciler: failed to list namespaces during startup reconciliation: %v", err)
 		return
 	}
 
 	grantCount := 0
 	for _, namespace := range namespaces {
 		if namespaceHasSEG(namespace) {
-			if err := controller.CreateManagementServiceGrant(namespace.Name); err != nil {
-				utils.AviLog.Errorf("VKS reconciler: failed to ensure grant for namespace %s: %v", namespace.Name, err)
-			} else {
+			// Enqueue reconcile event for each namespace with SEG annotation
+			event := &NamespaceEvent{
+				EventType: NamespaceEventAdd, // Treat as ADD to ensure grant exists
+				Namespace: namespace.Name,
+				NewHasSEG: true,
+			}
+
+			if namespaceProcessor != nil {
+				namespaceProcessor.enqueueNamespaceEvent(event)
 				grantCount++
 			}
 		}
 	}
 
-	utils.AviLog.Infof("VKS reconciler: reconciled %d ManagementServiceGrants", grantCount)
+	utils.AviLog.Infof("VKS reconciler: startup reconciliation enqueued %d ManagementServiceGrant events", grantCount)
 }
 
 func namespaceHasSEG(namespace *corev1.Namespace) bool {
