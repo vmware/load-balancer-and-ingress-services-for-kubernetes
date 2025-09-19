@@ -25,6 +25,7 @@ import (
 
 	"github.com/vmware/alb-sdk/go/models"
 	"github.com/vmware/alb-sdk/go/session"
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/api/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/errors"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -86,7 +87,7 @@ func IsRetryableError(err error) bool {
 func UpdateStatusWithNonRetryableError(ctx context.Context, statusUpdater StatusUpdater, resource ResourceWithStatus, err error, resourceType string) {
 	log := utils.LoggerFromContext(ctx)
 	condition := metav1.Condition{
-		Type:               "Ready",
+		Type:               string(akov1alpha1.ObjectConditionProgrammed),
 		Status:             metav1.ConditionFalse,
 		LastTransitionTime: metav1.Time{Time: time.Now().UTC()},
 		Reason:             "ConfigurationError",

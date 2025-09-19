@@ -174,12 +174,20 @@ type ApplicationProfileStatus struct {
 	// LastUpdated is the timestamp the object was last updated
 	LastUpdated *metav1.Time `json:"lastUpdated"`
 	// Conditions is the list of conditions for the application profile
+	// Supported condition types:
+	// - "Programmed": Indicates whether the ApplicationProfile has been successfully
+	//   processed and programmed on the Avi Controller
+	//   Possible reasons for True: "Created", "Updated"
+	//   Possible reasons for False: "CreationFailed", "UpdateFailed", "UUIDExtractionFailed", "DeletionFailed", "DeletionSkipped"
 	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 	// BackendObjectName is the name of the backend object
 	BackendObjectName string `json:"backendObjectName,omitempty"`
 	// Tenant is the tenant where the application profile is created
 	Tenant string `json:"tenant,omitempty"`
+	// Field is populated by AKO CRD operator as ako-crd-operator
+	// +optional
+	Controller string `json:"controller,omitempty"`
 }
 
 // +genclient
@@ -234,4 +242,9 @@ func (ap *ApplicationProfile) SetObservedGeneration(generation int64) {
 // SetLastUpdated sets the last updated timestamp in the status
 func (ap *ApplicationProfile) SetLastUpdated(time *metav1.Time) {
 	ap.Status.LastUpdated = time
+}
+
+// SetController sets the controller name in the status
+func (ap *ApplicationProfile) SetController(controller string) {
+	ap.Status.Controller = controller
 }

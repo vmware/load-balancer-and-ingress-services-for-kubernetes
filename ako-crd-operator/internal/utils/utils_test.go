@@ -285,7 +285,7 @@ func TestUpdateStatusWithNonRetryableError(t *testing.T) {
 			assert.Len(t, conditions, 1)
 
 			condition := conditions[0]
-			assert.Equal(t, "Ready", condition.Type)
+			assert.Equal(t, string(akov1alpha1.ObjectConditionProgrammed), condition.Type)
 			assert.Equal(t, metav1.ConditionFalse, condition.Status)
 			assert.Equal(t, tt.expectedReason, condition.Reason)
 			assert.Equal(t, tt.expectedMsg, condition.Message)
@@ -372,14 +372,14 @@ func TestSetCondition(t *testing.T) {
 			name:       "add new condition to empty slice",
 			conditions: []metav1.Condition{},
 			newCondition: metav1.Condition{
-				Type:               "Ready",
+				Type:               string(akov1alpha1.ObjectConditionProgrammed),
 				Status:             metav1.ConditionTrue,
 				LastTransitionTime: now,
 				Reason:             "Success",
 				Message:            "All good",
 			},
 			expectedLength: 1,
-			expectedType:   "Ready",
+			expectedType:   string(akov1alpha1.ObjectConditionProgrammed),
 			expectedStatus: metav1.ConditionTrue,
 		},
 		{
@@ -394,21 +394,21 @@ func TestSetCondition(t *testing.T) {
 				},
 			},
 			newCondition: metav1.Condition{
-				Type:               "Ready",
+				Type:               string(akov1alpha1.ObjectConditionProgrammed),
 				Status:             metav1.ConditionTrue,
 				LastTransitionTime: now,
 				Reason:             "Success",
 				Message:            "All good",
 			},
 			expectedLength: 2,
-			expectedType:   "Ready",
+			expectedType:   string(akov1alpha1.ObjectConditionProgrammed),
 			expectedStatus: metav1.ConditionTrue,
 		},
 		{
 			name: "update existing condition",
 			conditions: []metav1.Condition{
 				{
-					Type:               "Ready",
+					Type:               string(akov1alpha1.ObjectConditionProgrammed),
 					Status:             metav1.ConditionFalse,
 					LastTransitionTime: now,
 					Reason:             "Error",
@@ -416,14 +416,14 @@ func TestSetCondition(t *testing.T) {
 				},
 			},
 			newCondition: metav1.Condition{
-				Type:               "Ready",
+				Type:               string(akov1alpha1.ObjectConditionProgrammed),
 				Status:             metav1.ConditionTrue,
 				LastTransitionTime: now,
 				Reason:             "Success",
 				Message:            "All good",
 			},
 			expectedLength: 1,
-			expectedType:   "Ready",
+			expectedType:   string(akov1alpha1.ObjectConditionProgrammed),
 			expectedStatus: metav1.ConditionTrue,
 		},
 		{
@@ -437,7 +437,7 @@ func TestSetCondition(t *testing.T) {
 					Message:            "Resource is available",
 				},
 				{
-					Type:               "Ready",
+					Type:               string(akov1alpha1.ObjectConditionProgrammed),
 					Status:             metav1.ConditionFalse,
 					LastTransitionTime: now,
 					Reason:             "Error",
@@ -452,14 +452,14 @@ func TestSetCondition(t *testing.T) {
 				},
 			},
 			newCondition: metav1.Condition{
-				Type:               "Ready",
+				Type:               string(akov1alpha1.ObjectConditionProgrammed),
 				Status:             metav1.ConditionTrue,
 				LastTransitionTime: now,
 				Reason:             "Success",
 				Message:            "All good",
 			},
 			expectedLength: 3,
-			expectedType:   "Ready",
+			expectedType:   string(akov1alpha1.ObjectConditionProgrammed),
 			expectedStatus: metav1.ConditionTrue,
 		},
 	}
@@ -566,7 +566,7 @@ func TestResourceWithStatusInterface(t *testing.T) {
 
 	conditions := []metav1.Condition{
 		{
-			Type:   "Ready",
+			Type:   string(akov1alpha1.ObjectConditionProgrammed),
 			Status: metav1.ConditionTrue,
 		},
 	}
