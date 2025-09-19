@@ -265,7 +265,7 @@ func (w *VKSClusterWatcher) HandleProvisionedCluster(cluster *unstructured.Unstr
 	_, err := utils.GetInformers().SecretInformer.Lister().Secrets(clusterNamespace).Get(secretName)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			utils.AviLog.Infof("Secret %s/%s does not exist", clusterNamespace, secretName)
+			utils.AviLog.Errorf("Secret %s/%s does not exist", clusterNamespace, secretName)
 		} else {
 			utils.AviLog.Warnf("Failed to check secret %s/%s: %v", clusterNamespace, secretName, err)
 		}

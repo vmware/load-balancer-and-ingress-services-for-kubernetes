@@ -158,23 +158,35 @@ func (p *NamespaceGrantProcessor) processNamespaceEvent(event *NamespaceEvent) e
 	switch event.EventType {
 	case NamespaceEventAdd:
 		if event.NewHasSEG {
-			utils.AviLog.Infof("VKS ManagementServiceGrant: namespace %s added with SEG annotation, creating grant", event.Namespace)
-			return controller.CreateManagementServiceGrant(event.Namespace)
+			if err := controller.CreateManagementServiceGrant(event.Namespace); err != nil {
+				return err
+			}
+			utils.AviLog.Infof("VKS ManagementServiceGrant: successfully created grant for namespace %s", event.Namespace)
+			return nil
 		}
 	case NamespaceEventUpdate:
 		if !event.OldHasSEG && event.NewHasSEG {
 			// SEG annotation was added
-			utils.AviLog.Infof("VKS ManagementServiceGrant: namespace %s now has SEG annotation, creating grant", event.Namespace)
-			return controller.CreateManagementServiceGrant(event.Namespace)
+			if err := controller.CreateManagementServiceGrant(event.Namespace); err != nil {
+				return err
+			}
+			utils.AviLog.Infof("VKS ManagementServiceGrant: successfully created grant for namespace %s (SEG annotation added)", event.Namespace)
+			return nil
 		} else if event.OldHasSEG && !event.NewHasSEG {
 			// SEG annotation was removed
-			utils.AviLog.Infof("VKS ManagementServiceGrant: namespace %s no longer has SEG annotation, deleting grant", event.Namespace)
-			return controller.DeleteManagementServiceGrant(event.Namespace)
+			if err := controller.DeleteManagementServiceGrant(event.Namespace); err != nil {
+				return err
+			}
+			utils.AviLog.Infof("VKS ManagementServiceGrant: successfully removed grant for namespace %s (SEG annotation removed)", event.Namespace)
+			return nil
 		}
 	case NamespaceEventDelete:
 		if event.OldHasSEG {
-			utils.AviLog.Infof("VKS ManagementServiceGrant: namespace %s deleted, removing grant", event.Namespace)
-			return controller.DeleteManagementServiceGrant(event.Namespace)
+			if err := controller.DeleteManagementServiceGrant(event.Namespace); err != nil {
+				return err
+			}
+			utils.AviLog.Infof("VKS ManagementServiceGrant: successfully removed grant for namespace %s (namespace deleted)", event.Namespace)
+			return nil
 		}
 	}
 	return nil
@@ -233,7 +245,8 @@ func EnsureGlobalManagementService() error {
 		"supervisor_id": c.supervisorID,
 		"vcenter_host":  c.vcenterHost,
 		"management_service": map[string]interface{}{
-			"management_service": c.serviceName,
+			"management_service":   c.serviceName,
+			"management_addresses": c.controllerIPs,
 			"ports": []map[string]interface{}{
 				{
 					"port": c.servicePort,
@@ -280,13 +293,13 @@ func (c *ManagementServiceController) GetManagementService() (map[string]interfa
 func (c *ManagementServiceController) validateManagementServiceConfig(serviceObj map[string]interface{}) bool {
 	spec, ok := serviceObj["spec"].(map[string]interface{})
 	if !ok {
-		utils.AviLog.Infof("ManagementService spec not found or invalid format")
+		utils.AviLog.Errorf("ManagementService spec not found or invalid format")
 		return false
 	}
 
 	managementAddresses, ok := spec["managementAddresses"].([]interface{})
 	if !ok || len(managementAddresses) == 0 {
-		utils.AviLog.Infof("ManagementService managementAddresses not found or empty")
+		utils.AviLog.Errorf("ManagementService managementAddresses not found or empty")
 		return false
 	}
 
@@ -299,28 +312,32 @@ func (c *ManagementServiceController) validateManagementServiceConfig(serviceObj
 		}
 	}
 	if !addressFound {
-		utils.AviLog.Infof("ManagementService expected address %s not found in managementAddresses", expectedAddress)
+		utils.AviLog.Errorf("ManagementService expected address %s not found in managementAddresses", expectedAddress)
 		return false
 	}
 
 	ports, ok := spec["ports"].([]interface{})
 	if !ok || len(ports) == 0 {
-		utils.AviLog.Infof("ManagementService ports not found or empty")
+		utils.AviLog.Errorf("ManagementService ports not found or empty")
 		return false
 	}
 
 	portFound := false
 	for _, portInterface := range ports {
 		if port, ok := portInterface.(map[string]interface{}); ok {
-			if value, ok := port["value"].(float64); ok && int32(value) == c.servicePort {
-				portFound = true
-				break
+			if value, ok := port["value"].(float64); ok {
+				if int32(value) == c.servicePort {
+					portFound = true
+					break
+				} else {
+					utils.AviLog.Warnf("ManagementService port mismatch: expected %d, got %d", c.servicePort, int32(value))
+				}
 			}
 		}
 	}
 
 	if !portFound {
-		utils.AviLog.Infof("ManagementService expected port configuration not found")
+		utils.AviLog.Errorf("ManagementService expected port configuration not found")
 		return false
 	}
 
@@ -497,13 +514,13 @@ func (c *ManagementServiceController) GetManagementServiceGrant(namespace string
 func (c *ManagementServiceController) validateManagementServiceGrantConfig(grantObj map[string]interface{}) bool {
 	spec, ok := grantObj["spec"].(map[string]interface{})
 	if !ok {
-		utils.AviLog.Infof("ManagementServiceAccessGrant spec not found or invalid format")
+		utils.AviLog.Errorf("ManagementServiceAccessGrant spec not found or invalid format")
 		return false
 	}
 
 	managementServiceRef, ok := spec["managementServiceRef"].(string)
 	if !ok || managementServiceRef != c.serviceName {
-		utils.AviLog.Infof("ManagementServiceAccessGrant managementServiceRef mismatch: expected %s, got %s", c.serviceName, managementServiceRef)
+		utils.AviLog.Errorf("ManagementServiceAccessGrant managementServiceRef mismatch: expected %s, got %s", c.serviceName, managementServiceRef)
 		return false
 	}
 
@@ -554,7 +571,7 @@ func HandleNamespaceGrantAdd(obj interface{}) {
 
 	hasSEG := namespaceHasSEG(namespace)
 	if !hasSEG {
-		utils.AviLog.Debugf("VKS ManagementServiceGrant: namespace %s does not have SEG annotation, skipping", namespace.Name)
+		utils.AviLog.Warnf("VKS ManagementServiceGrant: namespace %s does not have SEG annotation, skipping", namespace.Name)
 		return
 	}
 
@@ -618,7 +635,7 @@ func HandleNamespaceGrantDelete(obj interface{}) {
 
 	hasSEG := namespaceHasSEG(namespace)
 	if !hasSEG {
-		utils.AviLog.Infof("VKS ManagementServiceGrant: namespace %s did not have SEG annotation, skipping", namespace.Name)
+		utils.AviLog.Warnf("VKS ManagementServiceGrant: namespace %s did not have SEG annotation, skipping", namespace.Name)
 		return
 	}
 

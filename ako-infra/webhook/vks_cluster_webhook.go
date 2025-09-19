@@ -684,7 +684,7 @@ func waitForCertificates(certDir string, timeout time.Duration) error {
 func filesExist(certPath, keyPath string) bool {
 	if _, err := os.Stat(certPath); err != nil {
 		if os.IsNotExist(err) {
-			utils.AviLog.Infof("VKS webhook: certificate file does not exist: %s", certPath)
+			utils.AviLog.Errorf("VKS webhook: certificate file does not exist: %s", certPath)
 		} else {
 			utils.AviLog.Warnf("VKS webhook: error checking certificate file %s: %v", certPath, err)
 		}
@@ -692,7 +692,7 @@ func filesExist(certPath, keyPath string) bool {
 	}
 	if _, err := os.Stat(keyPath); err != nil {
 		if os.IsNotExist(err) {
-			utils.AviLog.Infof("VKS webhook: key file does not exist: %s", keyPath)
+			utils.AviLog.Errorf("VKS webhook: key file does not exist: %s", keyPath)
 		} else {
 			utils.AviLog.Warnf("VKS webhook: error checking key file %s: %v", keyPath, err)
 		}
