@@ -109,7 +109,7 @@ func TestRouteBackendExtensionController(t *testing.T) {
 				Status: akov1alpha1.RouteBackendExtensionStatus{
 					Controller: crdlib.AKOCRDController,
 					Error:      "",
-					Status:     crdlib.ACCEPTED,
+					Status:     string(akov1alpha1.ObjectStatusAccepted),
 				},
 			},
 			wantErr:        false,
@@ -190,7 +190,7 @@ func TestRouteBackendExtensionController(t *testing.T) {
 				Status: akov1alpha1.RouteBackendExtensionStatus{
 					Controller: crdlib.AKOCRDController,
 					Error:      "",
-					Status:     crdlib.ACCEPTED,
+					Status:     string(akov1alpha1.ObjectStatusAccepted),
 				},
 			},
 			wantErr:        false,
@@ -220,7 +220,7 @@ func TestRouteBackendExtensionController(t *testing.T) {
 				Status: akov1alpha1.RouteBackendExtensionStatus{
 					Controller: crdlib.AKOCRDController,
 					Error:      "",
-					Status:     crdlib.ACCEPTED,
+					Status:     string(akov1alpha1.ObjectStatusAccepted),
 				},
 			},
 			wantErr:        false,
@@ -311,7 +311,7 @@ func TestRouteBackendExtensionController(t *testing.T) {
 				Status: akov1alpha1.RouteBackendExtensionStatus{
 					Controller: crdlib.AKOCRDController,
 					Error:      "error in getting healthmonitor: nonexistent-hm from tenant admin. Object not found",
-					Status:     crdlib.REJECTED,
+					Status:     string(akov1alpha1.ObjectStatusRejected),
 				},
 			},
 			wantErr:        false,
@@ -355,7 +355,7 @@ func TestRouteBackendExtensionController(t *testing.T) {
 				Status: akov1alpha1.RouteBackendExtensionStatus{
 					Controller: crdlib.AKOCRDController,
 					Error:      "connection timeout",
-					Status:     crdlib.REJECTED,
+					Status:     string(akov1alpha1.ObjectStatusRejected),
 				},
 			},
 			wantErr:        true,
@@ -430,7 +430,7 @@ func TestRouteBackendExtensionController(t *testing.T) {
 				Status: akov1alpha1.RouteBackendExtensionStatus{
 					Controller: crdlib.AKOCRDController,
 					Error:      "error in getting healthmonitor: invalid-hm from tenant admin. Object not found",
-					Status:     crdlib.REJECTED,
+					Status:     string(akov1alpha1.ObjectStatusRejected),
 				},
 			},
 			wantErr:        false,
@@ -727,7 +727,7 @@ func TestRouteBackendExtensionValidatedObject(t *testing.T) {
 				}).Return(nil).AnyTimes()
 			},
 			wantErr:      false,
-			wantStatus:   crdlib.ACCEPTED,
+			wantStatus:   string(akov1alpha1.ObjectStatusAccepted),
 			wantErrorMsg: "",
 		},
 		{
@@ -742,7 +742,7 @@ func TestRouteBackendExtensionValidatedObject(t *testing.T) {
 				},
 			},
 			wantErr:      false,
-			wantStatus:   crdlib.ACCEPTED,
+			wantStatus:   string(akov1alpha1.ObjectStatusAccepted),
 			wantErrorMsg: "",
 		},
 		{
@@ -772,7 +772,7 @@ func TestRouteBackendExtensionValidatedObject(t *testing.T) {
 				}).Return(nil).AnyTimes()
 			},
 			wantErr:      true,
-			wantStatus:   crdlib.REJECTED,
+			wantStatus:   string(akov1alpha1.ObjectStatusRejected),
 			wantErrorMsg: "error in getting healthmonitor: nonexistent-hm from tenant admin. Object not found",
 		},
 		{
@@ -795,7 +795,7 @@ func TestRouteBackendExtensionValidatedObject(t *testing.T) {
 				mockAviClient.EXPECT().AviSessionGet(fmt.Sprintf("%s?name=%s", crdlib.HealthMonitorURL, "test-hm"), gomock.Any(), gomock.Any()).Return(errors.New("connection failed")).AnyTimes()
 			},
 			wantErr:      true,
-			wantStatus:   crdlib.REJECTED,
+			wantStatus:   string(akov1alpha1.ObjectStatusRejected),
 			wantErrorMsg: "connection failed",
 		},
 		{
@@ -820,7 +820,7 @@ func TestRouteBackendExtensionValidatedObject(t *testing.T) {
 				}).Return(nil).AnyTimes()
 			},
 			wantErr:      true,
-			wantStatus:   crdlib.REJECTED,
+			wantStatus:   string(akov1alpha1.ObjectStatusRejected),
 			wantErrorMsg: "error in getting healthmonitor: test-hm from tenant admin. Object not found",
 		},
 	}
@@ -911,14 +911,14 @@ func TestRouteBackendExtensionBackendTLSValidation(t *testing.T) {
 				Status: akov1alpha1.PKIProfileStatus{
 					Conditions: []metav1.Condition{
 						{
-							Type:   "Ready",
-							Status: "True",
+							Type:   string(akov1alpha1.ObjectConditionProgrammed),
+							Status: metav1.ConditionTrue,
 						},
 					},
 				},
 			},
 			wantErr:      false,
-			wantStatus:   crdlib.ACCEPTED,
+			wantStatus:   string(akov1alpha1.ObjectStatusAccepted),
 			wantErrorMsg: "",
 		},
 		{
@@ -936,7 +936,7 @@ func TestRouteBackendExtensionBackendTLSValidation(t *testing.T) {
 				},
 			},
 			wantErr:      false,
-			wantStatus:   crdlib.ACCEPTED,
+			wantStatus:   string(akov1alpha1.ObjectStatusAccepted),
 			wantErrorMsg: "",
 		},
 		{
@@ -951,7 +951,7 @@ func TestRouteBackendExtensionBackendTLSValidation(t *testing.T) {
 				},
 			},
 			wantErr:      false,
-			wantStatus:   crdlib.ACCEPTED,
+			wantStatus:   string(akov1alpha1.ObjectStatusAccepted),
 			wantErrorMsg: "",
 		},
 		{
@@ -971,7 +971,7 @@ func TestRouteBackendExtensionBackendTLSValidation(t *testing.T) {
 				},
 			},
 			wantErr:      true,
-			wantStatus:   crdlib.REJECTED,
+			wantStatus:   string(akov1alpha1.ObjectStatusRejected),
 			wantErrorMsg: "pkiprofiles.ako.vmware.com \"test-pki-profile\" not found",
 		},
 		{
@@ -991,7 +991,7 @@ func TestRouteBackendExtensionBackendTLSValidation(t *testing.T) {
 				},
 			},
 			wantErr:      true,
-			wantStatus:   crdlib.REJECTED,
+			wantStatus:   string(akov1alpha1.ObjectStatusRejected),
 			wantErrorMsg: "pkiprofiles.ako.vmware.com \"nonexistent-pki-profile\" not found",
 		},
 		{
@@ -1025,7 +1025,7 @@ func TestRouteBackendExtensionBackendTLSValidation(t *testing.T) {
 				},
 			},
 			wantErr:      true,
-			wantStatus:   crdlib.REJECTED,
+			wantStatus:   string(akov1alpha1.ObjectStatusRejected),
 			wantErrorMsg: "RBE is rejected beacause PKIProfile not-ready-pki-profile is not ready in namespace default",
 		},
 		{
@@ -1054,7 +1054,7 @@ func TestRouteBackendExtensionBackendTLSValidation(t *testing.T) {
 				},
 			},
 			wantErr:      true,
-			wantStatus:   crdlib.REJECTED,
+			wantStatus:   string(akov1alpha1.ObjectStatusRejected),
 			wantErrorMsg: "RBE is rejected beacause PKIProfile no-conditions-pki-profile is not ready in namespace default",
 		},
 	}
@@ -1293,7 +1293,7 @@ func TestRouteBackendExtensionSetStatus(t *testing.T) {
 		name       string
 		initialRBE *akov1alpha1.RouteBackendExtension
 		errorMsg   string
-		status     string
+		status     akov1alpha1.ObjectStatus
 		wantRBE    *akov1alpha1.RouteBackendExtension
 	}{
 		{
@@ -1305,7 +1305,7 @@ func TestRouteBackendExtensionSetStatus(t *testing.T) {
 				},
 			},
 			errorMsg: "",
-			status:   crdlib.ACCEPTED,
+			status:   akov1alpha1.ObjectStatusAccepted,
 			wantRBE: &akov1alpha1.RouteBackendExtension{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-rbe",
@@ -1314,7 +1314,7 @@ func TestRouteBackendExtensionSetStatus(t *testing.T) {
 				Status: akov1alpha1.RouteBackendExtensionStatus{
 					Controller: crdlib.AKOCRDController,
 					Error:      "",
-					Status:     crdlib.ACCEPTED,
+					Status:     string(akov1alpha1.ObjectStatusAccepted),
 				},
 			},
 		},
@@ -1327,7 +1327,7 @@ func TestRouteBackendExtensionSetStatus(t *testing.T) {
 				},
 			},
 			errorMsg: "health monitor not found",
-			status:   crdlib.REJECTED,
+			status:   akov1alpha1.ObjectStatusRejected,
 			wantRBE: &akov1alpha1.RouteBackendExtension{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      "test-rbe-error",
@@ -1336,7 +1336,7 @@ func TestRouteBackendExtensionSetStatus(t *testing.T) {
 				Status: akov1alpha1.RouteBackendExtensionStatus{
 					Controller: crdlib.AKOCRDController,
 					Error:      "health monitor not found",
-					Status:     crdlib.REJECTED,
+					Status:     string(akov1alpha1.ObjectStatusRejected),
 				},
 			},
 		},

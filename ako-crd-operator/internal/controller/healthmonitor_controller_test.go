@@ -30,6 +30,7 @@ import (
 	"github.com/vmware/alb-sdk/go/session"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/api/v1alpha1"
 	crdlib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/lib"
+	controllerutils "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/test/mock"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -88,7 +89,7 @@ func TestHealthMonitorController(t *testing.T) {
 					Tenant:            "admin",
 					Conditions: []metav1.Condition{
 						{
-							Type:    "Ready",
+							Type:    string(akov1alpha1.ObjectConditionProgrammed),
 							Status:  metav1.ConditionTrue,
 							Reason:  "Created",
 							Message: "HealthMonitor created successfully on Avi Controller",
@@ -129,7 +130,7 @@ func TestHealthMonitorController(t *testing.T) {
 					UUID: "123",
 					Conditions: []metav1.Condition{
 						{
-							Type:   "Ready",
+							Type:   string(akov1alpha1.ObjectConditionProgrammed),
 							Status: metav1.ConditionTrue,
 							// fake client isnt supporting time.UTC with nanoseconds precision
 							LastTransitionTime: metav1.Time{Time: time.Now().Truncate(time.Second)},
@@ -187,11 +188,11 @@ func TestHealthMonitorController(t *testing.T) {
 					UUID: "123",
 					Conditions: []metav1.Condition{
 						{
-							Type:               "Ready",
+							Type:               string(akov1alpha1.ObjectConditionProgrammed),
 							Status:             metav1.ConditionTrue,
 							LastTransitionTime: metav1.Time{Time: time.Now().Truncate(time.Second)},
-							Reason:             "Updated",
-							Message:            "HealthMonitor updated successfully on Avi Controller",
+							Reason:             "Created",
+							Message:            "HealthMonitor created successfully on Avi Controller",
 						},
 					},
 					BackendObjectName: "ako-crd-operator-test-cluster--738bb014438bdbfe7f14e44b60f97b07e22e4dc0",
@@ -228,7 +229,7 @@ func TestHealthMonitorController(t *testing.T) {
 					UUID: "123",
 					Conditions: []metav1.Condition{
 						{
-							Type:               "Ready",
+							Type:               string(akov1alpha1.ObjectConditionProgrammed),
 							Status:             metav1.ConditionTrue,
 							LastTransitionTime: metav1.Time{Time: time.Now().Truncate(time.Second)},
 							Reason:             "Updated",
@@ -369,7 +370,7 @@ func TestHealthMonitorController(t *testing.T) {
 					UUID: "123",
 					Conditions: []metav1.Condition{
 						{
-							Type:               "Ready",
+							Type:               string(akov1alpha1.ObjectConditionProgrammed),
 							Status:             metav1.ConditionTrue,
 							LastTransitionTime: metav1.Time{Time: time.Now().Truncate(time.Second)},
 							Reason:             "Updated",
@@ -415,7 +416,7 @@ func TestHealthMonitorController(t *testing.T) {
 					UUID: "123",
 					Conditions: []metav1.Condition{
 						{
-							Type:               "Ready",
+							Type:               string(akov1alpha1.ObjectConditionProgrammed),
 							Status:             metav1.ConditionTrue,
 							LastTransitionTime: metav1.Time{Time: time.Now().Truncate(time.Second)},
 							Reason:             "Updated",
@@ -632,7 +633,7 @@ func TestHealthMonitorController(t *testing.T) {
 					UUID: "123",
 					Conditions: []metav1.Condition{
 						{
-							Type:               "Deleted",
+							Type:               string(akov1alpha1.ObjectConditionProgrammed),
 							Status:             metav1.ConditionFalse,
 							LastTransitionTime: metav1.Time{Time: time.Now().Truncate(time.Second)},
 							Reason:             "DeletionSkipped",
@@ -642,7 +643,7 @@ func TestHealthMonitorController(t *testing.T) {
 					Tenant: "admin",
 				},
 			},
-			wantErr: false, // 403 doesn't cause requeue, it sets condition and waits
+			wantErr: true, // 403 returns error for requeue
 		},
 		{
 			name: "error: non-retryable error (status update without requeue)",
@@ -667,12 +668,12 @@ func TestHealthMonitorController(t *testing.T) {
 					Name:            "test",
 					Finalizers:      []string{"healthmonitor.ako.vmware.com/finalizer"},
 					Namespace:       "default",
-					ResourceVersion: "1001",
+					ResourceVersion: "1002",
 				},
 				Status: akov1alpha1.HealthMonitorStatus{
 					Conditions: []metav1.Condition{
 						{
-							Type:               "Ready",
+							Type:               string(akov1alpha1.ObjectConditionProgrammed),
 							Status:             metav1.ConditionFalse,
 							LastTransitionTime: metav1.Time{Time: time.Now().Truncate(time.Second)},
 							Reason:             "BadRequest",
@@ -720,6 +721,10 @@ func TestHealthMonitorController(t *testing.T) {
 				EventRecorder: record.NewFakeRecorder(10),
 				ClusterName:   "test-cluster",
 				Cache:         mockCache,
+				StatusManager: &controllerutils.StatusManager{
+					Client:        fakeClient,
+					EventRecorder: record.NewFakeRecorder(10),
+				},
 			}
 
 			// Test reconcile
@@ -975,6 +980,10 @@ func TestHealthMonitorControllerKubernetesError(t *testing.T) {
 				EventRecorder: record.NewFakeRecorder(10),
 				ClusterName:   "test-cluster",
 				Cache:         mockCache,
+				StatusManager: &controllerutils.StatusManager{
+					Client:        fakeClient,
+					EventRecorder: record.NewFakeRecorder(10),
+				},
 			}
 
 			ctx := context.Background()
@@ -1198,9 +1207,10 @@ func TestHealthMonitorControllerSecretEvent(t *testing.T) {
 					Tenant:             "admin",
 					LastUpdated:        &metav1.Time{Time: time.Now().Truncate(time.Second)},
 					ObservedGeneration: 0,
+					Controller:         "AKOCRDController",
 					Conditions: []metav1.Condition{
 						{
-							Type:               "Ready",
+							Type:               string(akov1alpha1.ObjectConditionProgrammed),
 							Status:             metav1.ConditionTrue,
 							LastTransitionTime: metav1.Time{Time: time.Now().Truncate(time.Second)},
 							Reason:             "Created",
@@ -1257,9 +1267,10 @@ func TestHealthMonitorControllerSecretEvent(t *testing.T) {
 					DependencySum:      0, // No dependencies
 					LastUpdated:        &metav1.Time{Time: time.Now().Truncate(time.Second)},
 					ObservedGeneration: 0,
+					Controller:         "AKOCRDController",
 					Conditions: []metav1.Condition{
 						{
-							Type:               "Ready",
+							Type:               string(akov1alpha1.ObjectConditionProgrammed),
 							Status:             metav1.ConditionTrue,
 							LastTransitionTime: metav1.Time{Time: time.Now().Truncate(time.Second)},
 							Reason:             "Created",
@@ -1338,9 +1349,10 @@ func TestHealthMonitorControllerSecretEvent(t *testing.T) {
 					Tenant:             "admin",
 					LastUpdated:        &metav1.Time{Time: time.Now().Truncate(time.Second)},
 					ObservedGeneration: 1,
+					Controller:         "AKOCRDController",
 					Conditions: []metav1.Condition{
 						{
-							Type:               "Ready",
+							Type:               string(akov1alpha1.ObjectConditionProgrammed),
 							Status:             metav1.ConditionTrue,
 							LastTransitionTime: metav1.Time{Time: time.Now().Truncate(time.Second)},
 							Reason:             "Updated",
@@ -1388,7 +1400,7 @@ func TestHealthMonitorControllerSecretEvent(t *testing.T) {
 					ObservedGeneration: 0,
 					Conditions: []metav1.Condition{
 						{
-							Type:               "Ready",
+							Type:               string(akov1alpha1.ObjectConditionProgrammed),
 							Status:             metav1.ConditionFalse,
 							LastTransitionTime: metav1.Time{Time: time.Now().Truncate(time.Second)},
 							Reason:             "UnresolvedRef",
@@ -1446,7 +1458,7 @@ func TestHealthMonitorControllerSecretEvent(t *testing.T) {
 					ObservedGeneration: 0,
 					Conditions: []metav1.Condition{
 						{
-							Type:               "Ready",
+							Type:               string(akov1alpha1.ObjectConditionProgrammed),
 							Status:             metav1.ConditionFalse,
 							LastTransitionTime: metav1.Time{Time: time.Now().Truncate(time.Second)},
 							Reason:             "ConfigurationError",
@@ -1504,7 +1516,7 @@ func TestHealthMonitorControllerSecretEvent(t *testing.T) {
 					ObservedGeneration: 0,
 					Conditions: []metav1.Condition{
 						{
-							Type:               "Ready",
+							Type:               string(akov1alpha1.ObjectConditionProgrammed),
 							Status:             metav1.ConditionFalse,
 							LastTransitionTime: metav1.Time{Time: time.Now().Truncate(time.Second)},
 							Reason:             "ConfigurationError",
@@ -1562,7 +1574,7 @@ func TestHealthMonitorControllerSecretEvent(t *testing.T) {
 					ObservedGeneration: 0,
 					Conditions: []metav1.Condition{
 						{
-							Type:               "Ready",
+							Type:               string(akov1alpha1.ObjectConditionProgrammed),
 							Status:             metav1.ConditionFalse,
 							LastTransitionTime: metav1.Time{Time: time.Now().Truncate(time.Second)},
 							Reason:             "ConfigurationError",
@@ -1617,7 +1629,7 @@ func TestHealthMonitorControllerSecretEvent(t *testing.T) {
 					ObservedGeneration: 0,
 					Conditions: []metav1.Condition{
 						{
-							Type:               "Ready",
+							Type:               string(akov1alpha1.ObjectConditionProgrammed),
 							Status:             metav1.ConditionFalse,
 							LastTransitionTime: metav1.Time{Time: time.Now().Truncate(time.Second)},
 							Reason:             "ConfigurationError",
@@ -1665,6 +1677,10 @@ func TestHealthMonitorControllerSecretEvent(t *testing.T) {
 				EventRecorder: record.NewFakeRecorder(10),
 				ClusterName:   "test-cluster",
 				Cache:         mockCache,
+				StatusManager: &controllerutils.StatusManager{
+					Client:        fakeClient,
+					EventRecorder: record.NewFakeRecorder(10),
+				},
 			}
 
 			// Test reconcile
@@ -1755,6 +1771,10 @@ func TestHealthMonitorControllerSetupWithManager(t *testing.T) {
 		EventRecorder: record.NewFakeRecorder(10),
 		ClusterName:   "test-cluster",
 		Cache:         mock.NewMockCacheOperation(gomock.NewController(t)),
+		StatusManager: &controllerutils.StatusManager{
+			Client:        fakeClient,
+			EventRecorder: record.NewFakeRecorder(10),
+		},
 	}
 
 	// Test that the SetupWithManager method exists and can be called
@@ -2116,6 +2136,10 @@ func TestHealthMonitorControllerTenantChange(t *testing.T) {
 				EventRecorder: record.NewFakeRecorder(10),
 				ClusterName:   "test-cluster",
 				Cache:         mockCache,
+				StatusManager: &controllerutils.StatusManager{
+					Client:        fakeClient,
+					EventRecorder: record.NewFakeRecorder(10),
+				},
 			}
 
 			// Test reconcile

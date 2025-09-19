@@ -27,6 +27,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/api/v1alpha1"
 	crdlib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
@@ -48,8 +49,8 @@ type StatusManager struct {
 	EventRecorder record.EventRecorder
 }
 
-// SetStatus sets the status, conditions, and events for a CRD object based on condition type, reason, and error message
-func (sm *StatusManager) SetStatus(ctx context.Context, obj StatusObject, conditionType string, reason string, message string) error {
+// SetStatus sets the status, conditions, and events for a CRD object based on condition type, status, reason, and error message
+func (sm *StatusManager) SetStatus(ctx context.Context, obj StatusObject, conditionType akov1alpha1.ObjectConditionType, conditionStatus metav1.ConditionStatus, reason akov1alpha1.ObjectConditionReason, message string) error {
 	obj.SetController(crdlib.AKOCRDController)
 
 	// Set additional status fields
@@ -57,46 +58,41 @@ func (sm *StatusManager) SetStatus(ctx context.Context, obj StatusObject, condit
 	obj.SetLastUpdated(&lastUpdated)
 	obj.SetObservedGeneration(obj.GetGeneration())
 
-	// Determine condition status based on reason
-	var conditionStatus metav1.ConditionStatus
+	// Determine event type based on condition status
 	var eventType string
 	var eventReason string
 	var eventMessage string
 
-	// Map reasons to condition values
-	switch reason {
-	case "ValidationSucceeded", "Created", "Updated", "Deleted":
-		conditionStatus = metav1.ConditionTrue
+	switch conditionStatus {
+	case metav1.ConditionTrue:
 		eventType = corev1.EventTypeNormal
-		eventReason = reason
+		eventReason = string(reason)
 		if message == "" {
 			eventMessage = fmt.Sprintf("Object %s successfully", reason)
 		} else {
 			eventMessage = message
 		}
-	case "ValidationFailed", "CreationFailed", "UpdateFailed", "UUIDExtractionFailed", "DeletionFailed", "DeletionSkipped":
-		conditionStatus = metav1.ConditionFalse
+	case metav1.ConditionFalse:
 		eventType = corev1.EventTypeWarning
-		eventReason = reason
+		eventReason = string(reason)
 		if message != "" {
 			eventMessage = message
 		} else {
 			eventMessage = fmt.Sprintf("Object %s", reason)
 		}
 	default:
-		// Default to failed state for unknown reasons
-		conditionStatus = metav1.ConditionFalse
+		// Default to warning for unknown condition status
 		eventType = corev1.EventTypeWarning
-		eventReason = reason
+		eventReason = string(reason)
 		eventMessage = message
 	}
 
 	// Set condition
 	conditions := SetCondition(obj.GetConditions(), metav1.Condition{
-		Type:               conditionType,
+		Type:               string(conditionType),
 		Status:             conditionStatus,
 		LastTransitionTime: metav1.Time{Time: time.Now().UTC()},
-		Reason:             reason,
+		Reason:             string(reason),
 		Message:            eventMessage,
 	})
 	obj.SetConditions(conditions)

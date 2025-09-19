@@ -36,6 +36,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	k8serror "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"k8s.io/client-go/tools/record"
@@ -61,6 +62,7 @@ type PKIProfileReconciler struct {
 	Logger        *utils.AviLogger
 	EventRecorder record.EventRecorder
 	ClusterName   string
+	StatusManager *controllerutils.StatusManager
 }
 
 // GetLogger returns the logger for the reconciler to implement NamespaceHandler interface
@@ -149,12 +151,12 @@ func (r *PKIProfileReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	return ctrl.Result{}, nil
 }
 
-func (r *PKIProfileReconciler) SetStatus(ctx context.Context, pki *akov1alpha1.PKIProfile, conditionType string, reason string, message string) error {
+func (r *PKIProfileReconciler) SetStatus(ctx context.Context, pki *akov1alpha1.PKIProfile, conditionType akov1alpha1.ObjectConditionType, conditionStatus metav1.ConditionStatus, reason akov1alpha1.ObjectConditionReason, message string) error {
 	statusManager := &controllerutils.StatusManager{
 		Client:        r.Client,
 		EventRecorder: r.EventRecorder,
 	}
-	return statusManager.SetStatus(ctx, pki, conditionType, reason, message)
+	return statusManager.SetStatus(ctx, pki, conditionType, conditionStatus, reason, message)
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -194,18 +196,24 @@ func (r *PKIProfileReconciler) DeleteObject(ctx context.Context, pki *akov1alpha
 					log.Info("PKIProfile not found on Avi Controller (404), treating as successful deletion")
 					return nil, true
 				case 403:
-					log.Errorf("PKIProfile is being referred by other objects, cannot be deleted. %s", aviError.Error())
-					r.SetStatus(ctx, pki, "Deleted", "DeletionSkipped", controllerutils.ParseAviErrorMessage(*aviError.Message))
-					return nil, false
+					log.Errorf("PKIProfile cannot be deleted. %s", aviError.Error())
+					if statusErr := r.SetStatus(ctx, pki, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionFalse, akov1alpha1.ObjectReasonDeletionSkipped, controllerutils.ParseAviErrorMessage(*aviError.Message)); statusErr != nil {
+						return statusErr, false
+					}
+					return err, false
 				}
 			}
 			log.Errorf("error deleting pki profile: %s", err.Error())
-			r.SetStatus(ctx, pki, "Deleted", "DeletionFailed", fmt.Sprintf("Failed to delete PKIProfile from Avi Controller: %v", err))
+			if statusErr := r.SetStatus(ctx, pki, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionFalse, akov1alpha1.ObjectReasonDeletionFailed, fmt.Sprintf("Failed to delete PKIProfile from Avi Controller: %v", err)); statusErr != nil {
+				return statusErr, false
+			}
 			return err, false
 		}
 	} else {
 		log.Warn("error deleting pki profile. uuid not present. possibly avi pki profile object not created")
-		r.SetStatus(ctx, pki, "Deleted", "DeletionSkipped", "UUID not present, PKIProfile may not have been created on Avi Controller")
+		if err := r.SetStatus(ctx, pki, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionTrue, akov1alpha1.ObjectReasonDeletionSkipped, "UUID not present, PKIProfile may not have been created on Avi Controller"); err != nil {
+			return err, false
+		}
 	}
 	return nil, true
 }
@@ -215,10 +223,12 @@ func (r *PKIProfileReconciler) ReconcileIfRequired(ctx context.Context, pki *ako
 	log := utils.LoggerFromContext(ctx)
 	namespaceTenant, err := controllerutils.GetTenantInNamespace(ctx, r.Client, pki.Namespace)
 	if err != nil {
-		log.Errorf("error getting tenant in namespace: %s", err.Error())
+		if statusErr := r.StatusManager.SetStatus(ctx, pki, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionFalse, akov1alpha1.ObjectReasonCreationFailed, fmt.Sprintf("Error getting tenant in namespace %s: %s", pki.Namespace, err.Error())); statusErr != nil {
+			return statusErr
+		}
+		log.Errorf("error getting tenant in namespace %s: %s", pki.Namespace, err.Error())
 		return err
 	}
-
 	// Check if tenant in status differs from tenant in namespace annotation
 	// Only trigger tenant mismatch if status has a tenant set (not for new resources)
 	if pki.Status.Tenant != "" && pki.Status.Tenant != namespaceTenant {
@@ -226,7 +236,9 @@ func (r *PKIProfileReconciler) ReconcileIfRequired(ctx context.Context, pki *ako
 		err, _ := r.DeleteObject(ctx, pki)
 		if err != nil {
 			log.Errorf("Failed to delete PKIProfile due to error: %s", err.Error())
-			r.SetStatus(ctx, pki, "Deleted", "DeletionFailed", fmt.Sprintf("Failed to delete PKIProfile due to error: %v", err))
+			if statusErr := r.SetStatus(ctx, pki, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionFalse, akov1alpha1.ObjectReasonDeletionFailed, fmt.Sprintf("Failed to delete PKIProfile due to error: %v", err)); statusErr != nil {
+				return statusErr
+			}
 			return err
 		}
 		// Clear the status to force recreation with correct tenant
@@ -263,22 +275,28 @@ func (r *PKIProfileReconciler) ReconcileIfRequired(ctx context.Context, pki *ako
 	}
 	// this is a POST Call
 	if pki.Status.UUID == "" {
-		resp, err := r.createPKIProfile(ctx, pkiReq, pki, namespaceTenant)
+		resp, err := r.createPKIProfile(ctx, pkiReq, namespaceTenant)
 		if err != nil {
 			log.Errorf("error creating pki profile: %s", err.Error())
-			r.SetStatus(ctx, pki, "Ready", "CreationFailed", fmt.Sprintf("Failed to create PKIProfile on Avi Controller: %v", err))
+			if statusErr := r.SetStatus(ctx, pki, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionFalse, akov1alpha1.ObjectReasonCreationFailed, fmt.Sprintf("Failed to create PKIProfile on Avi Controller: %v", err)); statusErr != nil {
+				return statusErr
+			}
 			return err
 		}
 		uuid, err := extractUUID(resp)
 		if err != nil {
 			log.Errorf("error extracting UUID from pki profile: %s", err.Error())
-			r.SetStatus(ctx, pki, "Ready", "UUIDExtractionFailed", fmt.Sprintf("Failed to extract UUID: %v", err))
+			if statusErr := r.SetStatus(ctx, pki, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionFalse, akov1alpha1.ObjectReasonUUIDExtractionFailed, fmt.Sprintf("Failed to extract UUID: %v", err)); statusErr != nil {
+				return statusErr
+			}
 			return err
 		}
 		pki.Status.UUID = uuid
 		pki.Status.BackendObjectName = *pkiReq.Name
 		pki.Status.Tenant = namespaceTenant
-		r.SetStatus(ctx, pki, "Ready", "Created", "PKIProfile created successfully on Avi Controller")
+		if err := r.SetStatus(ctx, pki, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionTrue, akov1alpha1.ObjectReasonCreated, "PKIProfile created successfully on Avi Controller"); err != nil {
+			return err
+		}
 	} else {
 		// this is a PUT Call
 		// check if no op by checking generation
@@ -298,18 +316,22 @@ func (r *PKIProfileReconciler) ReconcileIfRequired(ctx context.Context, pki *ako
 		resp := map[string]interface{}{}
 		if err := r.AviClient.AviSessionPut(utils.GetUriEncoded(fmt.Sprintf("%s/%s", crdlib.PKIProfileURL, pki.Status.UUID)), pkiReq, &resp, session.SetOptTenant(namespaceTenant)); err != nil {
 			log.Errorf("error updating pki profile %s", err.Error())
-			r.SetStatus(ctx, pki, "Ready", "UpdateFailed", fmt.Sprintf("Failed to update PKIProfile on Avi Controller: %v", err))
+			if statusErr := r.SetStatus(ctx, pki, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionFalse, akov1alpha1.ObjectReasonUpdateFailed, fmt.Sprintf("Failed to update PKIProfile on Avi Controller: %v", err)); statusErr != nil {
+				return statusErr
+			}
 			return err
 		}
 		pki.Status.BackendObjectName = *pkiReq.Name
 		pki.Status.Tenant = namespaceTenant
-		r.SetStatus(ctx, pki, "Ready", "Updated", "PKIProfile updated successfully on Avi Controller")
+		if err := r.SetStatus(ctx, pki, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionTrue, akov1alpha1.ObjectReasonUpdated, "PKIProfile updated successfully on Avi Controller"); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 // createPKIProfile will attempt to create a PKI profile, if it already exists, it will return an object which contains the uuid
-func (r *PKIProfileReconciler) createPKIProfile(ctx context.Context, pkiReq *models.PKIprofile, pki *akov1alpha1.PKIProfile, tenant string) (map[string]interface{}, error) {
+func (r *PKIProfileReconciler) createPKIProfile(ctx context.Context, pkiReq *models.PKIprofile, tenant string) (map[string]interface{}, error) {
 	log := utils.LoggerFromContext(ctx)
 	resp := map[string]interface{}{}
 	if err := r.AviClient.AviSessionPost(utils.GetUriEncoded(crdlib.PKIProfileURL), pkiReq, &resp, session.SetOptTenant(tenant)); err != nil {
@@ -332,12 +354,6 @@ func (r *PKIProfileReconciler) createPKIProfile(ctx context.Context, pkiReq *mod
 					log.Errorf("error updating pki profile", err.Error())
 					return nil, err
 				}
-				err = r.SetStatus(ctx, pki, "Ready", "Updated", "PKIProfile updated successfully on Avi Controller")
-				if err != nil {
-					log.Errorf("error in setting status: %s", err.Error())
-					return nil, err
-				}
-
 				return resp, nil
 			}
 		}
