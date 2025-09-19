@@ -493,11 +493,12 @@ func TestPKIProfileControllerKubernetesError(t *testing.T) {
 
 func TestPKIProfileSetStatus(t *testing.T) {
 	tests := []struct {
-		name          string
-		initialPKI    *akov1alpha1.PKIProfile
-		conditionType string
-		reason        string
-		message       string
+		name            string
+		initialPKI      *akov1alpha1.PKIProfile
+		conditionType   akov1alpha1.ObjectConditionType
+		conditionStatus metav1.ConditionStatus
+		reason          akov1alpha1.ObjectConditionReason
+		message         string
 	}{
 		{
 			name: "success: set Ready condition to True",
@@ -507,9 +508,10 @@ func TestPKIProfileSetStatus(t *testing.T) {
 					Namespace: "default",
 				},
 			},
-			conditionType: "Ready",
-			reason:        "ValidationSucceeded",
-			message:       "PKIProfile validation succeeded",
+			conditionType:   akov1alpha1.ObjectConditionReady,
+			conditionStatus: metav1.ConditionTrue,
+			reason:          akov1alpha1.ObjectReasonValidationSucceeded,
+			message:         "PKIProfile validation succeeded",
 		},
 		{
 			name: "error: set Ready condition to False",
@@ -519,9 +521,10 @@ func TestPKIProfileSetStatus(t *testing.T) {
 					Namespace: "default",
 				},
 			},
-			conditionType: "Ready",
-			reason:        "ValidationFailed",
-			message:       "CA certificate at index 0 is empty",
+			conditionType:   akov1alpha1.ObjectConditionReady,
+			conditionStatus: metav1.ConditionFalse,
+			reason:          akov1alpha1.ObjectReasonValidationFailed,
+			message:         "CA certificate at index 0 is empty",
 		},
 		{
 			name: "success: set Deleted condition to True",
@@ -531,9 +534,10 @@ func TestPKIProfileSetStatus(t *testing.T) {
 					Namespace: "default",
 				},
 			},
-			conditionType: "Deleted",
-			reason:        "DeletionSkipped",
-			message:       "UUID not present, PKIProfile may not have been created on Avi Controller",
+			conditionType:   akov1alpha1.ObjectConditionDeleted,
+			conditionStatus: metav1.ConditionTrue,
+			reason:          akov1alpha1.ObjectReasonDeletionSkipped,
+			message:         "UUID not present, PKIProfile may not have been created on Avi Controller",
 		},
 	}
 
@@ -560,7 +564,7 @@ func TestPKIProfileSetStatus(t *testing.T) {
 
 			// Test SetStatus
 			ctx := context.Background()
-			err := reconciler.SetStatus(ctx, tt.initialPKI, tt.conditionType, tt.reason, tt.message)
+			err := reconciler.SetStatus(ctx, tt.initialPKI, tt.conditionType, tt.conditionStatus, tt.reason, tt.message)
 			assert.NoError(t, err)
 
 			// Check status was set correctly
@@ -572,13 +576,9 @@ func TestPKIProfileSetStatus(t *testing.T) {
 			// Check conditions
 			found := false
 			for _, condition := range tt.initialPKI.Status.Conditions {
-				if condition.Type == tt.conditionType && condition.Reason == tt.reason {
+				if condition.Type == string(tt.conditionType) && condition.Reason == string(tt.reason) {
 					found = true
-					if tt.reason == "ValidationFailed" || tt.reason == "CreationFailed" || tt.reason == "UpdateFailed" || tt.reason == "DeletionFailed" || tt.reason == "DeletionSkipped" {
-						assert.Equal(t, "False", string(condition.Status))
-					} else {
-						assert.Equal(t, "True", string(condition.Status))
-					}
+					assert.Equal(t, string(tt.conditionStatus), string(condition.Status))
 					break
 				}
 			}
