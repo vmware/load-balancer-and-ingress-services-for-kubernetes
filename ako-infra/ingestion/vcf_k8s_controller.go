@@ -313,12 +313,6 @@ func (c *VCFK8sController) startVKSInfrastructure(stopCh <-chan struct{}) {
 			utils.AviLog.Infof("VKS: Successfully cleaned up global AddonInstall")
 		}
 
-		if err := proxy.CleanupGlobalManagementService(); err != nil {
-			utils.AviLog.Errorf("VKS: Failed to cleanup global ManagementService: %v", err)
-		} else {
-			utils.AviLog.Infof("VKS: Successfully cleaned up global ManagementService")
-		}
-
 		proxy.StopNamespaceGrantProcessor()
 
 		utils.AviLog.Infof("VKS: All cleanup completed successfully")
