@@ -98,13 +98,6 @@ func createAddonInstallSpec() *unstructured.Unstructured {
 						},
 					},
 				},
-				"releaseFilter": map[string]interface{}{
-					"selector": map[string]interface{}{
-						"matchLabels": map[string]interface{}{
-							"addon.kubernetes.vmware.com/addon-name": AKOAddonName,
-						},
-					},
-				},
 				"paused": false,
 			},
 		},
@@ -127,7 +120,7 @@ func CleanupGlobalAddonInstall() error {
 
 	if err != nil {
 		if errors.IsNotFound(err) {
-			utils.AviLog.Debugf("VKS addon: global AddonInstall %s/%s already deleted", VKSPublicNamespace, AKOAddonInstallName)
+			utils.AviLog.Errorf("VKS addon: global AddonInstall %s/%s already deleted", VKSPublicNamespace, AKOAddonInstallName)
 			return nil
 		}
 		return fmt.Errorf("failed to delete global AddonInstall %s/%s: %v", VKSPublicNamespace, AKOAddonInstallName, err)

@@ -267,7 +267,7 @@ func (w *VKSClusterWebhook) shouldManageCluster(cluster *unstructured.Unstructur
 	}
 
 	if !hasSEG {
-		utils.AviLog.Debugf("VKS webhook: namespace %s does not have SEG configuration", cluster.GetNamespace())
+		utils.AviLog.Infof("VKS webhook: namespace %s does not have SEG configuration", cluster.GetNamespace())
 		return false
 	}
 
@@ -490,7 +490,7 @@ func waitForWebhookCertificates(kubeClient kubernetes.Interface, namespace strin
 		secretName = WebhookCertSecretName
 	}
 
-	utils.AviLog.Debugf("Checking webhook certificate secret '%s'...", secretName)
+	utils.AviLog.Infof("Checking webhook certificate secret '%s'...", secretName)
 
 	secret, err := kubeClient.CoreV1().Secrets(namespace).Get(
 		context.TODO(), secretName, metav1.GetOptions{})
@@ -671,7 +671,7 @@ func waitForCertificates(certDir string, timeout time.Duration) error {
 				utils.AviLog.Infof("VKS webhook: certificates ready and valid")
 				return nil
 			}
-			utils.AviLog.Debugf("VKS webhook: certificates not ready yet, continuing to wait...")
+			utils.AviLog.Infof("VKS webhook: certificates not ready yet, continuing to wait...")
 		case <-timeoutCh:
 			return fmt.Errorf("timeout waiting for certificates after %v", timeout)
 		}
@@ -682,7 +682,7 @@ func waitForCertificates(certDir string, timeout time.Duration) error {
 func filesExist(certPath, keyPath string) bool {
 	if _, err := os.Stat(certPath); err != nil {
 		if os.IsNotExist(err) {
-			utils.AviLog.Debugf("VKS webhook: certificate file does not exist: %s", certPath)
+			utils.AviLog.Errorf("VKS webhook: certificate file does not exist: %s", certPath)
 		} else {
 			utils.AviLog.Warnf("VKS webhook: error checking certificate file %s: %v", certPath, err)
 		}
@@ -690,14 +690,14 @@ func filesExist(certPath, keyPath string) bool {
 	}
 	if _, err := os.Stat(keyPath); err != nil {
 		if os.IsNotExist(err) {
-			utils.AviLog.Debugf("VKS webhook: key file does not exist: %s", keyPath)
+			utils.AviLog.Errorf("VKS webhook: key file does not exist: %s", keyPath)
 		} else {
 			utils.AviLog.Warnf("VKS webhook: error checking key file %s: %v", keyPath, err)
 		}
 		return false
 	}
 
-	utils.AviLog.Debugf("VKS webhook: certificate files exist")
+	utils.AviLog.Infof("VKS webhook: certificate files exist")
 	return true
 }
 
@@ -712,7 +712,7 @@ func CleanupWebhookConfiguration(kubeClient kubernetes.Interface) error {
 
 	if err != nil {
 		if errors.IsNotFound(err) {
-			utils.AviLog.Debugf("VKS webhook: MutatingWebhookConfiguration '%s' already deleted", webhookName)
+			utils.AviLog.Infof("VKS webhook: MutatingWebhookConfiguration '%s' already deleted", webhookName)
 			return nil
 		}
 		return fmt.Errorf("failed to delete MutatingWebhookConfiguration '%s': %v", webhookName, err)
@@ -756,7 +756,7 @@ func CleanupCertManagerResources(kubeClient kubernetes.Interface) error {
 		context.TODO(), certificateName, metav1.DeleteOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			utils.AviLog.Debugf("VKS webhook: Certificate '%s' already deleted", certificateName)
+			utils.AviLog.Infof("VKS webhook: Certificate '%s' already deleted", certificateName)
 		} else {
 			utils.AviLog.Warnf("VKS webhook: failed to delete Certificate '%s': %v", certificateName, err)
 		}
@@ -771,7 +771,7 @@ func CleanupCertManagerResources(kubeClient kubernetes.Interface) error {
 		context.TODO(), issuerName, metav1.DeleteOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
-			utils.AviLog.Debugf("VKS webhook: Issuer '%s' already deleted", issuerName)
+			utils.AviLog.Infof("VKS webhook: Issuer '%s' already deleted", issuerName)
 		} else {
 			utils.AviLog.Warnf("VKS webhook: failed to delete Issuer '%s': %v", issuerName, err)
 		}
