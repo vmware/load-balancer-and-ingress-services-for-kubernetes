@@ -69,6 +69,11 @@ func (in *BackendProperties) DeepCopyInto(out *BackendProperties) {
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.HealthMonitorCrdRefs != nil {
+		in, out := &in.HealthMonitorCrdRefs, &out.HealthMonitorCrdRefs
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.LbAlgorithm != nil {
 		in, out := &in.LbAlgorithm, &out.LbAlgorithm
 		*out = new(string)
