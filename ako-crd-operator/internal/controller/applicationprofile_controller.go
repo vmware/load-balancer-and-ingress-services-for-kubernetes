@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 
@@ -63,6 +62,7 @@ type ApplicationProfileReconciler struct {
 	Logger        *utils.AviLogger
 	EventRecorder record.EventRecorder
 	ClusterName   string
+	StatusManager *controllerutils.StatusManager
 }
 
 // GetLogger returns the logger for the reconciler to implement NamespaceHandler interface
@@ -198,14 +198,7 @@ func (r *ApplicationProfileReconciler) DeleteObject(ctx context.Context, ap *ako
 					return nil, true
 				case 403:
 					log.Errorf("ApplicationProfile is being referred by other objects, cannot be deleted. %s", aviError.Error())
-					r.EventRecorder.Event(ap, corev1.EventTypeWarning, "DeletionSkipped", aviError.Error())
-					ap.Status.Conditions = controllerutils.SetCondition(ap.Status.Conditions, metav1.Condition{
-						Type:               "Deleted",
-						Status:             metav1.ConditionFalse,
-						LastTransitionTime: metav1.Time{Time: time.Now().UTC()},
-						Reason:             "DeletionSkipped",
-						Message:            controllerutils.ParseAviErrorMessage(*aviError.Message),
-					})
+					r.StatusManager.SetStatus(ctx, ap, akov1alpha1.ObjectConditionDeleted, metav1.ConditionFalse, akov1alpha1.ObjectReasonDeletionSkipped, controllerutils.ParseAviErrorMessage(*aviError.Message))
 					return nil, false
 				}
 			}
@@ -253,18 +246,21 @@ func (r *ApplicationProfileReconciler) ReconcileIfRequired(ctx context.Context, 
 	if ap.Status.UUID == "" {
 		resp, err := r.createApplicationProfile(ctx, apReq, ap, namespaceTenant)
 		if err != nil {
-			r.EventRecorder.Event(ap, corev1.EventTypeWarning, "CreationFailed", fmt.Sprintf("Failed to create ApplicationProfile on Avi Controller: %v", err))
+			r.StatusManager.SetStatus(ctx, ap, akov1alpha1.ObjectConditionReady, metav1.ConditionFalse, akov1alpha1.ObjectReasonCreationFailed, fmt.Sprintf("Failed to create ApplicationProfile on Avi Controller: %v", err))
 			log.Errorf("error creating application profile: %s", err.Error())
 			return err
 		}
 		uuid, err := extractUUID(resp)
 		if err != nil {
-			r.EventRecorder.Event(ap, corev1.EventTypeWarning, "UUIDExtractionFailed", fmt.Sprintf("Failed to extract UUID: %v", err))
+			r.StatusManager.SetStatus(ctx, ap, akov1alpha1.ObjectConditionReady, metav1.ConditionFalse, akov1alpha1.ObjectReasonUUIDExtractionFailed, fmt.Sprintf("Failed to extract UUID: %v", err))
 			log.Errorf("error extracting UUID from application profile: %s", err.Error())
 			return err
 		}
 		ap.Status.UUID = uuid
-		r.EventRecorder.Event(ap, corev1.EventTypeNormal, "Created", "ApplicationProfile created successfully on Avi Controller")
+		ap.Status.BackendObjectName = apReq.Name
+		ap.Status.Tenant = namespaceTenant
+		r.StatusManager.SetStatus(ctx, ap, akov1alpha1.ObjectConditionReady, metav1.ConditionTrue, akov1alpha1.ObjectReasonCreated, "PKIProfile created successfully on Avi Controller")
+
 	} else {
 		// this is a PUT Call
 		// check if no op by checking generation
@@ -284,28 +280,14 @@ func (r *ApplicationProfileReconciler) ReconcileIfRequired(ctx context.Context, 
 		resp := map[string]interface{}{}
 		if err := r.AviClient.AviSessionPut(utils.GetUriEncoded(fmt.Sprintf("%s/%s", constants.ApplicationProfileURL, ap.Status.UUID)), apReq, &resp, session.SetOptTenant(namespaceTenant)); err != nil {
 			log.Errorf("error updating application profile %s", err.Error())
-			r.EventRecorder.Event(ap, corev1.EventTypeWarning, "UpdateFailed", fmt.Sprintf("Failed to update ApplicationProfile on Avi Controller: %v", err))
+			r.StatusManager.SetStatus(ctx, ap, akov1alpha1.ObjectConditionReady, metav1.ConditionFalse, akov1alpha1.ObjectReasonUpdateFailed, fmt.Sprintf("Failed to update ApplicationProfile on Avi Controller: %v", err))
 			return err
 		}
-		ap.Status.Conditions = controllerutils.SetCondition(ap.Status.Conditions, metav1.Condition{
-			Type:               "Ready",
-			Status:             metav1.ConditionTrue,
-			LastTransitionTime: metav1.Time{Time: time.Now().UTC()},
-			Reason:             "Updated",
-			Message:            "ApplicationProfile updated successfully on Avi Controller",
-		})
-		r.EventRecorder.Event(ap, corev1.EventTypeNormal, "Updated", "ApplicationProfile updated successfully on Avi Controller")
+		r.StatusManager.SetStatus(ctx, ap, akov1alpha1.ObjectConditionReady, metav1.ConditionTrue, akov1alpha1.ObjectReasonUpdated, "ApplicationProfile updated successfully on Avi Controller")
 		log.Info("successfully updated application profile")
-	}
 	ap.Status.BackendObjectName = apReq.Name
 	ap.Status.Tenant = namespaceTenant
-	lastUpdated := metav1.Time{Time: time.Now().UTC()}
-	ap.Status.LastUpdated = &lastUpdated
-	ap.Status.ObservedGeneration = ap.Generation
-	if err := r.Status().Update(ctx, ap); err != nil {
-		r.EventRecorder.Event(ap, corev1.EventTypeWarning, "StatusUpdateFailed", fmt.Sprintf("Failed to update ApplicationProfile status: %v", err))
-		log.Errorf("unable to update application profile status %s", err.Error())
-		return err
+	r.StatusManager.SetStatus(ctx, ap, akov1alpha1.ObjectConditionReady, metav1.ConditionTrue, akov1alpha1.ObjectReasonUpdated, "PKIProfile updated successfully on Avi Controller")
 	}
 	return nil
 }
@@ -334,25 +316,13 @@ func (r *ApplicationProfileReconciler) createApplicationProfile(ctx context.Cont
 					log.Errorf("error updating application profile", err.Error())
 					return nil, err
 				}
-				ap.Status.Conditions = controllerutils.SetCondition(ap.Status.Conditions, metav1.Condition{
-					Type:               "Ready",
-					Status:             metav1.ConditionTrue,
-					LastTransitionTime: metav1.Time{Time: time.Now().UTC()},
-					Reason:             "Updated",
-					Message:            "ApplicationProfile updated successfully on Avi Controller",
-				})
+				r.StatusManager.SetStatus(ctx, ap, akov1alpha1.ObjectConditionReady, metav1.ConditionTrue, akov1alpha1.ObjectReasonUpdated, "ApplicationProfile updated successfully on Avi Controller")
 				return resp, nil
 			}
 		}
 		return nil, err
 	}
-	ap.Status.Conditions = controllerutils.SetCondition(ap.Status.Conditions, metav1.Condition{
-		Type:               "Ready",
-		Status:             metav1.ConditionTrue,
-		LastTransitionTime: metav1.Time{Time: time.Now().UTC()},
-		Reason:             "Created",
-		Message:            "ApplicationProfile created successfully on Avi Controller",
-	})
+	r.StatusManager.SetStatus(ctx, ap, akov1alpha1.ObjectConditionReady, metav1.ConditionTrue, akov1alpha1.ObjectReasonCreated, "ApplicationProfile created successfully on Avi Controller")
 	log.Info("Application profile successfully created")
 	return resp, nil
 }
@@ -375,6 +345,10 @@ func CreateNewApplicationProfileControllerAndSetupWithManager(
 		EventRecorder: mgr.GetEventRecorderFor(applicationProfileControllerName),
 		Logger:        utils.AviLog.WithName("applicationprofile"),
 		ClusterName:   clusterName,
+		StatusManager: &controllerutils.StatusManager{
+			Client:        mgr.GetClient(),
+			EventRecorder: mgr.GetEventRecorderFor(applicationProfileControllerName),
+		},
 	}
 
 	// Register with Secret Controller

@@ -279,6 +279,9 @@ spec:
                   - type
                   type: object
                 type: array
+              controller:
+                description: Field is populated by AKO CRD operator as ako-crd-operator
+                type: string
               dependencySum:
                 description: DependencySum is the checksum of all the dependencies
                   for the health monitor
