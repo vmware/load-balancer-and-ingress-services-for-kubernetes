@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/avirest"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/proxy"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/webhook"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -49,7 +48,7 @@ const (
 	// VKS cluster watcher configuration
 	VKSClusterWorkQueue = "vks-cluster-watcher"
 
-	VKSReconcileInterval = 5 * time.Minute
+	VKSReconcileInterval = 60 * time.Minute
 )
 
 // VKSClusterConfig holds all the configuration needed for a VKS cluster's AKO deployment
@@ -965,12 +964,11 @@ func (w *VKSClusterWatcher) reconcileAllClusters() {
 		labels := cluster.GetLabels()
 		shouldManage := labels != nil && labels[webhook.VKSManagedLabel] == webhook.VKSManagedLabelValueTrue
 
-		phase := w.GetClusterPhase(cluster)
-
 		if shouldManage {
 			clusterNameWithUID := w.getUniqueClusterName(cluster)
 			activeVKSClusters[clusterNameWithUID] = true
 
+			phase := w.GetClusterPhase(cluster)
 			if phase == ClusterPhaseProvisioning || phase == ClusterPhaseProvisioned {
 				utils.AviLog.Infof("VKS reconciler: reconciling cluster %s/%s (phase: %s)",
 					cluster.GetNamespace(), cluster.GetName(), phase)
@@ -981,9 +979,6 @@ func (w *VKSClusterWatcher) reconcileAllClusters() {
 
 	// Clean up orphaned AVI objects for deleted VKS clusters
 	orphanedCount := w.cleanupOrphanedAviObjects(activeVKSClusters)
-
-	// Reconcile ManagementServiceGrants for namespaces with SEG annotations
-	proxy.ReconcileManagementServiceGrants()
 
 	if orphanedCount > 0 {
 		utils.AviLog.Infof("VKS reconciler: completed reconciliation cycle - orphaned cleaned: %d",

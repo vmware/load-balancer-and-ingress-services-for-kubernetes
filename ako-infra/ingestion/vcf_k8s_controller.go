@@ -295,6 +295,8 @@ func (c *VCFK8sController) startVKSInfrastructure(stopCh <-chan struct{}) {
 
 	go proxy.EnsureGlobalManagementServiceWithRetry(stopCh)
 
+	proxy.StartNamespaceGrantProcessor()
+
 	go webhook.StartVKSWebhook(utils.GetInformers().ClientSet, stopCh)
 
 	go StartVKSClusterWatcherWithRetry(stopCh, c.dynamicInformers)
@@ -316,6 +318,8 @@ func (c *VCFK8sController) startVKSInfrastructure(stopCh <-chan struct{}) {
 		} else {
 			utils.AviLog.Infof("VKS: Successfully cleaned up global ManagementService")
 		}
+
+		proxy.StopNamespaceGrantProcessor()
 
 		utils.AviLog.Infof("VKS: All cleanup completed successfully")
 	}()
