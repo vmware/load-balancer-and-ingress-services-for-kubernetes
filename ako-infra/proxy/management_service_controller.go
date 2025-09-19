@@ -235,9 +235,9 @@ func EnsureGlobalManagementService() error {
 		utils.AviLog.Infof("VKS Management Service %s not found, creating new service", c.serviceName)
 	}
 
-	aviClient := avirest.InfraAviClientInstance()
+	aviClient := avirest.VKSAviClientInstance()
 	if aviClient == nil {
-		return fmt.Errorf("avi Controller client not available")
+		return fmt.Errorf("VKS AVI Controller client not available")
 	}
 
 	payload := map[string]interface{}{
@@ -351,9 +351,9 @@ func CleanupGlobalManagementService() error {
 	if c == nil {
 		return fmt.Errorf("failed to cleanup management service controller")
 	}
-	aviClient := avirest.InfraAviClientInstance()
+	aviClient := avirest.VKSAviClientInstance()
 	if aviClient == nil {
-		return fmt.Errorf("avi Controller client not available")
+		return fmt.Errorf("VKS AVI Controller client not available")
 	}
 	payload := map[string]interface{}{
 		"cloud_uuid":            c.cloudUUID,
@@ -455,9 +455,9 @@ func (c *ManagementServiceController) CreateManagementServiceGrant(namespace str
 		utils.AviLog.Infof("VKS ManagementServiceGrant %s in namespace %s not found, creating new grant with workload selector %s", grantName, namespace, WorkloadSelectorTypeVirtualMachine)
 	}
 
-	aviClient := avirest.InfraAviClientInstance()
+	aviClient := avirest.VKSAviClientInstance()
 	if aviClient == nil {
-		return fmt.Errorf("avi Controller client not available")
+		return fmt.Errorf("VKS AVI Controller client not available")
 	}
 
 	payload := map[string]interface{}{
@@ -531,9 +531,9 @@ func (c *ManagementServiceController) validateManagementServiceGrantConfig(grant
 
 func (c *ManagementServiceController) DeleteManagementServiceGrant(namespace string) error {
 	grantName := fmt.Sprintf("%s-%s", namespace, VKSManagementServiceGrant)
-	aviClient := avirest.InfraAviClientInstance()
+	aviClient := avirest.VKSAviClientInstance()
 	if aviClient == nil {
-		return fmt.Errorf("avi Controller client not available")
+		return fmt.Errorf("VKS AVI Controller client not available")
 	}
 
 	payload := map[string]interface{}{

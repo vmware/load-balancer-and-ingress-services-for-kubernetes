@@ -492,6 +492,32 @@ func (c *VCFK8sController) ValidBootstrapSecretData(controllerIP, secretName, se
 
 	avirest.InfraAviClientInstance(aviClient)
 	utils.AviLog.Infof("Successfully connected to AVI controller using secret provided by NCP")
+
+	// Check if controller version supports VKS Management Service APIs (>= )
+	minVersion, err := utils.NewVersion(avirest.VKSAviVersion)
+	if err != nil {
+		utils.AviLog.Warnf("VKS: Failed to parse minimum required version: %v", err)
+		return true
+	}
+	currentVersion, err := utils.NewVersion(ctrlVersion)
+	if err != nil {
+		utils.AviLog.Warnf("VKS: Failed to parse controller version %s: %v", ctrlVersion, err)
+		return true
+	}
+	if currentVersion.Compare(minVersion) < 0 {
+		utils.AviLog.Infof("VKS: Controller version %s does not support Management Service APIs (requires >= %s)", ctrlVersion, avirest.VKSAviVersion)
+		return true
+	}
+
+	// Create VKS-specific AVI client with version for Management Service APIs using same credentials
+	vksClient, err := avirest.CreateVKSAviClient(controllerIP, username, authToken, caData)
+	if err != nil {
+		utils.AviLog.Warnf("VKS: Failed to create VKS AVI client: %v", err)
+		return false
+	}
+	avirest.VKSAviClientInstance(vksClient)
+	utils.AviLog.Infof("VKS: Successfully initialized VKS AVI client with version %s", avirest.VKSAviVersion)
+
 	return true
 }
 
