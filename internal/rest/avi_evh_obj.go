@@ -283,6 +283,7 @@ func setDedicatedEvhVSNodeProperties(vs *avimodels.VirtualService, vs_meta *node
 	vs.Enabled = vs_meta.Enabled
 	normal_vs_type := utils.VS_TYPE_NORMAL
 	vs.Type = &normal_vs_type
+	vs.MinPoolsUp = proto.Uint32(1) // Set min pool up to 1
 }
 
 func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_method utils.RestMethod, cache_obj *avicache.AviVsCache, key string) []*utils.RestOp {
@@ -533,6 +534,7 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 		ErrorPageProfileRef:   &vs_meta.ErrorPageProfileRef,
 		Enabled:               vs_meta.Enabled,
 		VhType:                proto.String(utils.VS_TYPE_VH_ENHANCED),
+		MinPoolsUp:            proto.Uint32(1), // Set min pool up to 1
 	}
 
 	if len(vs_meta.ICAPProfileRefs) != 0 {
