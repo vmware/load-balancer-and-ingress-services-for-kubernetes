@@ -298,6 +298,11 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: fqdnReusePolicy
+          - name: AKO_CRD_OPERATOR_ENABLED
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: akoCRDOperatorEnabled
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           livenessProbe:
@@ -443,6 +448,11 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: istioEnabled
+          - name: AKO_CRD_OPERATOR_ENABLED
+            valueFrom:
+              configMapKeyRef:
+                name: avi-k8s-config
+                key: akoCRDOperatorEnabled
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
         {{ end }}

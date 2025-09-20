@@ -241,6 +241,7 @@ func TestMain(m *testing.M) {
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	os.Setenv("POD_NAME", "ako-0")
 	os.Setenv("DEFAULT_LB_CONTROLLER", "true")
+	os.Setenv("AKO_CRD_OPERATOR_ENABLED", "true")
 
 	akoControlConfig := lib.AKOControlConfig()
 	KubeClient = k8sfake.NewSimpleClientset()
