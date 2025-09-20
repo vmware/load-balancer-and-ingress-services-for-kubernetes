@@ -1603,6 +1603,16 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 		informersList = append(informersList, lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Informer().HasSynced)
 		go lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Informer().Run(stopCh)
 		informersList = append(informersList, lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Informer().HasSynced)
+		// Added here to ensure L4RuleInformer runs in AdvancedL4 Test cases.
+		if lib.AKOControlConfig().L4RuleEnabled() {
+			go lib.AKOControlConfig().CRDInformers().L4RuleInformer.Informer().Run(stopCh)
+			informersList = append(informersList, lib.AKOControlConfig().CRDInformers().L4RuleInformer.Informer().HasSynced)
+			// HealthMonitor dynamic informer - runs when L4Rule is enabled since they work together
+			if c.dynamicInformers != nil && c.dynamicInformers.HealthMonitorInformer != nil {
+				go c.dynamicInformers.HealthMonitorInformer.Informer().Run(stopCh)
+				informersList = append(informersList, c.dynamicInformers.HealthMonitorInformer.Informer().HasSynced)
+			}
+		}
 	} else {
 		if lib.UseServicesAPI() {
 			go lib.AKOControlConfig().SvcAPIInformers().GatewayClassInformer.Informer().Run(stopCh)
@@ -1687,10 +1697,7 @@ func (c *AviController) Start(stopCh <-chan struct{}) {
 
 func isServiceLBType(svcObj *corev1.Service) bool {
 	// If we don't find a service or it is not of type loadbalancer - return false.
-	if svcObj.Spec.Type == "LoadBalancer" {
-		return true
-	}
-	return false
+	return svcObj.Spec.Type == "LoadBalancer"
 }
 
 // Run will set up the event handlers for types we are interested in, as well

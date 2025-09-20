@@ -76,6 +76,18 @@ func NewInfraSettingCRDInformer() {
 	})
 }
 
+func NewL4RuleCRDInformer() {
+	v1alpha2akoInformerFactory := v1alpha2akoinformers.NewSharedInformerFactoryWithOptions(lib.AKOControlConfig().V1alpha2CRDClientset(), time.Second*30)
+	l4RuleInformer := v1alpha2akoInformerFactory.Ako().V1alpha2().L4Rules()
+	if lib.AKOControlConfig().CRDInformers() != nil {
+		lib.AKOControlConfig().CRDInformers().L4RuleInformer = l4RuleInformer
+	} else {
+		lib.AKOControlConfig().SetCRDInformers(&lib.AKOCrdInformers{
+			L4RuleInformer: l4RuleInformer,
+		})
+	}
+}
+
 func NewIstioCRDInformers(cs istiocrd.Interface) {
 	var istioInformerFactory istioinformers.SharedInformerFactory
 
@@ -1205,11 +1217,11 @@ func checkRefOnController(key, refKey, refValue, tenant string) error {
 // If app profile is of type L4 SSL it returns true and nil.
 // If app profile is of type L4 it returns false and nil.
 // Otherwise false and specific error is returned.
-func checkForL4SSLAppProfile(key, refValue string) (bool, error) {
+func checkForL4SSLAppProfile(key, refValue, tenant string) (bool, error) {
 	// assign the last avi client for ref checks
 	refKey := "AppProfile"
 	aviClientLen := lib.GetshardSize()
-	clients := avicache.SharedAVIClients(lib.GetTenant())
+	clients := avicache.SharedAVIClients(tenant)
 	uri := fmt.Sprintf("/api/%s?name=%s&fields=name,type,labels,created_by", refModelMap[refKey], refValue)
 
 	result, err := lib.AviGetCollectionRaw(clients.AviClient[aviClientLen], uri)
@@ -1253,11 +1265,11 @@ func checkForL4SSLAppProfile(key, refValue string) (bool, error) {
 // checkForNetworkProfileTypeTCP checks if the network profile specified in l4rule is of type TCP proxy.
 // If network profile is of type TCP proxy it returns true and nil.
 // Otherwise false and specific error is returned.
-func checkForNetworkProfileTypeTCP(key, refValue string) (bool, error) {
+func checkForNetworkProfileTypeTCP(key, refValue, tenant string) (bool, error) {
 	// assign the last avi client for ref checks
 	refKey := "NetworkProfile"
 	aviClientLen := lib.GetshardSize()
-	clients := avicache.SharedAVIClients(lib.GetTenant())
+	clients := avicache.SharedAVIClients(tenant)
 	uri := fmt.Sprintf("/api/%s?name=%s&fields=name,profile,labels,created_by", refModelMap[refKey], refValue)
 
 	result, err := lib.AviGetCollectionRaw(clients.AviClient[aviClientLen], uri)

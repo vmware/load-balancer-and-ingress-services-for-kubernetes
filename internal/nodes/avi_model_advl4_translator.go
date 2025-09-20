@@ -124,11 +124,13 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 		port, _ := utilsnet.ParsePort(portProto[1], true)
 		pp := AviPortHostProtocol{Port: int32(port), Protocol: portProto[0]}
 		portProtocols = append(portProtocols, pp)
-		if portProto[0] == "" || portProto[0] == utils.TCP {
+		switch portProto[0] {
+		case "":
+		case utils.TCP:
 			isTCP = true
-		} else if portProto[0] == utils.UDP {
+		case utils.UDP:
 			isUDP = true
-		} else if portProto[0] == utils.SCTP {
+		case utils.SCTP:
 			if lib.GetServiceType() == lib.NodePortLocal {
 				utils.AviLog.Warnf("key: %s, msg: SCTP protocol is not supported for service type NodePortLocal", key)
 				return nil
@@ -165,8 +167,28 @@ func (o *AviObjectGraph) ConstructAdvL4VsNode(gatewayName, namespace, key string
 	// configures VS and VsVip nodes using infraSetting object (via CRD).
 	buildWithInfraSetting(key, namespace, avi_vs_meta, vsVipNode, infraSetting)
 
+	if len(serviceNSNames) > 0 {
+		svcNSName := strings.Split(serviceNSNames[0], "/")
+		service, err := utils.GetInformers().ServiceInformer.Lister().Services(svcNSName[0]).Get(svcNSName[1])
+		if err != nil {
+			utils.AviLog.Warnf("key: %s, msg: Error while retrieving service for gateway %s, skipping L4 Rule reconciliation", key, err.Error())
+		} else {
+			if traffic_disabled, ok := service.GetAnnotations()[lib.VSTrafficDisabled]; ok && strings.ToLower(traffic_disabled) == "true" {
+				utils.AviLog.Infof("key: %s, msg: Disable Traffic annotation is set, traffic will be disabled for service %s", key, service.Name)
+				avi_vs_meta.TrafficEnabled = proto.Bool(false)
+			}
+			if lib.GetVPCMode() {
+				if l4Rule, err := getL4Rule(key, service); err == nil {
+					buildWithL4Rule(key, avi_vs_meta, l4Rule, false)
+				}
+			}
+		}
+	}
+
 	if len(gw.Spec.Addresses) > 0 && gw.Spec.Addresses[0].Type == advl4v1alpha1pre1.IPAddressType {
 		vsVipNode.IPAddress = gw.Spec.Addresses[0].Value
+	} else if avi_vs_meta.LoadBalancerIP != nil {
+		vsVipNode.IPAddress = *avi_vs_meta.LoadBalancerIP
 	}
 	avi_vs_meta.VSVIPRefs = append(avi_vs_meta.VSVIPRefs, vsVipNode)
 	return avi_vs_meta
@@ -377,6 +399,7 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 			Tenant:   vsNode.Tenant,
 			Protocol: portProto[0],
 			PortName: "",
+			Port:     int32(port),
 			ServiceMetadata: lib.ServiceMetadataObj{
 				NamespaceServiceName: []string{svc[0]},
 			},
@@ -408,21 +431,30 @@ func (o *AviObjectGraph) ConstructAdvL4PolPoolNodes(vsNode *AviVsNode, gwName, n
 		}
 		// Obtain the matching portname from the svcObj
 		for _, svcPort := range svcObj.Spec.Ports {
-			if svcPort.Port == int32(port) {
+			if svcPort.Port == poolNode.Port {
 				poolNode.PortName = svcPort.Name
 			}
 		}
 
-		serviceType := lib.GetServiceType()
-		if serviceType == lib.NodePortLocal {
+		if lib.GetVPCMode() {
+			l4Rule, err := getL4Rule(key, svcObj)
+			if err != nil {
+				utils.AviLog.Warnf("key: %s, msg: error while retrieving l4Rule: %s", key, err)
+				l4Rule = nil
+			}
+			buildPoolWithL4Rule(key, poolNode, l4Rule)
+		}
+
+		switch lib.GetServiceType() {
+		case lib.NodePortLocal:
 			if servers := PopulateServersForNPL(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, false, key); servers != nil {
 				poolNode.Servers = servers
 			}
-		} else if serviceType == lib.NodePort {
+		case lib.NodePort:
 			if servers := PopulateServersForNodePort(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, false, key); servers != nil {
 				poolNode.Servers = servers
 			}
-		} else {
+		default:
 			if servers := PopulateServers(poolNode, svcObj.ObjectMeta.Namespace, svcObj.ObjectMeta.Name, false, key); servers != nil {
 				poolNode.Servers = servers
 			}

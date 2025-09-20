@@ -16,6 +16,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
+	v1alpha2crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/clientset/versioned/fake"
 	v1beta1crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned/fake"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 	advl4fake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/clientset/versioned/fake"
@@ -25,6 +26,7 @@ var KubeClient *k8sfake.Clientset
 var AdvL4Client *advl4fake.Clientset
 var CRDClient *crdfake.Clientset
 var V1beta1CRDClient *v1beta1crdfake.Clientset
+var V1alpha2CRDClient *v1alpha2crdfake.Clientset
 var ctrl *k8s.AviController
 
 type FakeGateway struct {

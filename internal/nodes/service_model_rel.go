@@ -28,6 +28,7 @@ var (
 	L4Rule = GraphSchema{
 		Type:              lib.L4Rule,
 		GetParentServices: L4RuleToSvc,
+		GetParentGateways: l4RuleToGateway,
 	}
 )
 
@@ -65,4 +66,41 @@ func L4RuleToSvc(l4RuleName string, namespace string, key string) ([]string, boo
 
 	utils.AviLog.Debugf("key: %s, msg: total services retrieved from L4Rule: %s", key, allSvcs)
 	return allSvcs, true
+}
+
+func l4RuleToGateway(l4RuleName, namespace, key string) ([]string, bool) {
+	l4Rule, err := lib.AKOControlConfig().CRDInformers().L4RuleInformer.Lister().L4Rules(namespace).Get(l4RuleName)
+	if err != nil {
+		if !k8serrors.IsNotFound(err) {
+			utils.AviLog.Errorf("key: %s, msg: Error getting L4Rule: %v", key, err)
+			return []string{}, false
+		}
+		utils.AviLog.Debugf("key: %s, msg: L4Rule %s deleted", key, l4RuleName)
+	}
+
+	if l4Rule != nil && l4Rule.Status.Status != lib.StatusAccepted {
+		utils.AviLog.Errorf("key: %s, msg: L4Rule is not in accepted state", key)
+		return []string{}, false
+	}
+
+	// Get all services that are mapped to this L4Rule.
+	l4RuleNameWithNamespace := fmt.Sprintf("%s/%s", namespace, l4RuleName)
+	services, err := utils.GetInformers().ServiceInformer.Informer().GetIndexer().ByIndex(lib.L4RuleToServicesIndex, l4RuleNameWithNamespace)
+	if err != nil {
+		utils.AviLog.Errorf("key: %s, msg: failed to get the services mapped to L4Rule %s", key, l4RuleNameWithNamespace)
+		return []string{}, false
+	}
+
+	var allGateways []string
+	for _, svc := range services {
+		svcObj, isSvc := svc.(*corev1.Service)
+		if isSvc {
+			gateways, found := SvcToGateway(svcObj.Name, namespace, key)
+			if found {
+				allGateways = append(allGateways, gateways...)
+			}
+
+		}
+	}
+	return allGateways, len(allGateways) != 0
 }

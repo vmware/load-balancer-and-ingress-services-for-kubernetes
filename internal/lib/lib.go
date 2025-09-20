@@ -1818,7 +1818,7 @@ func ValidateSvcforClass(key string, svc *corev1.Service) bool {
 			_, found_name := svc.ObjectMeta.Labels[GatewayNameLabelKey]
 			_, found_namespace := svc.ObjectMeta.Labels[GatewayNamespaceLabelKey]
 			if found_name || found_namespace {
-				utils.AviLog.Warnf("key: %s, msg: skipping LoadBalancerClass validation as LB service has Gateway labels, will use GatewayClass for AdvancedL4 validation", key)
+				utils.AviLog.Infof("key: %s, msg: skipping LoadBalancerClass validation as LB service has Gateway labels, will use GatewayClass for AdvancedL4 validation", key)
 				return true
 			}
 		}

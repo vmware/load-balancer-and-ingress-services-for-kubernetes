@@ -626,6 +626,7 @@ func (l *leader) ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) error
 		return err
 	}
 
+	tenant := lib.GetTenantInNamespace(l4Rule.Namespace)
 	refData := make(map[string]string)
 
 	if l4RuleSpec.AnalyticsProfileRef != nil {
@@ -640,7 +641,7 @@ func (l *leader) ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) error
 				isSSLEnabled = true
 			}
 		}
-		isL4SSL, err := checkForL4SSLAppProfile(key, *l4RuleSpec.ApplicationProfileRef)
+		isL4SSL, err := checkForL4SSLAppProfile(key, *l4RuleSpec.ApplicationProfileRef, tenant)
 		if err != nil {
 			rejectL4Rule(key, l4Rule, err)
 			return err
@@ -658,7 +659,7 @@ func (l *leader) ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) error
 				refData[ref] = "SslKeyCert"
 			}
 			if l4RuleSpec.NetworkProfileRef != nil {
-				isNetworkProfileTypeTCP, err = checkForNetworkProfileTypeTCP(key, *l4RuleSpec.NetworkProfileRef)
+				isNetworkProfileTypeTCP, err = checkForNetworkProfileTypeTCP(key, *l4RuleSpec.NetworkProfileRef, tenant)
 				if err != nil {
 					rejectL4Rule(key, l4Rule, err)
 					return err
@@ -749,7 +750,7 @@ func (l *leader) ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) error
 			}
 		}
 	}
-	tenant := lib.GetTenantInNamespace(l4Rule.Namespace)
+
 	if err := checkRefsOnController(key, refData, tenant); err != nil {
 		rejectL4Rule(key, l4Rule, err)
 		return err

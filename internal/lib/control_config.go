@@ -268,6 +268,11 @@ func (c *akoControlConfig) SetCRDClientsetAndEnableInfraSettingParam(cs v1beta1a
 	c.aviInfraSettingEnabled = true
 }
 
+func (c *akoControlConfig) SetV1Alpha2CRDClientSetAndEnableL4RuleParam(cs v1alpha2akocrd.Interface) {
+	c.v1alpha2crdClientset = cs
+	c.l4RuleEnabled = true
+}
+
 func (c *akoControlConfig) CRDClientset() akocrd.Interface {
 	return c.crdClientset
 }
