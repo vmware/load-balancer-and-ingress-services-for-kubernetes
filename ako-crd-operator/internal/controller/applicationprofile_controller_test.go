@@ -29,6 +29,7 @@ import (
 	"github.com/vmware/alb-sdk/go/session"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/api/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
+	controllerutils "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/test/mock"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -74,7 +75,7 @@ func TestApplicationProfileController(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{
 					Name:            "test",
 					Finalizers:      []string{"applicationprofile.ako.vmware.com/finalizer"},
-					ResourceVersion: "1001",
+					ResourceVersion: "1002",
 				},
 				Status: akov1alpha1.ApplicationProfileStatus{
 					UUID:              "123",
@@ -117,7 +118,7 @@ func TestApplicationProfileController(t *testing.T) {
 					Name:            "test",
 					Finalizers:      []string{"applicationprofile.ako.vmware.com/finalizer"},
 					Namespace:       "default",
-					ResourceVersion: "1001",
+					ResourceVersion: "1002",
 				},
 				Status: akov1alpha1.ApplicationProfileStatus{
 					UUID: "123",
@@ -175,7 +176,7 @@ func TestApplicationProfileController(t *testing.T) {
 					Name:            "test",
 					Finalizers:      []string{"applicationprofile.ako.vmware.com/finalizer"},
 					Namespace:       "default",
-					ResourceVersion: "1001",
+					ResourceVersion: "1002",
 				},
 				Status: akov1alpha1.ApplicationProfileStatus{
 					UUID: "123",
@@ -216,7 +217,7 @@ func TestApplicationProfileController(t *testing.T) {
 					Name:            "test",
 					Finalizers:      []string{"applicationprofile.ako.vmware.com/finalizer"},
 					Namespace:       "default",
-					ResourceVersion: "1001",
+					ResourceVersion: "1002",
 				},
 				Status: akov1alpha1.ApplicationProfileStatus{
 					UUID: "123",
@@ -357,7 +358,7 @@ func TestApplicationProfileController(t *testing.T) {
 					Name:            "test",
 					Finalizers:      []string{"applicationprofile.ako.vmware.com/finalizer"},
 					Namespace:       "default",
-					ResourceVersion: "1001",
+					ResourceVersion: "1002",
 				},
 				Status: akov1alpha1.ApplicationProfileStatus{
 					UUID: "123",
@@ -403,7 +404,7 @@ func TestApplicationProfileController(t *testing.T) {
 					Name:            "test",
 					Finalizers:      []string{"applicationprofile.ako.vmware.com/finalizer"},
 					Namespace:       "default",
-					ResourceVersion: "1001",
+					ResourceVersion: "1002",
 				},
 				Status: akov1alpha1.ApplicationProfileStatus{
 					UUID: "123",
@@ -620,7 +621,7 @@ func TestApplicationProfileController(t *testing.T) {
 					Name:              "test",
 					Finalizers:        []string{"applicationprofile.ako.vmware.com/finalizer"},
 					DeletionTimestamp: &metav1.Time{Time: time.Now().Truncate(time.Second)},
-					ResourceVersion:   "1001",
+					ResourceVersion:   "1002",
 				},
 				Status: akov1alpha1.ApplicationProfileStatus{
 					UUID: "123",
@@ -661,7 +662,7 @@ func TestApplicationProfileController(t *testing.T) {
 					Name:            "test",
 					Finalizers:      []string{"applicationprofile.ako.vmware.com/finalizer"},
 					Namespace:       "default",
-					ResourceVersion: "1001",
+					ResourceVersion: "1002",
 				},
 				Status: akov1alpha1.ApplicationProfileStatus{
 					Conditions: []metav1.Condition{
@@ -714,6 +715,10 @@ func TestApplicationProfileController(t *testing.T) {
 				EventRecorder: record.NewFakeRecorder(10),
 				ClusterName:   "test-cluster",
 				Cache:         mockCache,
+				StatusManager: &controllerutils.StatusManager{
+					Client:        fakeClient,
+					EventRecorder: record.NewFakeRecorder(10),
+				},
 			}
 
 			// Test reconcile
@@ -959,6 +964,10 @@ func TestApplicationProfileControllerKubernetesError(t *testing.T) {
 				EventRecorder: &record.FakeRecorder{},
 				ClusterName:   "test-cluster",
 				Cache:         mockCache,
+				StatusManager: &controllerutils.StatusManager{
+					Client:        fakeClient,
+					EventRecorder: &record.FakeRecorder{},
+				},
 			}
 
 			ctx := context.Background()
@@ -1188,6 +1197,10 @@ func TestApplicationProfileControllerTenantChange(t *testing.T) {
 				EventRecorder: record.NewFakeRecorder(10),
 				ClusterName:   "test-cluster",
 				Cache:         mockCache,
+				StatusManager: &controllerutils.StatusManager{
+					Client:        fakeClient,
+					EventRecorder: record.NewFakeRecorder(10),
+				},
 			}
 
 			// Test reconcile

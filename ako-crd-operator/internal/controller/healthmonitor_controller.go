@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/vmware/alb-sdk/go/models"
@@ -65,6 +64,7 @@ type HealthMonitorReconciler struct {
 	EventRecorder record.EventRecorder
 	Logger        *utils.AviLogger
 	ClusterName   string
+	StatusManager *controllerutils.StatusManager
 }
 
 // GetLogger returns the logger for the reconciler to implement NamespaceHandler interface
@@ -270,14 +270,7 @@ func (r *HealthMonitorReconciler) DeleteObject(ctx context.Context, hm *akov1alp
 					return nil, true
 				case 403:
 					log.Errorf("HealthMonitor is being referred by other objects, cannot be deleted. %s", aviError.Error())
-					r.EventRecorder.Event(hm, corev1.EventTypeWarning, "DeletionSkipped", aviError.Error())
-					hm.Status.Conditions = controllerutils.SetCondition(hm.Status.Conditions, metav1.Condition{
-						Type:               "Deleted",
-						Status:             metav1.ConditionFalse,
-						LastTransitionTime: metav1.Time{Time: time.Now().UTC()},
-						Reason:             "DeletionSkipped",
-						Message:            controllerutils.ParseAviErrorMessage(*aviError.Message),
-					})
+					r.StatusManager.SetStatus(ctx, hm, akov1alpha1.ObjectConditionDeleted, metav1.ConditionFalse, akov1alpha1.ObjectReasonDeletionSkipped, controllerutils.ParseAviErrorMessage(*aviError.Message))
 					return nil, false
 				}
 			}
@@ -335,18 +328,22 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 	if hm.Status.UUID == "" {
 		resp, err := r.createHealthMonitor(ctx, hmReq, hm, namespaceTenant)
 		if err != nil {
-			r.EventRecorder.Event(hm, corev1.EventTypeWarning, "CreationFailed", fmt.Sprintf("Failed to create HealthMonitor on Avi Controller: %v", err))
+			r.StatusManager.SetStatus(ctx, hm, akov1alpha1.ObjectConditionReady, metav1.ConditionFalse, akov1alpha1.ObjectReasonCreationFailed, fmt.Sprintf("Failed to create HealthMonitor on Avi Controller: %v", err))
 			log.Errorf("error creating healthmonitor: %s", err.Error())
 			return err
 		}
 		uuid, err := extractUUID(resp)
 		if err != nil {
-			r.EventRecorder.Event(hm, corev1.EventTypeWarning, "UUIDExtractionFailed", fmt.Sprintf("Failed to extract UUID: %v", err))
+			r.StatusManager.SetStatus(ctx, hm, akov1alpha1.ObjectConditionReady, metav1.ConditionFalse, akov1alpha1.ObjectReasonUUIDExtractionFailed, fmt.Sprintf("Failed to extract UUID: %v", err))
 			log.Errorf("error extracting UUID from healthmonitor: %s", err.Error())
 			return err
 		}
 		hm.Status.UUID = uuid
-		r.EventRecorder.Event(hm, corev1.EventTypeNormal, "Created", "HealthMonitor created successfully on Avi Controller")
+		hm.Status.DependencySum = dependencyChecksum
+		hm.Status.BackendObjectName = hmReq.Name
+		hm.Status.Tenant = namespaceTenant
+		r.StatusManager.SetStatus(ctx, hm, akov1alpha1.ObjectConditionReady, metav1.ConditionTrue, akov1alpha1.ObjectReasonCreated, "PKIProfile created successfully on Avi Controller")
+
 	} else {
 		// this is a PUT Call
 		// check if no op by checking generation and checksums
@@ -366,31 +363,16 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 		resp := map[string]interface{}{}
 		if err := r.AviClient.AviSessionPut(utils.GetUriEncoded(fmt.Sprintf("%s/%s", constants.HealthMonitorURL, hm.Status.UUID)), hmReq, &resp, session.SetOptTenant(namespaceTenant)); err != nil {
 			log.Errorf("error updating healthmonitor %s", err.Error())
-			r.EventRecorder.Event(hm, corev1.EventTypeWarning, "UpdateFailed", fmt.Sprintf("Failed to update HealthMonitor on Avi Controller: %v", err))
+			r.StatusManager.SetStatus(ctx, hm, akov1alpha1.ObjectConditionReady, metav1.ConditionFalse, akov1alpha1.ObjectReasonUpdateFailed, fmt.Sprintf("Failed to update HealthMonitor on Avi Controller: %v", err))
 			return err
 		}
-		hm.Status.Conditions = controllerutils.SetCondition(hm.Status.Conditions, metav1.Condition{
-			Type:               "Ready",
-			Status:             metav1.ConditionTrue,
-			LastTransitionTime: metav1.Time{Time: time.Now().UTC()},
-			Reason:             "Updated",
-			Message:            "HealthMonitor updated successfully on Avi Controller",
-		})
-		r.EventRecorder.Event(hm, corev1.EventTypeNormal, "Updated", "HealthMonitor updated successfully on Avi Controller")
-		log.Info("successfully updated healthmonitor")
+		hm.Status.DependencySum = dependencyChecksum
+		hm.Status.BackendObjectName = hmReq.Name
+		hm.Status.Tenant = namespaceTenant
+		r.StatusManager.SetStatus(ctx, hm, akov1alpha1.ObjectConditionReady, metav1.ConditionTrue, akov1alpha1.ObjectReasonUpdated, "HealthMonitor updated successfully on Avi Controller")
+        log.Info("successfully updated healthmonitor")
 	}
-	hm.Status.DependencySum = dependencyChecksum
-	hm.Status.BackendObjectName = hmReq.Name
-	hm.Status.Tenant = namespaceTenant
-	lastUpdated := metav1.Time{Time: time.Now().UTC()}
-	hm.Status.LastUpdated = &lastUpdated
-	hm.Status.ObservedGeneration = hm.Generation
-	if err := r.Status().Update(ctx, hm); err != nil {
-		r.EventRecorder.Event(hm, corev1.EventTypeWarning, "StatusUpdateFailed", fmt.Sprintf("Failed to update HealthMonitor status: %v", err))
-		log.Errorf("unable to update healthmonitor status: %s", err.Error())
-		return err
-	}
-	return nil
+		return nil
 }
 
 // createHealthMonitor will attempt to create a health monitor, if it already exists, it will return an object which contains the uuid
@@ -417,25 +399,13 @@ func (r *HealthMonitorReconciler) createHealthMonitor(ctx context.Context, hmReq
 					log.Errorf("error updating healthmonitor: %s", err.Error())
 					return nil, err
 				}
-				hm.Status.Conditions = controllerutils.SetCondition(hm.Status.Conditions, metav1.Condition{
-					Type:               "Ready",
-					Status:             metav1.ConditionTrue,
-					LastTransitionTime: metav1.Time{Time: time.Now().UTC()},
-					Reason:             "Updated",
-					Message:            "HealthMonitor updated successfully on Avi Controller",
-				})
+				r.StatusManager.SetStatus(ctx, hm, akov1alpha1.ObjectConditionReady, metav1.ConditionTrue, akov1alpha1.ObjectReasonUpdated, "HealthMonitor updated successfully on Avi Controller")
 				return resp, nil
 			}
 		}
 		return nil, err
 	}
-	hm.Status.Conditions = controllerutils.SetCondition(hm.Status.Conditions, metav1.Condition{
-		Type:               "Ready",
-		Status:             metav1.ConditionTrue,
-		LastTransitionTime: metav1.Time{Time: time.Now().UTC()},
-		Reason:             "Created",
-		Message:            "HealthMonitor created successfully on Avi Controller",
-	})
+	r.StatusManager.SetStatus(ctx, hm, akov1alpha1.ObjectConditionReady, metav1.ConditionTrue, akov1alpha1.ObjectReasonCreated, "HealthMonitor created successfully on Avi Controller")
 	log.Info("healthmonitor successfully created")
 	return resp, nil
 }
@@ -575,6 +545,10 @@ func CreateNewHealthMonitorControllerAndSetupWithManager(
 		EventRecorder: mgr.GetEventRecorderFor(healthMonitorControllerName),
 		Logger:        utils.AviLog.WithName("healthmonitor"),
 		ClusterName:   clusterName,
+		StatusManager: &controllerutils.StatusManager{
+			Client:        mgr.GetClient(),
+			EventRecorder: mgr.GetEventRecorderFor(healthMonitorControllerName),
+		},
 	}
 
 	// Register with Secret Controller

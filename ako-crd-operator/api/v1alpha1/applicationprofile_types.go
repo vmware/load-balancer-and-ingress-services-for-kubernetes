@@ -180,6 +180,9 @@ type ApplicationProfileStatus struct {
 	BackendObjectName string `json:"backendObjectName,omitempty"`
 	// Tenant is the tenant where the application profile is created
 	Tenant string `json:"tenant,omitempty"`
+	// Field is populated by AKO CRD operator as ako-crd-operator
+	// +optional
+	Controller string `json:"controller,omitempty"`
 }
 
 // +genclient
@@ -234,4 +237,9 @@ func (ap *ApplicationProfile) SetObservedGeneration(generation int64) {
 // SetLastUpdated sets the last updated timestamp in the status
 func (ap *ApplicationProfile) SetLastUpdated(time *metav1.Time) {
 	ap.Status.LastUpdated = time
+}
+
+// SetController sets the controller name in the status
+func (ap *ApplicationProfile) SetController(controller string) {
+	ap.Status.Controller = controller
 }

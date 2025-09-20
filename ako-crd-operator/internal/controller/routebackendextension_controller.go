@@ -220,17 +220,17 @@ func (r *RouteBackendExtensionReconciler) ValidatedObject(ctx context.Context, r
 		if err != nil {
 			// This log message will change in multitenancy
 			log.Errorf("error in getting healthmonitor: %s from tenant %s. Err: %s", hm.Name, tenant, err.Error())
-			r.SetStatus(rbe, err.Error(), constants.REJECTED)
+			r.SetStatus(rbe, err.Error(), akov1alpha1.ObjectConditionRejected)
 			return err
 		} else if resp == nil {
 			log.Errorf("error in getting healthmonitor: : %s from tenant %s. Count: 0.000000", hm.Name, tenant)
 			err = fmt.Errorf("error in getting healthmonitor: %s from tenant %s. Object not found", hm.Name, tenant)
-			r.SetStatus(rbe, err.Error(), constants.REJECTED)
+			r.SetStatus(rbe, err.Error(), akov1alpha1.ObjectConditionRejected)
 			return err
 		} else if len(resp) == 0 || resp["count"] == nil || resp["count"].(float64) == float64(0) {
 			log.Errorf("error in getting healthmonitor: %s from tenant %s. Object not found", hm.Name, tenant)
 			err = fmt.Errorf("error in getting healthmonitor: %s from tenant %s. Object not found", hm.Name, tenant)
-			r.SetStatus(rbe, err.Error(), constants.REJECTED)
+			r.SetStatus(rbe, err.Error(), akov1alpha1.ObjectConditionRejected)
 			return err
 		}
 	}
@@ -247,11 +247,11 @@ func (r *RouteBackendExtensionReconciler) ValidatedObject(ctx context.Context, r
 			if k8serror.IsNotFound(err) {
 				log.Errorf("PKIProfile %s not found in namespace %s", rbe.Spec.PKIProfile.Name, rbe.Namespace)
 				err = fmt.Errorf("PKIProfile %s not found in namespace %s", rbe.Spec.PKIProfile.Name, rbe.Namespace)
-				r.SetStatus(rbe, err.Error(), constants.REJECTED)
+				r.SetStatus(rbe, err.Error(), akov1alpha1.ObjectConditionRejected)
 				return err
 			}
 			log.Errorf("error getting PKIProfile %s from namespace %s. Err: %s", rbe.Spec.PKIProfile.Name, rbe.Namespace, err.Error())
-			r.SetStatus(rbe, err.Error(), constants.REJECTED)
+			r.SetStatus(rbe, err.Error(), akov1alpha1.ObjectConditionRejected)
 			return err
 		}
 
@@ -261,14 +261,14 @@ func (r *RouteBackendExtensionReconciler) ValidatedObject(ctx context.Context, r
 				rbe.Spec.PKIProfile.Name, pkiProfile.Status.Tenant, rbe.Namespace, tenant)
 			err = fmt.Errorf("PKIProfile %s tenant %s does not match namespace %s tenant %s",
 				rbe.Spec.PKIProfile.Name, pkiProfile.Status.Tenant, rbe.Namespace, tenant)
-			r.SetStatus(rbe, err.Error(), constants.REJECTED)
+			r.SetStatus(rbe, err.Error(), akov1alpha1.ObjectConditionRejected)
 			return err
 		}
 
 		// Check if PKIProfile is ready by looking at its Ready condition
 		isReady := false
 		for _, condition := range pkiProfile.Status.Conditions {
-			if condition.Type == "Ready" && condition.Status == "True" {
+			if condition.Type == string(akov1alpha1.ObjectConditionReady) && condition.Status == "True" {
 				isReady = true
 				break
 			}
@@ -277,11 +277,11 @@ func (r *RouteBackendExtensionReconciler) ValidatedObject(ctx context.Context, r
 		if !isReady {
 			log.Errorf("RBE is rejected beacause PKIProfile %s is not ready in namespace %s", rbe.Spec.PKIProfile.Name, rbe.Namespace)
 			err = fmt.Errorf("RBE is rejected beacause PKIProfile %s is not ready in namespace %s", rbe.Spec.PKIProfile.Name, rbe.Namespace)
-			r.SetStatus(rbe, err.Error(), constants.REJECTED)
+			r.SetStatus(rbe, err.Error(), akov1alpha1.ObjectConditionRejected)
 			return err
 		}
 	}
-	err = r.SetStatus(rbe, "", constants.ACCEPTED)
+	err = r.SetStatus(rbe, "", akov1alpha1.ObjectConditionAccepted)
 	if err != nil {
 		log.Errorf("error in setting status: %s", err.Error())
 		return err
@@ -290,10 +290,11 @@ func (r *RouteBackendExtensionReconciler) ValidatedObject(ctx context.Context, r
 	return nil
 }
 
-func (r *RouteBackendExtensionReconciler) SetStatus(rbe *akov1alpha1.RouteBackendExtension, error1 string, status string) error {
+// SetStatus sets the RouteBackendExtension status using standardized status management
+func (r *RouteBackendExtensionReconciler) SetStatus(rbe *akov1alpha1.RouteBackendExtension, error1 string, status akov1alpha1.ObjectConditionType) error {
 	rbe.SetRouteBackendExtensionController(constants.AKOCRDController)
 	rbe.Status.Error = error1
-	rbe.Status.Status = status
+	rbe.Status.Status = string(status)
 	if r.Client == nil {
 		log := utils.LoggerFromContext(context.Background())
 		log.Errorf("r.Status() returned nil. Cannot update status for RouteBackendExtension: %s/%s", rbe.Namespace, rbe.Name)
