@@ -12,7 +12,7 @@ spec:
     listKind: PKIProfileList
     plural: pkiprofiles
     shortNames:
-    - pp
+    - pkip
     singular: pkiprofile
   scope: Namespaced
   versions:

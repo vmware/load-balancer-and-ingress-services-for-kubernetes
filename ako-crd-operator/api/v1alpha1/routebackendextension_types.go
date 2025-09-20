@@ -98,13 +98,27 @@ const (
 	PersistenceTypeAppCookie       PersistenceProfileType = "System-Persistence-App-Cookie"
 )
 
+// BackendTLS defines the TLS/SSL configuration for secure communication with backend servers.
+// This struct enables SSL termination at the backend and provides options for certificate validation,
+// hostname verification, and domain name matching to ensure secure and trusted connections.
+// +kubebuilder:validation:XValidation:rule="!has(self.domainName) || has(self.hostCheckEnabled) && self.hostCheckEnabled == true",message="domainName can only be configured when hostCheckEnabled is set to true"
+type BackendTLS struct {
+	// Represents PKI Profile objects
+	// +optional
+	PKIProfile *BackendPKIProfile `json:"pkiProfile,omitempty"`
+	// HostCheckEnabled enables hostname verification during TLS handshake with the backend.
+	// When enabled, the certificate presented by the backend must match the hostname.
+	// +optional
+	HostCheckEnabled *bool `json:"hostCheckEnabled,omitempty"`
+	// List of domain names which will be used to verify the common names or subject alternative names presented by server certificates.
+	// It is performed only when host check (hostCheckEnabled) is enabled.
+	// +optional
+	DomainName []string `json:"domainName,omitempty"`
+}
+
 // RouteBackendExtensionSpec defines the desired state of RouteBackendExtension
 // +kubebuilder:validation:XValidation:rule="(self.lbAlgorithm == 'LB_ALGORITHM_CONSISTENT_HASH') && has(self.lbAlgorithmHash)",message="lbAlgorithmHash must be set if and only if lbAlgorithm is LB_ALGORITHM_CONSISTENT_HASH"
 // +kubebuilder:validation:XValidation:rule="!has(self.lbAlgorithmHash) || (self.lbAlgorithmHash == 'LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER') && has(self.lbAlgorithmConsistentHashHdr)",message="lbAlgorithmConsistentHashHdr must be set if and only if lbAlgorithmHash is LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER"
-// +kubebuilder:validation:XValidation:rule="!has(self.pkiProfile) || (has(self.enableBackendSSL) && self.enableBackendSSL == true)",message="pkiProfile can only be configured when enableBackendSSL is set to true"
-// +kubebuilder:validation:XValidation:rule="!has(self.hostCheckEnabled) || (has(self.enableBackendSSL) && self.enableBackendSSL == true)",message="hostCheckEnabled can only be configured when enableBackendSSL is set to true"
-// +kubebuilder:validation:XValidation:rule="!has(self.domainName) || (has(self.enableBackendSSL) && self.enableBackendSSL == true && has(self.hostCheckEnabled) && self.hostCheckEnabled == true)",message="domainName can only be configured when both enableBackendSSL and hostCheckEnabled are set to true"
-
 type RouteBackendExtensionSpec struct {
 	// Defines LB algorithm on Pool
 	// +optional
@@ -124,20 +138,9 @@ type RouteBackendExtensionSpec struct {
 	// Represents health monitor objects
 	// +optional
 	HealthMonitor []BackendHealthMonitor `json:"healthMonitor,omitempty"`
-	// EnableBackendSSL enables SSL termination at the backend.
+	// Defines the group of settings that enable AKO to leverage SSL to talk to backend servers
 	// +optional
-	EnableBackendSSL *bool `json:"enableBackendSSL,omitempty"`
-	// Represents PKI Profile objects
-	// +optional
-	PKIProfile *BackendPKIProfile `json:"pkiProfile,omitempty"`
-	// HostCheckEnabled enables hostname verification during TLS handshake with the backend.
-	// When enabled, the certificate presented by the backend must match the hostname.
-	// +optional
-	HostCheckEnabled *bool `json:"hostCheckEnabled,omitempty"`
-	// List of domain names which will be used to verify the common names or subject alternative names presented by server certificates.
-	// It is performed only when host check (hostCheckEnabled) is enabled.
-	// +optional
-	DomainName []string `json:"domainName,omitempty"`
+	BackendTLS *BackendTLS `json:"backendTLS,omitempty"`
 }
 
 // RouteBackendExtensionStatus defines the observed state of RouteBackendExtension.
