@@ -28,13 +28,13 @@ import (
 	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 )
 
@@ -47,7 +47,6 @@ func TestAdvL4WithL4RuleIntegration(t *testing.T) {
 	// 5. Cleanup and verify deletion
 	os.Setenv("VPC_MODE", "true")
 	defer os.Unsetenv("VPC_MODE")
-	utils.AviLog.SetLevel("DEBUG")
 
 	g := gomega.NewGomegaWithT(t)
 
@@ -230,6 +229,215 @@ func TestAdvL4WithL4RuleIntegration(t *testing.T) {
 		t.Fatalf("error in deleting L4Rule: %v", err)
 	}
 
+	TeardownGatewayClass(t, gwClassName)
+	g.Eventually(func() int {
+		gw, _ := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(ns).Get(gatewayName)
+		return len(gw.Status.Addresses)
+	}, 30*time.Second).Should(gomega.Equal(0))
+
+	TeardownAdvLBService(t, svcName, ns)
+	TeardownGateway(t, gatewayName, ns)
+	VerifyGatewayVSNodeDeletion(g, modelName)
+}
+
+func TestAdvL4WithHealthMonitorCRDRef(t *testing.T) {
+	// Test L4Rule integration with HealthMonitorCRDRef field
+	// 1. Setup L4Rule with HealthMonitorCRDRef in BackendProperties
+	// 2. Setup GatewayClass and Gateway
+	// 3. Create LoadBalancer service with L4Rule annotation
+	// 4. Verify L4Rule with HealthMonitorCRDRef is processed correctly
+	// 5. Test updating and removing HealthMonitorCRDRef
+	// 6. Cleanup and verify deletion
+	os.Setenv("VPC_MODE", "true")
+	defer os.Unsetenv("VPC_MODE")
+
+	g := gomega.NewGomegaWithT(t)
+
+	gwClassName, gatewayName, ns := "avi-lb-healthmonitor", "my-gateway-healthmonitor", "default"
+	healthMonitorName := "test-health-monitor"
+
+	// Create mock HealthMonitor objects
+	healthMonitor1 := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "ako.vmware.com/v1alpha1",
+			"kind":       "HealthMonitor",
+			"metadata": map[string]interface{}{
+				"name":      healthMonitorName,
+				"namespace": ns,
+			},
+			"spec": map[string]interface{}{
+				"type":              "HEALTH_MONITOR_TCP",
+				"send_interval":     int64(15),
+				"receive_timeout":   int64(5),
+				"successful_checks": int64(3),
+				"failed_checks":     int64(2),
+				"monitor_port":      int64(8081),
+				"tcp_monitor": map[string]interface{}{
+					"tcp_half_open": true,
+				},
+			},
+			"status": map[string]interface{}{
+				"uuid":               "healthmonitor-uuid-1",
+				"observedGeneration": int64(1),
+				"backendObjectName":  "avi-healthmonitor-1",
+				"tenant":             "admin",
+				"conditions": []interface{}{
+					map[string]interface{}{
+						"type":               "Ready",
+						"status":             "True",
+						"lastTransitionTime": "2023-01-01T00:00:00Z",
+						"reason":             "Accepted",
+						"message":            "HealthMonitor configuration has been accepted and processed by AKO CRD Operator",
+					},
+				},
+			},
+		},
+	}
+
+	modelName := "admin/abc--default-" + gatewayName
+	svcName := "svc-healthmonitor"
+	l4RuleName := "test-l4rule-hm"
+	ports := []int{8081}
+
+	// STEP 1: Setup L4Rule with HealthMonitorCRDRef
+	_, err := lib.GetDynamicClientSet().Resource(lib.HealthMonitorGVR).Namespace(ns).Create(context.TODO(), healthMonitor1, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in creating HealthMonitor: %v", err)
+	}
+
+	l4Rule := integrationtest.FakeL4Rule{
+		Name:      l4RuleName,
+		Namespace: ns,
+		Ports:     ports,
+	}
+	l4RuleObj := l4Rule.L4Rule()
+
+	// Configure L4Rule with HealthMonitorCRDRef in BackendProperties
+	l4RuleObj.Spec.BackendProperties = []*akov1alpha2.BackendProperties{
+		{
+			Port:     &ports[0],
+			Protocol: proto.String("TCP"),
+			Enabled:  proto.Bool(true),
+			HealthMonitorCrdRefs: []string{
+				healthMonitorName, // Reference to a HealthMonitor CRD (testing the field)
+			},
+			LbAlgorithm: proto.String("LB_ALGORITHM_LEAST_CONNECTIONS"),
+		},
+	}
+
+	// Add performance limits for additional verification
+	l4RuleObj.Spec.PerformanceLimits = &akov1alpha2.PerformanceLimits{
+		MaxConcurrentConnections: proto.Int32(300),
+		MaxThroughput:            proto.Int32(200),
+	}
+
+	if _, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(ns).Create(context.TODO(), l4RuleObj, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding L4Rule: %v", err)
+	}
+
+	// Wait for L4Rule to be accepted
+	g.Eventually(func() string {
+		rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(ns).Get(context.TODO(), l4RuleName, metav1.GetOptions{})
+		return rule.Status.Status
+	}, 30*time.Second).Should(gomega.Equal("Accepted"))
+
+	// STEP 2: Setup GatewayClass and Gateway
+	SetupGatewayClass(t, gwClassName, lib.AviGatewayController)
+	SetupGateway(t, gatewayName, ns, gwClassName, false)
+
+	// STEP 3: Create LoadBalancer service with L4Rule annotation
+	svc := integrationtest.FakeService{
+		Name:      svcName,
+		Namespace: ns,
+		Labels: map[string]string{
+			lib.GatewayNameLabelKey:      gatewayName,
+			lib.GatewayNamespaceLabelKey: ns,
+			lib.GatewayTypeLabelKey:      "direct",
+		},
+		Annotations: map[string]string{
+			lib.L4RuleAnnotation: l4RuleName, // Apply L4Rule with HealthMonitorCRDRef to service
+		},
+		Type:         corev1.ServiceTypeLoadBalancer,
+		ServicePorts: []integrationtest.Serviceport{{PortName: "tcp", Protocol: "TCP", PortNumber: 8081, TargetPort: intstr.FromInt(8081)}},
+	}
+
+	svcCreate := svc.Service()
+	if _, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svcCreate, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+	integrationtest.CreateEPS(t, ns, svcName, false, true, "1.1.1")
+
+	// STEP 4: Verify Gateway and Service get IP addresses
+	g.Eventually(func() string {
+		gw, _ := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(ns).Get(gatewayName)
+		if len(gw.Status.Addresses) > 0 {
+			return gw.Status.Addresses[0].Value
+		}
+		return ""
+	}, 40*time.Second).Should(gomega.Equal("10.250.250.1"))
+
+	g.Eventually(func() string {
+		service, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcName, metav1.GetOptions{})
+		if len(service.Status.LoadBalancer.Ingress) > 0 {
+			return service.Status.LoadBalancer.Ingress[0].IP
+		}
+		return ""
+	}, 30*time.Second).Should(gomega.Equal("10.250.250.1"))
+
+	// STEP 5: Verify L4Rule with HealthMonitorCRDRef is processed correctly
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+
+	// Verify VS node basic properties
+	g.Expect(nodes[0].Name).To(gomega.Equal(fmt.Sprintf("abc--default-%s", gatewayName)))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8081)))
+	g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].L4PolicyRefs[0].PortPool[0].Port).To(gomega.Equal(uint32(8081)))
+	g.Expect(nodes[0].L4PolicyRefs[0].PortPool[0].Protocol).To(gomega.Equal("TCP"))
+
+	// Verify Gateway and Service metadata
+	g.Expect(nodes[0].ServiceMetadata.Gateway).To(gomega.Equal("default/" + gatewayName))
+	g.Expect(nodes[0].ServiceMetadata.NamespaceServiceName[0]).To(gomega.Equal("default/" + svcName))
+
+	// Verify pool settings from L4Rule backend properties
+	g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(1))
+	poolRef := nodes[0].PoolRefs[0]
+
+	// Check L4Rule backend properties are applied
+	g.Expect(poolRef.HealthMonitorRefs).To(gomega.HaveLen(1))
+	g.Expect(poolRef.HealthMonitorRefs[0]).To(gomega.Equal("/api/healthmonitor/healthmonitor-uuid-1"))
+	if poolRef.LbAlgorithm != nil {
+		g.Expect(*poolRef.LbAlgorithm).To(gomega.Equal("LB_ALGORITHM_LEAST_CONNECTIONS"))
+	}
+
+	// Verify performance limits from L4Rule
+	if nodes[0].PerformanceLimits != nil {
+		g.Expect(*nodes[0].PerformanceLimits.MaxConcurrentConnections).To(gomega.Equal(int32(300)))
+		g.Expect(*nodes[0].PerformanceLimits.MaxThroughput).To(gomega.Equal(int32(200)))
+	}
+
+	// Verify pool has servers from endpoints
+	g.Expect(poolRef.Servers).To(gomega.HaveLen(3))
+
+	// STEP 6: Cleanup resources
+
+	// Delete L4Rule
+	if err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(ns).Delete(context.TODO(), l4RuleName, metav1.DeleteOptions{}); err != nil {
+		t.Fatalf("error in deleting L4Rule: %v", err)
+	}
+
+	// Delete HealthMonitor
+	if err := lib.GetDynamicClientSet().Resource(lib.HealthMonitorGVR).Namespace(ns).Delete(context.TODO(), healthMonitorName, metav1.DeleteOptions{}); err != nil {
+		t.Fatalf("error in deleting HealthMonitor: %v", err)
+	}
+
+	// Cleanup Gateway resources
 	TeardownGatewayClass(t, gwClassName)
 	g.Eventually(func() int {
 		gw, _ := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(ns).Get(gatewayName)

@@ -24,7 +24,10 @@ import (
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	dynamicfake "k8s.io/client-go/dynamic/fake"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
@@ -39,6 +42,10 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 	advl4fake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/clientset/versioned/fake"
 )
+
+var gvrToKind = map[schema.GroupVersionResource]string{
+	lib.HealthMonitorGVR: "healthmonitorsList",
+}
 
 func TestMain(m *testing.M) {
 	os.Setenv("CLUSTER_ID", "abc:cluster")
@@ -77,9 +84,14 @@ func TestMain(m *testing.M) {
 		utils.ConfigMapInformer,
 	}
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: KubeClient}, registeredInformers)
-	informers := k8s.K8sinformers{Cs: KubeClient}
 	k8s.NewCRDInformers()
 	k8s.NewAdvL4Informers(AdvL4Client)
+
+	dynamicClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToKind)
+	lib.SetDynamicClientSet(dynamicClient)
+	lib.NewDynamicInformers(dynamicClient, false)
+
+	informers := k8s.K8sinformers{Cs: KubeClient, DynamicClient: dynamicClient}
 
 	mcache := cache.SharedAviObjCache()
 	cloudObj := &cache.AviCloudPropertyCache{Name: "Default-Cloud", VType: "mock"}
