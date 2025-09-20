@@ -183,7 +183,10 @@ func TearDownTestForIngress(t *testing.T, svcName string, modelNames ...string) 
 	integrationtest.DelSVC(t, "default", svcName)
 	integrationtest.DelEPS(t, "default", svcName)
 }
-
+func TearDownTestForIngressForAlias(t *testing.T, svcName string) {
+	integrationtest.DelSVC(t, "default", svcName)
+	integrationtest.DelEPS(t, "default", svcName)
+}
 func SetUpIngressForCacheSyncCheck(t *testing.T, ingTestObj IngressTestObject) {
 	SetupDomain()
 	SetUpTestForIngress(t, ingTestObj.serviceName, ingTestObj.modelNames...)
@@ -287,6 +290,15 @@ func TearDownIngressForCacheSyncCheck(t *testing.T, secretName, ingressName, svc
 	TearDownTestForIngress(t, svcName, modelName)
 }
 
+func TearDownIngressForCacheSyncCheckForAlias(t *testing.T, secretName, ingressName, svcName string) {
+	if err := KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), ingressName, metav1.DeleteOptions{}); err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	if secretName != "" {
+		KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), secretName, metav1.DeleteOptions{})
+	}
+	TearDownTestForIngressForAlias(t, svcName)
+}
 func TestFQDNCountInL7Model(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--foo.com-L7-dedicated"

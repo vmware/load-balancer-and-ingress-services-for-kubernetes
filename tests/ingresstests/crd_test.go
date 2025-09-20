@@ -2679,3 +2679,80 @@ func TestCreateDeleteSharedVSHostRuleWithoutDNS(t *testing.T) {
 
 	TearDownIngressForCacheSyncCheck(t, ingName, svcName, secretName, modelName)
 }
+
+func TestCreateDeleteHostRuleWithAlias(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	modelName := MODEL_NAME_PREFIX + "0"
+	svcName := objNameMap.GenerateName("avisvc")
+	hrname := objNameMap.GenerateName("samplehr-foo")
+	secretName := objNameMap.GenerateName("my-secret")
+	ingName := objNameMap.GenerateName("foo-with-targets")
+	ingTestObj := IngressTestObject{
+		ingressName: ingName,
+		isTLS:       true,
+		withSecret:  true,
+		secretName:  secretName,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
+
+	integrationtest.SetupHostRule(t, hrname, "foo.com", true)
+
+	g.Eventually(func() string {
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		return hostrule.Status.Status
+	}, 20*time.Second).Should(gomega.Equal("Accepted"))
+
+	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--foo.com"}
+	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/"+hrname, true)
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+	g.Expect(*nodes[0].SniNodes[0].Enabled).To(gomega.Equal(true))
+	g.Expect(nodes[0].SniNodes[0].SslKeyAndCertificateRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].SniNodes[0].SslKeyAndCertificateRefs[0]).To(gomega.ContainSubstring("thisisaviref-sslkey"))
+	g.Expect(nodes[0].SniNodes[0].ICAPProfileRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].SniNodes[0].ICAPProfileRefs[0]).To(gomega.ContainSubstring("thisisaviref-icapprof"))
+	g.Expect(*nodes[0].SniNodes[0].WafPolicyRef).To(gomega.ContainSubstring("thisisaviref-waf"))
+	g.Expect(*nodes[0].SniNodes[0].ApplicationProfileRef).To(gomega.ContainSubstring("thisisaviref-appprof"))
+	g.Expect(*nodes[0].SniNodes[0].AnalyticsProfileRef).To(gomega.ContainSubstring("thisisaviref-analyticsprof"))
+	g.Expect(nodes[0].SniNodes[0].ErrorPageProfileRef).To(gomega.ContainSubstring("thisisaviref-errorprof"))
+	g.Expect(nodes[0].SniNodes[0].HttpPolicySetRefs).To(gomega.HaveLen(2))
+	g.Expect(nodes[0].SniNodes[0].HttpPolicySetRefs[0]).To(gomega.ContainSubstring("thisisaviref-httpps2"))
+	g.Expect(nodes[0].SniNodes[0].HttpPolicySetRefs[1]).To(gomega.ContainSubstring("thisisaviref-httpps1"))
+	g.Expect(nodes[0].SniNodes[0].VsDatascriptRefs).To(gomega.HaveLen(2))
+	g.Expect(nodes[0].SniNodes[0].VsDatascriptRefs[0]).To(gomega.ContainSubstring("thisisaviref-ds2"))
+	g.Expect(nodes[0].SniNodes[0].VsDatascriptRefs[1]).To(gomega.ContainSubstring("thisisaviref-ds1"))
+	g.Expect(*nodes[0].SniNodes[0].SslProfileRef).To(gomega.ContainSubstring("thisisaviref-sslprof"))
+	g.Expect(nodes[0].NetworkSecurityPolicyRef).Should(gomega.BeNil())
+	g.Expect(nodes[0].SniNodes[0].VHDomainNames).To(gomega.ContainElement("bar.com"))
+
+	// tear down hostrule
+	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
+	// delete ingress
+	TearDownIngressForCacheSyncCheckAliasUseCase(t, ingName, svcName, secretName)
+	// introduce sleep so that cache update will happen
+	time.Sleep(5 * time.Second)
+	hrNew := integrationtest.FakeHostRule{
+		Name:              hrname,
+		Namespace:         "default",
+		Fqdn:              "foo1.com",
+		SslKeyCertificate: "thisisaviref-sslkey",
+	}.HostRule()
+	enableVirtualHost := false
+	hrNew.Spec.VirtualHost.EnableVirtualHost = &enableVirtualHost
+	hrNew.Spec.VirtualHost.FqdnType = "Exact"
+	hrNew.Spec.VirtualHost.Aliases = []string{"baz.com", "foo.com"}
+
+	hrNew.ResourceVersion = "2"
+	_, err := v1beta1CRDClient.AkoV1beta1().HostRules("default").Create(context.TODO(), hrNew, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating HostRule: %v", err)
+	}
+	g.Eventually(func() string {
+		hostrule, _ := v1beta1CRDClient.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		return hostrule.Status.Status
+	}, 20*time.Second).Should(gomega.Equal("Accepted"))
+}

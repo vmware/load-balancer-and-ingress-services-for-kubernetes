@@ -143,6 +143,15 @@ func TearDownIngressForCacheSyncCheck(t *testing.T, ingName, svcName, secretName
 	TearDownTestForIngress(t, svcName, modelName)
 }
 
+func TearDownIngressForCacheSyncCheckAliasUseCase(t *testing.T, ingName, svcName, secretName string) {
+	if err := KubeClient.NetworkingV1().Ingresses("default").Delete(context.TODO(), ingName, metav1.DeleteOptions{}); err != nil {
+		t.Fatalf("Couldn't DELETE the Ingress %v", err)
+	}
+	if secretName != "" {
+		KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), secretName, metav1.DeleteOptions{})
+	}
+	TearDownTestForIngressForAliasUseCase(t, svcName)
+}
 func CleanupCache(vsName string) {
 	mcache := cache.SharedAviObjCache()
 	vsKey := cache.NamespaceName{Namespace: "admin", Name: vsName}

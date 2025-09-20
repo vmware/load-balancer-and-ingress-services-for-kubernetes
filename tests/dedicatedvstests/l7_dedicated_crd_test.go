@@ -1333,3 +1333,100 @@ func TestHTTPRuleCreateDeleteEnableHTTP2(t *testing.T) {
 
 	TearDownIngressForCacheSyncCheck(t, secretName, ingName, svcName, modelName)
 }
+
+/*
+This test case tests following scenario
+1. Create an ingress with foo.com
+2. Create Hostrule with Fqdn foo.com
+3. Delete the ingress.
+4. Delete the hostrule
+5. Create an hostrule with fqdn foo1.com and aliases as `foo.com`.
+6. Check CRD is accepted or not.
+*/
+func TestCreateUpdateDeleteHostRuleWithFqdnAlias_Dedicated(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	modelName := "admin/cluster--foo.com-L7-dedicated"
+	hrname := "fqdn-aliases-hr-foo"
+	secretName := objNameMap.GenerateName("my-secret")
+	ingressName := objNameMap.GenerateName("foo-with-targets")
+	svcName := objNameMap.GenerateName("avisvc")
+	ingTestObj := IngressTestObject{
+		ingressName: ingressName,
+		isTLS:       true,
+		withSecret:  true,
+		secretName:  secretName,
+		serviceName: svcName,
+		modelNames:  []string{modelName},
+	}
+	ingTestObj.FillParams()
+	SetUpIngressForCacheSyncCheck(t, ingTestObj)
+	integrationtest.SetupHostRule(t, hrname, "foo.com", false)
+	g.Eventually(func() int {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes, ok := aviModel.(*avinodes.AviObjectGraph)
+		if !ok {
+			return 0
+		}
+		return len(nodes.GetAviVS())
+	}, 20*time.Second).Should(gomega.Equal(1))
+	sniVSKey := cache.NamespaceName{Namespace: "admin", Name: lib.Encode("cluster--foo.com", lib.EVHVS)}
+	integrationtest.VerifyMetadataHostRule(t, g, sniVSKey, "default/fqdn-aliases-hr-foo", true)
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
+
+	// Common function that takes care of all validations
+	validateNode := func(node *avinodes.AviVsNode, aliases []string) {
+		g.Expect(node.VSVIPRefs).To(gomega.HaveLen(1))
+		g.Expect(node.VSVIPRefs[0].FQDNs).Should(gomega.ContainElements(aliases))
+
+		g.Expect(node.VHDomainNames).Should(gomega.ContainElements(aliases))
+		g.Expect(node.HttpPolicyRefs).To(gomega.HaveLen(2))
+		for _, httpPolicyRef := range nodes[0].HttpPolicyRefs {
+			if httpPolicyRef.HppMap != nil {
+				g.Expect(httpPolicyRef.HppMap).To(gomega.HaveLen(1))
+				g.Expect(httpPolicyRef.HppMap[0].Host).Should(gomega.ContainElements(aliases))
+			}
+			if httpPolicyRef.RedirectPorts != nil {
+				g.Expect(httpPolicyRef.RedirectPorts).To(gomega.HaveLen(1))
+				g.Expect(httpPolicyRef.RedirectPorts[0].Hosts).Should(gomega.ContainElements(aliases))
+			}
+			g.Expect(httpPolicyRef.AviMarkers.Host).Should(gomega.ContainElements(aliases))
+		}
+	}
+
+	// Check default values.
+	validateNode(nodes[0], []string{"foo.com"})
+	// now tear down hostrule and ingress
+	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
+	TearDownIngressForCacheSyncCheckForAlias(t, secretName, ingressName, svcName)
+	// sleep introduced so that cache will be synced
+	time.Sleep(30 * time.Second)
+	g.Eventually(func() int {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes, ok := aviModel.(*avinodes.AviObjectGraph)
+		if !ok {
+			return 0
+		}
+		return len(nodes.GetAviVS())
+	}, 20*time.Second).Should(gomega.Equal(0))
+	// Create new host rule with a valid FQDN Aliases
+	hrNew := integrationtest.FakeHostRule{
+		Name:      hrname,
+		Namespace: "default",
+		Fqdn:      "foo1.com",
+	}.HostRule()
+	aliases := []string{"foo.com", "alias2.com"}
+	hrNew.Spec.VirtualHost.FqdnType = v1beta1.Exact
+	hrNew.Spec.VirtualHost.Aliases = aliases
+	hrNew.ResourceVersion = "1"
+	_, err := V1beta1Client.AkoV1beta1().HostRules("default").Create(context.TODO(), hrNew, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in updating HostRule: %v", err)
+	}
+	g.Eventually(func() string {
+		hostrule, _ := V1beta1Client.AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		return hostrule.Status.Status
+	}, 10*time.Second).Should(gomega.Equal("Accepted"))
+
+	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
+}
