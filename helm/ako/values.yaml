@@ -172,4 +172,4 @@ ako-crd-operator:
           memory: 64Mi
       mountPath: "/log"
       logFile: "ako-crd-operator.log"
-    persistentVolumeClaim: ""
+    persistentVolumeClaim: "" # this persistentVolumeClaim should be different from one in AKO. It can be same based on ReadMode of PVC only.
