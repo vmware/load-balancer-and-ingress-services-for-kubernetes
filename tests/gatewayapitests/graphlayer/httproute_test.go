@@ -5871,11 +5871,10 @@ func TestHTTPRouteWithRouteBackendExtensionBackendTLS(t *testing.T) {
 	rbe := akogatewayapitests.GetFakeRBEObjWithBackendTLS(
 		routeBackendExtensionName,
 		DEFAULT_NAMESPACE,
-		true,                             // enableBackendSSL
-		akogatewayapitests.BoolPtr(true), // hostCheckEnabled
+		akogatewayapitests.BoolPtr(true),                    // hostCheckEnabled
 		akogatewayapitests.StringPtr("backend.example.com"), // domainName
 		akogatewayapitests.StringPtr(pkiProfileName),        // pkiProfile
-		"thisisaviref-hm1", // healthMonitor
+		"thisisaviref-hm1",                                  // healthMonitor
 	)
 	rbe.CreateRouteBackendExtensionCRWithStatus(t)
 
@@ -5954,14 +5953,13 @@ func TestHTTPRouteWithRouteBackendExtensionBackendTLSMinimal(t *testing.T) {
 	integrationtest.CreateSVC(t, DEFAULT_NAMESPACE, svcName, "TCP", corev1.ServiceTypeClusterIP, false)
 	integrationtest.CreateEPS(t, DEFAULT_NAMESPACE, svcName, false, false, "1.2.3")
 
-	// Create RouteBackendExtension CR with minimal BackendTLS configuration (only enableBackendSSL)
+	// Create RouteBackendExtension CR with minimal BackendTLS configuration
 	rbe := akogatewayapitests.GetFakeRBEObjWithBackendTLS(
 		routeBackendExtensionName,
 		DEFAULT_NAMESPACE,
-		true, // enableBackendSSL
-		nil,  // hostCheckEnabled not set
-		nil,  // domainName not set
-		nil,  // pkiProfile not set
+		nil, // hostCheckEnabled not set
+		nil, // domainName not set
+		nil, // pkiProfile not set
 	)
 	rbe.CreateRouteBackendExtensionCRWithStatus(t)
 
@@ -6036,7 +6034,6 @@ func TestHTTPRouteWithRouteBackendExtensionHostCheckEnabledOnly(t *testing.T) {
 	rbe := akogatewayapitests.GetFakeRBEObjWithBackendTLS(
 		routeBackendExtensionName,
 		DEFAULT_NAMESPACE,
-		true,                             // enableBackendSSL
 		akogatewayapitests.BoolPtr(true), // hostCheckEnabled
 		nil,                              // domainName not set
 		nil,                              // pkiProfile not set
@@ -6122,10 +6119,9 @@ func TestHTTPRouteWithRouteBackendExtensionPKIProfileUpdate(t *testing.T) {
 	rbe := akogatewayapitests.GetFakeRBEObjWithBackendTLS(
 		routeBackendExtensionName,
 		DEFAULT_NAMESPACE,
-		true, // enableBackendSSL
-		nil,  // hostCheckEnabled not set
-		nil,  // domainName not set
-		nil,  // pkiProfile not set initially
+		nil, // hostCheckEnabled not set
+		nil, // domainName not set
+		nil, // pkiProfile not set initially
 	)
 	rbe.CreateRouteBackendExtensionCRWithStatus(t)
 

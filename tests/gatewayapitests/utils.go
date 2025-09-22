@@ -935,7 +935,6 @@ type FakeRouteBackendExtension struct {
 	LBAlgorithmConsistentHashHdr string
 	PersistenceProfile           string
 	Hm                           []FakeRouteBackendExtensionHM
-	EnableBackendSSL             *bool
 	HostCheckEnabled             *bool
 	DomainName                   *string
 	PKIProfile                   *FakeRouteBackendExtensionPKIProfile
@@ -967,11 +966,10 @@ func GetFakeDefaultRBEObj(name, namespace string, healthMonitorNames ...string) 
 }
 
 // GetFakeRBEObjWithBackendTLS returns a fake RBE object with BackendTLS configuration for testing
-func GetFakeRBEObjWithBackendTLS(name, namespace string, enableBackendSSL bool, hostCheckEnabled *bool, domainName *string, pkiProfileName *string, healthMonitorNames ...string) *FakeRouteBackendExtension {
+func GetFakeRBEObjWithBackendTLS(name, namespace string, hostCheckEnabled *bool, domainName *string, pkiProfileName *string, healthMonitorNames ...string) *FakeRouteBackendExtension {
 	rbe := GetFakeDefaultRBEObj(name, namespace, healthMonitorNames...)
 
 	// Set BackendTLS fields
-	rbe.EnableBackendSSL = &enableBackendSSL
 	rbe.HostCheckEnabled = hostCheckEnabled
 	rbe.DomainName = domainName
 
@@ -1060,22 +1058,24 @@ func (rbe *FakeRouteBackendExtension) CreateRouteBackendExtensionCRWithStatus(t 
 		"healthMonitor":                hms,
 	}
 
-	// Add SSL/TLS related fields if they are set
-	if rbe.EnableBackendSSL != nil {
-		spec["enableBackendSSL"] = *rbe.EnableBackendSSL
-	}
+	// Add BackendTLS related fields - always create backendTLS section for BackendTLS-enabled RBEs
+	backendTLS := map[string]interface{}{}
+
 	if rbe.HostCheckEnabled != nil {
-		spec["hostCheckEnabled"] = *rbe.HostCheckEnabled
+		backendTLS["hostCheckEnabled"] = *rbe.HostCheckEnabled
 	}
 	if rbe.DomainName != nil {
-		spec["domainName"] = []interface{}{*rbe.DomainName}
+		backendTLS["domainName"] = []interface{}{*rbe.DomainName}
 	}
 	if rbe.PKIProfile != nil {
-		spec["pkiProfile"] = map[string]interface{}{
+		backendTLS["pkiProfile"] = map[string]interface{}{
 			"kind": rbe.PKIProfile.Kind,
 			"name": rbe.PKIProfile.Name,
 		}
 	}
+
+	// Always add backendTLS section since this function is specifically for BackendTLS RBEs
+	spec["backendTLS"] = backendTLS
 
 	routeBackendExtension := &unstructured.Unstructured{
 		Object: map[string]interface{}{
@@ -1129,30 +1129,24 @@ func (rbe *FakeRouteBackendExtension) UpdateRouteBackendExtensionCR(t *testing.T
 	}
 	specObj["healthMonitor"] = hms
 
-	// Update SSL/TLS related fields
-	if rbe.EnableBackendSSL != nil {
-		specObj["enableBackendSSL"] = *rbe.EnableBackendSSL
-	} else {
-		delete(specObj, "enableBackendSSL")
-	}
+	// Update BackendTLS related fields - always create backendTLS section for BackendTLS-enabled RBEs
+	backendTLS := map[string]interface{}{}
+
 	if rbe.HostCheckEnabled != nil {
-		specObj["hostCheckEnabled"] = *rbe.HostCheckEnabled
-	} else {
-		delete(specObj, "hostCheckEnabled")
+		backendTLS["hostCheckEnabled"] = *rbe.HostCheckEnabled
 	}
 	if rbe.DomainName != nil {
-		specObj["domainName"] = []interface{}{*rbe.DomainName}
-	} else {
-		delete(specObj, "domainName")
+		backendTLS["domainName"] = []interface{}{*rbe.DomainName}
 	}
 	if rbe.PKIProfile != nil {
-		specObj["pkiProfile"] = map[string]interface{}{
+		backendTLS["pkiProfile"] = map[string]interface{}{
 			"kind": rbe.PKIProfile.Kind,
 			"name": rbe.PKIProfile.Name,
 		}
-	} else {
-		delete(specObj, "pkiProfile")
 	}
+
+	// Always add backendTLS section since this function is specifically for BackendTLS RBEs
+	specObj["backendTLS"] = backendTLS
 
 	// Update the status section
 	statusObj := existingRBE.Object["status"].(map[string]interface{})

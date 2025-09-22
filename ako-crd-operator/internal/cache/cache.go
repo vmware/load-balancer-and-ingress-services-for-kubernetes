@@ -33,13 +33,6 @@ func NewCache(session session.AviClientInterface, clusterName string) CacheOpera
 
 func (c *cache) PopulateCache(ctx context.Context, urls ...string) error {
 	log := utils.LoggerFromContext(ctx)
-	setTenant := avisession.SetTenant("*")
-	aviSession := c.session.GetAviSession()
-	_ = setTenant(aviSession)
-	// TODO: get from env variable
-	setDefaultTenant := avisession.SetTenant("admin")
-	defer setDefaultTenant(aviSession)
-
 	params := avisession.SetParams(map[string]string{
 		"fields":      "_last_modified,uuid",
 		"page_size":   "100",
@@ -51,7 +44,7 @@ func (c *cache) PopulateCache(ctx context.Context, urls ...string) error {
 		for url != "" {
 			dataList := []map[string]interface{}{}
 			// TODO: use ako-crd-operator session object interface instead directly accessing
-			result, err := c.session.AviSessionGetCollectionRaw(url, params)
+			result, err := c.session.AviSessionGetCollectionRaw(url, params, avisession.SetOptTenant("*"))
 			url = result.Next
 			if err != nil {
 				return err
