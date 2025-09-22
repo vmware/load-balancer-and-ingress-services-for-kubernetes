@@ -36,6 +36,11 @@ func (c *GatewayController) SetupCRDEventHandlers(numWorkers uint32) {
 	if !utils.IsWCP() {
 		c.setupL7CRDEventHandlers(numWorkers)
 	}
+	// Skip setup if AKO CRD Operator is not enabled
+	if !lib.IsAKOCRDOperatorEnabled() {
+		utils.AviLog.Warnf("Skipping event handler setup for AKO CRD Operator managed CRDs as it is not enabled")
+		return
+	}
 	c.setupHealthMonitorEventHandlers(numWorkers)
 	c.setupRouteBackendExtensionEventHandler(numWorkers)
 	c.setupApplicationProfileEventHandlers(numWorkers)
@@ -121,12 +126,6 @@ func (c *GatewayController) setupL7CRDEventHandlers(numWorkers uint32) {
 }
 
 func (c *GatewayController) setupHealthMonitorEventHandlers(numWorkers uint32) {
-	// Skip setup if AKO CRD Operator is not enabled
-	if !lib.IsAKOCRDOperatorEnabled() {
-		utils.AviLog.Warnf("Skipping HealthMonitor event handler setup as AKO CRD Operator is not enabled")
-		return
-	}
-
 	healthMonitorEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if c.DisableSync {
@@ -391,12 +390,6 @@ func (c *GatewayController) processHTTPRoutes(key, namespace, name string, numWo
 }
 
 func (c *GatewayController) setupApplicationProfileEventHandlers(numWorkers uint32) {
-	// Skip setup if AKO CRD Operator is not enabled
-	if !lib.IsAKOCRDOperatorEnabled() {
-		utils.AviLog.Warnf("Skipping ApplicationProfile event handler setup as AKO CRD Operator is not enabled")
-		return
-	}
-
 	appProfileEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if c.DisableSync {
@@ -520,12 +513,6 @@ func (c *GatewayController) processApplicationProfiles(key, namespace, name stri
 }
 
 func (c *GatewayController) setupRouteBackendExtensionEventHandler(numWorkers uint32) {
-	// Skip setup if AKO CRD Operator is not enabled
-	if !lib.IsAKOCRDOperatorEnabled() {
-		utils.AviLog.Warnf("Skipping RouteBackendExtension event handler setup as AKO CRD Operator is not enabled")
-		return
-	}
-
 	RouteBackendExtensionCRDEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			if c.DisableSync {
