@@ -919,9 +919,10 @@ func (w *VKSClusterWatcher) startPeriodicReconciler() {
 	w.reconcileTicker = time.NewTicker(VKSReconcileInterval)
 
 	go func() {
+		ticker := w.reconcileTicker
 		for {
 			select {
-			case <-w.reconcileTicker.C:
+			case <-ticker.C:
 				utils.AviLog.Infof("VKS periodic reconciler: starting reconciliation cycle")
 				w.reconcileAllClusters()
 			case <-w.reconcileStopCh:
@@ -933,12 +934,15 @@ func (w *VKSClusterWatcher) startPeriodicReconciler() {
 }
 
 func (w *VKSClusterWatcher) stopPeriodicReconciler() {
+	// Close the stop channel first to signal the goroutine to exit
+	close(w.reconcileStopCh)
+
+	// Then clean up the ticker after the goroutine has exited
 	if w.reconcileTicker != nil {
 		w.reconcileTicker.Stop()
 		w.reconcileTicker = nil
 	}
 
-	close(w.reconcileStopCh)
 	utils.AviLog.Infof("VKS periodic reconciler stopped")
 }
 
