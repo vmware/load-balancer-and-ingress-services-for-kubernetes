@@ -150,9 +150,9 @@ func (p *NamespaceGrantProcessor) processNamespaceEvent(event *NamespaceEvent) e
 		return nil
 	}
 
-	controller := NewManagementServiceController()
-	if controller == nil {
-		return fmt.Errorf("failed to create ManagementServiceController")
+	controller, err := NewManagementServiceController()
+	if err != nil {
+		return fmt.Errorf("failed to create ManagementServiceController: %w", err)
 	}
 
 	switch event.EventType {
@@ -199,12 +199,10 @@ func (p *NamespaceGrantProcessor) enqueueNamespaceEvent(event *NamespaceEvent) {
 	}
 }
 
-func NewManagementServiceController() *ManagementServiceController {
-	supervisorID, vcenterHost := getClusterConfigValues()
-
-	if supervisorID == "" || vcenterHost == "" {
-		utils.AviLog.Errorf("VKS ManagementService: Cannot create controller without supervisor ID and vCenter host from ConfigMap")
-		return nil
+func NewManagementServiceController() (*ManagementServiceController, error) {
+	supervisorID, vcenterHost, err := getClusterConfigValues()
+	if err != nil {
+		return nil, fmt.Errorf("VKS ManagementService: Cannot create controller - %w", err)
 	}
 
 	return &ManagementServiceController{
@@ -214,14 +212,14 @@ func NewManagementServiceController() *ManagementServiceController {
 		controllerIPs: []string{lib.GetControllerIP()},
 		cloudUUID:     utils.CloudUUID,
 		vcenterHost:   vcenterHost,
-	}
+	}, nil
 }
 
 // EnsureGlobalManagementService creates the global VKS management service
 func EnsureGlobalManagementService() error {
-	c := NewManagementServiceController()
-	if c == nil {
-		return fmt.Errorf("failed to create management service controller")
+	c, err := NewManagementServiceController()
+	if err != nil {
+		return fmt.Errorf("failed to create management service controller: %w", err)
 	}
 
 	existingService, err := c.GetManagementService()
@@ -347,9 +345,9 @@ func (c *ManagementServiceController) validateManagementServiceConfig(serviceObj
 }
 
 func CleanupGlobalManagementService() error {
-	c := NewManagementServiceController()
-	if c == nil {
-		return fmt.Errorf("failed to cleanup management service controller")
+	c, err := NewManagementServiceController()
+	if err != nil {
+		return fmt.Errorf("failed to cleanup management service controller: %w", err)
 	}
 	aviClient := avirest.VKSAviClientInstance()
 	if aviClient == nil {
@@ -362,7 +360,7 @@ func CleanupGlobalManagementService() error {
 		"vcenter_host":          c.vcenterHost,
 	}
 	var response interface{}
-	err := aviClient.AviSession.Post(
+	err = aviClient.AviSession.Post(
 		"api/vimgrvcenterruntime/delete/managementservice",
 		payload,
 		&response,
@@ -404,10 +402,10 @@ type WCPClusterConfig struct {
 	VCPnid       string `yaml:"vc_pnid"`
 }
 
-func getClusterConfigValues() (string, string) {
+func getClusterConfigValues() (string, string, error) {
 	clientset := utils.GetInformers().ClientSet
 	if clientset == nil {
-		return "", ""
+		return "", "", fmt.Errorf("clientset not available")
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -415,31 +413,29 @@ func getClusterConfigValues() (string, string) {
 
 	configMap, err := clientset.CoreV1().ConfigMaps("kube-system").Get(ctx, "wcp-cluster-config", metav1.GetOptions{})
 	if err != nil {
-		return "", ""
+		return "", "", fmt.Errorf("failed to get wcp-cluster-config ConfigMap: %w", err)
 	}
 
 	configYAML, exists := configMap.Data["wcp-cluster-config.yaml"]
 	if !exists {
-		return "", ""
+		return "", "", fmt.Errorf("wcp-cluster-config.yaml not found in ConfigMap")
 	}
 
 	var config WCPClusterConfig
 	if err := yaml.Unmarshal([]byte(configYAML), &config); err != nil {
-		return "", ""
+		return "", "", fmt.Errorf("failed to unmarshal wcp-cluster-config.yaml: %w", err)
 	}
 
 	if config.SupervisorID == "" {
-		utils.AviLog.Errorf("VKS ManagementService: supervisor_id not found in wcp-cluster-config")
-		return "", ""
+		return "", "", fmt.Errorf("supervisor_id not found in wcp-cluster-config")
 	}
 
 	if config.VCPnid == "" {
-		utils.AviLog.Errorf("VKS ManagementService: vc_pnid not found in wcp-cluster-config")
-		return "", ""
+		return "", "", fmt.Errorf("vc_pnid not found in wcp-cluster-config")
 	}
 
 	utils.AviLog.Infof("VKS ManagementService: Using supervisor ID: %s, vCenter host: %s", config.SupervisorID, config.VCPnid)
-	return config.SupervisorID, config.VCPnid
+	return config.SupervisorID, config.VCPnid, nil
 }
 
 func (c *ManagementServiceController) CreateManagementServiceGrant(namespace string) error {

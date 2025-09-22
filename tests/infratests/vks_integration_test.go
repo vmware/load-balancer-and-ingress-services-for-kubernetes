@@ -1441,12 +1441,13 @@ func TestVKSManagementServiceIntegration(t *testing.T) {
 	defer integrationtest.ResetMiddleware()
 
 	// Test 1: Controller Creation
-	controller := proxy.NewManagementServiceController()
+	controller, err := proxy.NewManagementServiceController()
+	g.Expect(err).To(gomega.BeNil())
 	g.Expect(controller).ToNot(gomega.BeNil())
 	t.Log("✅ ManagementServiceController created successfully")
 
 	// Test 2: Global Management Service Creation
-	err := proxy.EnsureGlobalManagementService()
+	err = proxy.EnsureGlobalManagementService()
 	g.Expect(err).To(gomega.BeNil())
 	t.Log("✅ Global ManagementService created successfully")
 
