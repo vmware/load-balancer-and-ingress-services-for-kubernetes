@@ -2164,3 +2164,132 @@ func TestApplyL7HostruleToDedicatedVSWithCommonProperties(t *testing.T) {
 	}
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
+
+func TestApplyHostruleToDedicatedVSWithAlias(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+
+	modelName, _ := GetDedicatedModel("foo.com", "default")
+	hrname := "hr-cluster--foo.com-L7-dedicated"
+
+	SetUpIngressForCacheSyncCheck(t, true, true, modelName)
+
+	hostrule := integrationtest.FakeHostRule{
+		Name:                  hrname,
+		Namespace:             "default",
+		WafPolicy:             "thisisaviref-waf",
+		ApplicationProfile:    "thisisaviref-appprof",
+		AnalyticsProfile:      "thisisaviref-analyticsprof",
+		ErrorPageProfile:      "thisisaviref-errorprof",
+		Datascripts:           []string{"thisisaviref-ds2", "thisisaviref-ds1"},
+		HttpPolicySets:        []string{"thisisaviref-httpps2", "thisisaviref-httpps1"},
+		NetworkSecurityPolicy: "thisisaviref-networksecuritypolicyref",
+	}
+	hrObj := hostrule.HostRule()
+	hrObj.Spec.VirtualHost.Fqdn = "foo.com"
+	hrObj.Spec.VirtualHost.FqdnType = v1beta1.Contains
+	hrObj.Spec.VirtualHost.TCPSettings = &v1beta1.HostRuleTCPSettings{
+		Listeners: []v1beta1.HostRuleTCPListeners{
+			{Port: 8081}, {Port: 8082, EnableSSL: true},
+		},
+	}
+
+	if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HostRules("default").Create(context.TODO(), hrObj, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding HostRule: %v", err)
+	}
+
+	g.Eventually(func() string {
+		hostrule, _ := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		return hostrule.Status.Status
+	}, 30*time.Second).Should(gomega.Equal("Accepted"))
+
+	vsKey := cache.NamespaceName{Namespace: "admin", Name: "cluster--fc94484f7312a22cfb5bcc517b05649e256c24a8-EVH"}
+	integrationtest.VerifyMetadataHostRule(t, g, vsKey, "default/hr-cluster--foo.com-L7-dedicated", true)
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 30*time.Second).Should(gomega.BeTrue())
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+
+	var evhNode *avinodes.AviEvhVsNode
+	if *isVipPerNS == "true" {
+		evhNode = nodes[0].EvhNodes[0]
+	} else {
+		evhNode = nodes[0]
+	}
+	g.Expect(*evhNode.Enabled).To(gomega.Equal(true))
+	g.Expect(*evhNode.WafPolicyRef).To(gomega.ContainSubstring("thisisaviref-waf"))
+	g.Expect(*evhNode.ApplicationProfileRef).To(gomega.ContainSubstring("thisisaviref-appprof"))
+	g.Expect(*evhNode.AnalyticsProfileRef).To(gomega.ContainSubstring("thisisaviref-analyticsprof"))
+	g.Expect(evhNode.ErrorPageProfileRef).To(gomega.ContainSubstring("thisisaviref-errorprof"))
+	g.Expect(evhNode.HttpPolicySetRefs).To(gomega.HaveLen(2))
+	g.Expect(evhNode.HttpPolicySetRefs[0]).To(gomega.ContainSubstring("thisisaviref-httpps2"))
+	g.Expect(evhNode.HttpPolicySetRefs[1]).To(gomega.ContainSubstring("thisisaviref-httpps1"))
+	g.Expect(evhNode.VsDatascriptRefs).To(gomega.HaveLen(2))
+	g.Expect(evhNode.VsDatascriptRefs[0]).To(gomega.ContainSubstring("thisisaviref-ds2"))
+	g.Expect(evhNode.VsDatascriptRefs[1]).To(gomega.ContainSubstring("thisisaviref-ds1"))
+	if *isVipPerNS == "false" {
+		// Not applicable in Vip per ns scenario
+		g.Expect(*evhNode.NetworkSecurityPolicyRef).To(gomega.ContainSubstring("thisisaviref-networksecuritypolicyref"))
+	}
+
+	if *isVipPerNS != "true" {
+		g.Expect(evhNode.PortProto).To(gomega.HaveLen(2))
+		var portsWithHostRule []int
+		for _, port := range nodes[0].PortProto {
+			portsWithHostRule = append(portsWithHostRule, int(port.Port))
+			if port.EnableSSL {
+				g.Expect(int(port.Port)).Should(gomega.Equal(8082))
+			}
+		}
+		sort.Ints(portsWithHostRule)
+		g.Expect(portsWithHostRule[0]).To(gomega.Equal(8081))
+		g.Expect(portsWithHostRule[1]).To(gomega.Equal(8082))
+	}
+
+	integrationtest.TeardownHostRule(t, g, vsKey, hrname)
+	integrationtest.VerifyMetadataHostRule(t, g, vsKey, "default/hr-cluster--foo.com-L7-dedicated", false)
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	if *isVipPerNS == "true" {
+		evhNode = nodes[0].EvhNodes[0]
+	} else {
+		evhNode = nodes[0]
+	}
+	g.Expect(evhNode.Enabled).To(gomega.BeNil())
+	g.Expect(evhNode.SslKeyAndCertificateRefs).To(gomega.HaveLen(0))
+
+	TearDownIngressForCacheSyncCheck(t, modelName)
+	// Added sleep to update cache properly. Eventually mechanism didn't work.
+	time.Sleep(5 * time.Second)
+	hostruleNew := integrationtest.FakeHostRule{
+		Name:                  hrname,
+		Namespace:             "default",
+		WafPolicy:             "thisisaviref-waf",
+		ApplicationProfile:    "thisisaviref-appprof",
+		AnalyticsProfile:      "thisisaviref-analyticsprof",
+		ErrorPageProfile:      "thisisaviref-errorprof",
+		Datascripts:           []string{"thisisaviref-ds2", "thisisaviref-ds1"},
+		HttpPolicySets:        []string{"thisisaviref-httpps2", "thisisaviref-httpps1"},
+		NetworkSecurityPolicy: "thisisaviref-networksecuritypolicyref",
+	}
+	hrObjNew := hostruleNew.HostRule()
+	hrObjNew.Spec.VirtualHost.Fqdn = "foo1.com"
+	hrObjNew.Spec.VirtualHost.FqdnType = v1beta1.Exact
+	hrObjNew.Spec.VirtualHost.Aliases = []string{"foo.com", "bar1.com"}
+	hrObjNew.Spec.VirtualHost.TCPSettings = &v1beta1.HostRuleTCPSettings{
+		Listeners: []v1beta1.HostRuleTCPListeners{
+			{Port: 8081}, {Port: 8082, EnableSSL: true},
+		},
+	}
+
+	if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HostRules("default").Create(context.TODO(), hrObjNew, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding HostRule: %v", err)
+	}
+
+	g.Eventually(func() string {
+		hostrule, _ := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HostRules("default").Get(context.TODO(), hrname, metav1.GetOptions{})
+		return hostrule.Status.Status
+	}, 30*time.Second).Should(gomega.Equal("Accepted"))
+	integrationtest.TeardownHostRule(t, g, vsKey, hrname)
+}

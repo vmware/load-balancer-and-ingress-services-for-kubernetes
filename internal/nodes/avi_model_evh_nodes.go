@@ -1684,6 +1684,11 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 				RemoveRedirectHTTPPolicyInModelForEvh(evhNode, hostsToRemove, key)
 			}
 			vsNode[0].RemoveFQDNsFromModel(hostsToRemove, key)
+
+			if len(vsNode[0].VSVIPRefs) != 0 {
+				objects.SharedCRDLister().UpdateFQDNToAliasesMappings(host, vsNode[0].VSVIPRefs[0].FQDNs)
+			}
+
 		}
 	}
 }
@@ -2111,6 +2116,9 @@ func (o *AviObjectGraph) DeletePoolForHostnameForEvh(vsName, hostname string, ro
 		hosts = append(hosts, FQDNAliases...)
 		// Remove these hosts from the overall FQDN list
 		vsNode[0].RemoveFQDNsFromModel(hosts, key)
+		if len(vsNode[0].VSVIPRefs) != 0 {
+			objects.SharedCRDLister().UpdateFQDNToAliasesMappings(hostname, vsNode[0].VSVIPRefs[0].FQDNs)
+		}
 	}
 	if removeRedir && !keepEvh {
 		var hostnames []string

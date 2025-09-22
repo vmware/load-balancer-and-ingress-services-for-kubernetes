@@ -38,3 +38,8 @@ func TearDownTestForIngress(t *testing.T, svcName string, modelNames ...string) 
 	integrationtest.DelSVC(t, "default", svcName)
 	integrationtest.DelEPS(t, "default", svcName)
 }
+
+func TearDownTestForIngressForAliasUseCase(t *testing.T, svcName string) {
+	integrationtest.DelSVC(t, "default", svcName)
+	integrationtest.DelEPS(t, "default", svcName)
+}
