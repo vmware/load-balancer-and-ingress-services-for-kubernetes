@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/addon"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/avirest"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/ingestion"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/proxy"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/webhook"
@@ -40,6 +41,8 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 
 	"github.com/onsi/gomega"
+	"github.com/vmware/alb-sdk/go/clients"
+	"github.com/vmware/alb-sdk/go/session"
 
 	v1beta1crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned/fake"
 
@@ -211,6 +214,36 @@ func forceInformerCacheSync(secret *corev1.Secret) {
 	informer.GetStore().Add(secret)
 }
 
+// initializeMockVKSAviClient creates and initializes a mock VKS AVI client for testing
+func initializeMockVKSAviClient() error {
+	// Get the integration test server URL where middleware is listening
+	if integrationtest.AviFakeClientInstance == nil {
+		return fmt.Errorf("integration test server not initialized")
+	}
+
+	// Extract the server URL from the integration test framework
+	serverURL := strings.Split(integrationtest.AviFakeClientInstance.URL, "https://")[1]
+
+	// Create a VKS AVI client that points to the integration test server
+	// This allows the middleware to intercept VKS management service API calls
+	aviClient, err := clients.NewAviClient(
+		serverURL,
+		"admin",
+		session.SetInsecure,
+		session.SetVersion(avirest.VKSAviVersion),
+		session.SetTimeout(10*time.Second),
+		session.DisableControllerStatusCheckOnFailure(true),
+		session.SetAuthToken("test-token"), // Use token auth to skip login
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create mock VKS AVI client: %v", err)
+	}
+
+	// Register the mock client with the VKS client instance
+	avirest.VKSAviClientInstance(aviClient)
+	return nil
+}
+
 // startInformersOnce starts informers only once using sync.Once
 func startInformersOnce() {
 	informerStartOnce.Do(func() {
@@ -331,6 +364,14 @@ func setupVKSIntegrationTest(t *testing.T) (*k8sfake.Clientset, *dynamicfake.Fak
 
 	// Set up T1LR environment variable for tests
 	os.Setenv("NSXT_T1_LR", "/orgs/test-org/projects/test-project/vpcs/test-vpc")
+
+	// Initialize VKS AVI client for management service tests (if integration test server exists)
+	if integrationtest.AviFakeClientInstance != nil {
+		err := initializeMockVKSAviClient()
+		if err != nil {
+			t.Logf("Warning: Failed to initialize VKS AVI client: %v", err)
+		}
+	}
 
 	return kubeClient, dynamicClient
 }
