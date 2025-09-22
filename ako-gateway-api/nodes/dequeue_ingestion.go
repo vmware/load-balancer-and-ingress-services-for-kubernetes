@@ -218,6 +218,7 @@ func handleGateway(namespace, name string, fullsync bool, key string) {
 			gwNsName := namespace + "/" + name
 			akogatewayapiobjects.GatewayApiLister().DeleteGatewayFromStore(gwNsName)
 			objects.SharedAviGraphLister().Save(modelName, nil)
+			objects.SharedNamespaceTenantLister().RemoveNamespaceToTenantCache(gwNsName)
 			if !fullsync {
 				sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
 				nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
