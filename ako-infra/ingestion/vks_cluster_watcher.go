@@ -934,7 +934,7 @@ func (w *VKSClusterWatcher) startPeriodicReconciler() {
 }
 
 func (w *VKSClusterWatcher) stopPeriodicReconciler() {
-	// Close the stop channel first to signal the goroutine to exit
+	// Close the stop channel first to signal the reconcile goroutine to exit
 	close(w.reconcileStopCh)
 
 	// Then clean up the ticker after the goroutine has exited
