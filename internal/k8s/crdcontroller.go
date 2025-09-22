@@ -608,8 +608,10 @@ func (c *AviController) SetupAKOCRDEventHandlers(numWorkers uint32) {
 			},
 		}
 
-		// Add event handler to HealthMonitor dynamic informer
-		if c.dynamicInformers != nil && c.dynamicInformers.HealthMonitorInformer != nil {
+		// Add event handler to HealthMonitor dynamic informer only if AKO CRD Operator is enabled
+		if !lib.IsAKOCRDOperatorEnabled() {
+			utils.AviLog.Warnf("Skipping HealthMonitor event handler setup as AKO CRD Operator is not enabled")
+		} else if c.dynamicInformers != nil && c.dynamicInformers.HealthMonitorInformer != nil {
 			c.dynamicInformers.HealthMonitorInformer.Informer().AddEventHandler(healthMonitorEventHandler)
 		}
 	}

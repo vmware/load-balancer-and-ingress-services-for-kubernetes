@@ -118,11 +118,12 @@ func NewDynamicInformers(client dynamic.Interface, akoInfra bool) *DynamicInform
 	if !utils.IsWCP() {
 		informers.L7CRDInformer = f.ForResource(L7CRDGVR)
 	}
-
-	informers.HealthMonitorInformer = f.ForResource(HealthMonitorGVR)
-	informers.AppProfileCRDInformer = f.ForResource(AppProfileCRDGVR)
-	informers.RouteBackendExtensionCRDInformer = f.ForResource(RouteBackendExtensionCRDGVR)
-
+	// Initialize HealthMonitor, ApplicationProfile and RouteBackendExtension informers only when AKO CRD Operator is enabled
+	if lib.IsAKOCRDOperatorEnabled() {
+		informers.HealthMonitorInformer = f.ForResource(HealthMonitorGVR)
+		informers.AppProfileCRDInformer = f.ForResource(AppProfileCRDGVR)
+		informers.RouteBackendExtensionCRDInformer = f.ForResource(RouteBackendExtensionCRDGVR)
+	}
 	dynamicInformerInstance = informers
 	return dynamicInformerInstance
 }

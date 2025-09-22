@@ -830,6 +830,14 @@ func IsPrometheusEnabled() bool {
 	return false
 }
 
+func IsAKOCRDOperatorEnabled() bool {
+	//Start CRD informers and event handlers if AKO CRD Operator is enabled or cluster in use is a VCF cluster
+	if ok, _ := strconv.ParseBool(os.Getenv("AKO_CRD_OPERATOR_ENABLED")); ok || utils.IsVCFCluster() {
+		return true
+	}
+	return false
+}
+
 var VipNetworkList []akov1beta1.AviInfraSettingVipNetwork
 var VipInfraNetworkList map[string][]akov1beta1.AviInfraSettingVipNetwork
 

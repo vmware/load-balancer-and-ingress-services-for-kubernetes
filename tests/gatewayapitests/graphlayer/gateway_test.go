@@ -65,6 +65,7 @@ func TestMain(m *testing.M) {
 	os.Setenv("ENABLE_EVH", "true")
 	os.Setenv("TENANT", "admin")
 	os.Setenv("POD_NAME", "ako-0")
+	os.Setenv("AKO_CRD_OPERATOR_ENABLED", "true")
 
 	// Set the user with prefix
 	_ = lib.AKOControlConfig()

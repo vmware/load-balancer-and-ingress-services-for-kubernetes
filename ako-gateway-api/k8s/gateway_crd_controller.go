@@ -36,6 +36,11 @@ func (c *GatewayController) SetupCRDEventHandlers(numWorkers uint32) {
 	if !utils.IsWCP() {
 		c.setupL7CRDEventHandlers(numWorkers)
 	}
+	// Skip setup if AKO CRD Operator is not enabled
+	if !lib.IsAKOCRDOperatorEnabled() {
+		utils.AviLog.Warnf("Skipping event handler setup for AKO CRD Operator managed CRDs as it is not enabled")
+		return
+	}
 	c.setupHealthMonitorEventHandlers(numWorkers)
 	c.setupRouteBackendExtensionEventHandler(numWorkers)
 	c.setupApplicationProfileEventHandlers(numWorkers)

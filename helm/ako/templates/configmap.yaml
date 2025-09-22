@@ -59,3 +59,4 @@ data:
   vpcMode: {{ .Values.AKOSettings.vpcMode | quote }}
   enablePrometheus: {{ default "false" .Values.featureGates.EnablePrometheus | quote }}
   fqdnReusePolicy: {{ default "InterNamespaceAllowed" .Values.L7Settings.fqdnReusePolicy | quote}}
+  akoCRDOperatorEnabled: {{ index .Values "ako-crd-operator" "enabled" | quote }}
