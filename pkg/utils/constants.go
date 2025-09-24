@@ -125,6 +125,6 @@ const (
 	FQDN_LABEL_REGEX = "([a-z0-9-]{1,})"
 
 	// Constants used for VKS Managed Mode
-	MANAGED          = "MANAGED"
+	VKS_MANAGED      = "MANAGED"
 	ENV_CTRL_ADDRESS = "CTRL_ADDRESS"
 )

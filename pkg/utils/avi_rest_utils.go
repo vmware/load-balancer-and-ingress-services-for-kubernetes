@@ -279,7 +279,7 @@ func GetHTTPTransportWithCert(rootPEMCerts string) (*http.Transport, bool) {
 		}
 
 		// Check if this is a managed VKS deployment that needs SNI override
-		if managedMode, _ := strconv.ParseBool(os.Getenv(MANAGED)); managedMode {
+		if managedMode, _ := strconv.ParseBool(os.Getenv(VKS_MANAGED)); managedMode {
 			if actualControllerIP := os.Getenv(ENV_CTRL_ADDRESS); actualControllerIP != "" {
 				tlsConfig.ServerName = actualControllerIP
 				AviLog.Infof("VKS managed mode: Setting TLS ServerName to %s for certificate validation", actualControllerIP)
