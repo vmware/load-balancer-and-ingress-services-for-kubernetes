@@ -784,6 +784,7 @@ func GetDefaultIngController() bool {
 	return false
 }
 
+// TODO: Redundant function. Remove next release.
 func GetNamespaceToSync() string {
 	namespace := os.Getenv("SYNC_NAMESPACE")
 	if namespace != "" {
@@ -1188,6 +1189,9 @@ var StaticRouteSyncChan chan struct{}
 var ConfigDeleteSyncChan chan struct{}
 
 var akoApi api.ApiServerInterface
+
+// This variable being used only for testing
+var OtherCMDeleteFlag bool
 
 func SetStaticRouteSyncHandler() {
 	StaticRouteSyncChan = make(chan struct{})
