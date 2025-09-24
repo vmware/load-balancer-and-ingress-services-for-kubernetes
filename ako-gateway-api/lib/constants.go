@@ -22,6 +22,7 @@ const (
 	HealthMonitorKind         = "HealthMonitor"
 	RouteBackendExtensionKind = "RouteBackendExtension"
 	AKOCRDController          = "AKOCRDController"
+	CRDOperatorPrefix         = "ako-crd-operator-"
 )
 
 const (

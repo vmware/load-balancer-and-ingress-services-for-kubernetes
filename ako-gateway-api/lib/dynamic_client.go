@@ -16,6 +16,8 @@ package lib
 
 import (
 	"context"
+	"crypto/sha1"
+	"encoding/hex"
 	"fmt"
 	"strings"
 
@@ -422,7 +424,7 @@ func ParseRouteBackendExtensionCR(key, namespace, name string, poolNode *nodes.A
 			if pkiProfileKind, found, err := unstructured.NestedString(pkiProfileMap, "kind"); err == nil && found && pkiProfileKind == "CRD" {
 				if pkiProfileName, found, err := unstructured.NestedString(pkiProfileMap, "name"); err == nil && found {
 					// Set PKI profile reference using clustername-namespace-name format - this will be used by the pool node for backend SSL validation
-					pkiProfileFullName := fmt.Sprintf("%s-%s-%s", lib.GetClusterName(), namespace, pkiProfileName)
+					pkiProfileFullName := getPKIProfileName(namespace, pkiProfileName)
 					poolNode.PkiProfileRef = proto.String(fmt.Sprintf("/api/pkiprofile?name=%s", pkiProfileFullName))
 				}
 			}
@@ -494,4 +496,24 @@ func IsApplicationProfileProcessed(obj interface{}, namespace, name string) bool
 
 	utils.AviLog.Warnf("key:%s/%s, msg: ApplicationProfile CRD is not ready", namespace, name)
 	return false
+}
+
+func Encode(s, objType string) string {
+	if !lib.IsEvhEnabled() || utils.IsWCP() {
+		lib.CheckObjectNameLength(s, objType)
+		return s
+	}
+	hash := sha1.Sum([]byte(s))
+	NamePrefix := CRDOperatorPrefix + lib.GetClusterName() + "--"
+	encodedStr := NamePrefix + hex.EncodeToString(hash[:])
+	//Added this check to be safe side if encoded name becomes greater than limit set
+	lib.CheckObjectNameLength(encodedStr, objType)
+	return encodedStr
+}
+
+// getPKIProfileName generates PKI profile name using clustername-namespace-name format
+// to match the naming convention used by the ako-crd-operator
+func getPKIProfileName(namespace, objectName string) string {
+	name := namespace + "-" + objectName
+	return Encode(name, lib.EVHVS)
 }

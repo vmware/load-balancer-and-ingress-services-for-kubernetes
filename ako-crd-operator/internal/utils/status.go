@@ -27,7 +27,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
+	crdlib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
@@ -50,7 +50,7 @@ type StatusManager struct {
 
 // SetStatus sets the status, conditions, and events for a CRD object based on condition type, reason, and error message
 func (sm *StatusManager) SetStatus(ctx context.Context, obj StatusObject, conditionType string, reason string, message string) error {
-	obj.SetController(constants.AKOCRDController)
+	obj.SetController(crdlib.AKOCRDController)
 
 	// Set additional status fields
 	lastUpdated := metav1.Time{Time: time.Now().UTC()}
