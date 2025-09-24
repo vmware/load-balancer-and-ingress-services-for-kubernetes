@@ -1324,7 +1324,6 @@ func TestVKSClusterWatcher_UpsertAviCredentialsSecret_Comprehensive(t *testing.T
 
 			// Start the AviInfraSetting informer and wait for cache sync (like integration tests)
 			stopCh := make(chan struct{})
-			defer close(stopCh)
 			go func() {
 				defer close(stopCh)
 				time.Sleep(30 * time.Second) // Allow test to complete
