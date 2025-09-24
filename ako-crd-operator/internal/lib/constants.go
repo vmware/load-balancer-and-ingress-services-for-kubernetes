@@ -1,4 +1,4 @@
-package constants
+package lib
 
 import "time"
 
@@ -17,4 +17,5 @@ const (
 	REJECTED                          = "Rejected"
 	AKOCRDController                  = "AKOCRDController"
 	NoObject                          = "Object not found"
+	Prefix                            = "ako-crd-operator-"
 )
