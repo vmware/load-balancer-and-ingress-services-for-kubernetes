@@ -161,6 +161,7 @@ func (a *AviControllerInfra) DeriveCloudMappedToTZ(tz string) (models.Cloud, err
 		}
 		utils.AviLog.Infof("Found NSX-T cloud: %s match Transport Zone: %s", *cloud.Name, tz)
 		utils.SetCloudName(*cloud.Name)
+		utils.SetCloudUUID(*cloud.UUID)
 		return cloud, nil
 	}
 	return models.Cloud{}, fmt.Errorf("cloud not found matching transport zone %s", tz)

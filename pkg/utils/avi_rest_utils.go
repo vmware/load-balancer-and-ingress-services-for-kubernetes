@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -273,10 +274,20 @@ func GetHTTPTransportWithCert(rootPEMCerts string) (*http.Transport, bool) {
 		}
 		caCertPool.AppendCertsFromPEM([]byte(rootPEMCerts))
 
+		tlsConfig := &tls.Config{
+			RootCAs: caCertPool,
+		}
+
+		// Check if this is a managed VKS deployment that needs SNI override
+		if managedMode, _ := strconv.ParseBool(os.Getenv(VKS_MANAGED)); managedMode {
+			if actualControllerIP := os.Getenv(ENV_CTRL_ADDRESS); actualControllerIP != "" {
+				tlsConfig.ServerName = actualControllerIP
+				AviLog.Infof("VKS managed mode: Setting TLS ServerName to %s for certificate validation", actualControllerIP)
+			}
+		}
+
 		transport = &http.Transport{
-			TLSClientConfig: &tls.Config{
-				RootCAs: caCertPool,
-			},
+			TLSClientConfig: tlsConfig,
 		}
 		isSecure = true
 	}

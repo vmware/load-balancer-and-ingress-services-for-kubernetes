@@ -23,6 +23,7 @@ import (
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/addon"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/avirest"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/proxy"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/webhook"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -77,12 +78,14 @@ func (c *VCFK8sController) AddNamespaceEventHandler(stopCh <-chan struct{}) {
 		AddFunc: func(obj interface{}) {
 			utils.AviLog.Infof("Namespace ADD Event")
 			c.handleNamespaceAdd()
+			proxy.HandleNamespaceGrantAdd(obj)
 		},
 		UpdateFunc: func(old, obj interface{}) {
 			utils.AviLog.Infof("Namespace Update Event")
 			if lib.GetVPCMode() {
 				avirest.ScheduleQuickSync()
 			}
+			proxy.HandleNamespaceGrantUpdate(old, obj)
 		},
 		DeleteFunc: func(obj interface{}) {
 			utils.AviLog.Infof("Namespace Delete Event")
@@ -96,6 +99,7 @@ func (c *VCFK8sController) AddNamespaceEventHandler(stopCh <-chan struct{}) {
 				}
 			}
 			c.handleNamespaceDelete()
+			proxy.HandleNamespaceGrantDelete(obj)
 		},
 	}
 	c.informers.NSInformer.Informer().AddEventHandler(namespaceHandler)
@@ -289,23 +293,22 @@ func (c *VCFK8sController) AddVKSCapabilityEventHandler(stopCh <-chan struct{}) 
 func (c *VCFK8sController) startVKSInfrastructure(stopCh <-chan struct{}) {
 	go addon.EnsureGlobalAddonInstallWithRetry(stopCh)
 
+	go proxy.EnsureGlobalManagementServiceWithRetry(stopCh)
+
+	proxy.StartNamespaceGrantProcessor()
+
 	go webhook.StartVKSWebhook(utils.GetInformers().ClientSet, stopCh)
 
 	go StartVKSClusterWatcherWithRetry(stopCh, c.dynamicInformers)
 
 	go func() {
 		c.AddVKSAddonEventHandler(stopCh)
-		// Cleanup on shutdown
 		<-stopCh
-		utils.AviLog.Infof("VKS: AKO shutdown detected, cleaning up VKS resources")
+		utils.AviLog.Infof("VKS: AKO shutdown detected, stopping VKS resources")
 
-		if err := addon.CleanupGlobalAddonInstall(); err != nil {
-			utils.AviLog.Errorf("VKS: Failed to cleanup global AddonInstall: %v", err)
-		} else {
-			utils.AviLog.Infof("VKS: Successfully cleaned up global AddonInstall")
-		}
+		proxy.StopNamespaceGrantProcessor()
 
-		utils.AviLog.Infof("VKS: All cleanup completed successfully")
+		utils.AviLog.Infof("VKS: All resources stopped successfully")
 	}()
 }
 
@@ -482,6 +485,32 @@ func (c *VCFK8sController) ValidBootstrapSecretData(controllerIP, secretName, se
 
 	avirest.InfraAviClientInstance(aviClient)
 	utils.AviLog.Infof("Successfully connected to AVI controller using secret provided by NCP")
+
+	// Check if controller version supports VKS Management Service APIs (>= 31.3.1)
+	minVersion, err := utils.NewVersion(avirest.VKSAviVersion)
+	if err != nil {
+		utils.AviLog.Warnf("VKS: Failed to parse minimum required version: %v", err)
+		return true
+	}
+	currentVersion, err := utils.NewVersion(ctrlVersion)
+	if err != nil {
+		utils.AviLog.Warnf("VKS: Failed to parse controller version %s: %v", ctrlVersion, err)
+		return true
+	}
+	if currentVersion.Compare(minVersion) < 0 {
+		utils.AviLog.Infof("VKS: Controller version %s does not support Management Service APIs (requires >= %s)", ctrlVersion, avirest.VKSAviVersion)
+		return true
+	}
+
+	// Create VKS-specific AVI client with version for Management Service APIs using same credentials
+	vksClient, err := avirest.CreateVKSAviClient(controllerIP, username, authToken, caData)
+	if err != nil {
+		utils.AviLog.Warnf("VKS: Failed to create VKS AVI client: %v", err)
+		return false
+	}
+	avirest.VKSAviClientInstance(vksClient)
+	utils.AviLog.Infof("VKS: Successfully initialized VKS AVI client with version %s", avirest.VKSAviVersion)
+
 	return true
 }
 

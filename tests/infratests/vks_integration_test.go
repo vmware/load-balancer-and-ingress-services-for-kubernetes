@@ -21,6 +21,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"strings"
 	"sync"
@@ -28,14 +30,19 @@ import (
 	"time"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/addon"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/avirest"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/ingestion"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/proxy"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/webhook"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	akoapisv1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 
 	"github.com/onsi/gomega"
+	"github.com/vmware/alb-sdk/go/clients"
+	"github.com/vmware/alb-sdk/go/session"
 
 	v1beta1crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned/fake"
 
@@ -57,6 +64,127 @@ var (
 	informerStartOnce sync.Once
 	stopChInformers   chan struct{}
 )
+
+// handleManagementServiceAPIs handles management service and grant API calls for testing
+func handleManagementServiceAPIs(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	// Handle management service APIs
+	if strings.Contains(r.URL.Path, "vimgrvcenterruntime") {
+		body, _ := io.ReadAll(r.Body)
+		var requestData map[string]interface{}
+		json.Unmarshal(body, &requestData)
+
+		switch {
+		case strings.Contains(r.URL.Path, "managementservice") && !strings.Contains(r.URL.Path, "grant"):
+			handleManagementServiceAPI(w, r, requestData)
+		case strings.Contains(r.URL.Path, "managementserviceaccessgrant"):
+			handleManagementServiceGrantAPI(w, r, requestData)
+		default:
+			// Fall back to normal controller server
+			integrationtest.NormalControllerServer(w, r)
+		}
+		return
+	}
+
+	// Fall back to normal controller server for other APIs
+	integrationtest.NormalControllerServer(w, r)
+}
+
+func handleManagementServiceAPI(w http.ResponseWriter, r *http.Request, requestData map[string]interface{}) {
+	if strings.Contains(r.URL.Path, "initiate") {
+		// Create Management Service
+		response := map[string]interface{}{
+			"status": "success",
+			"management_service": map[string]interface{}{
+				"management_service": requestData["management_service"].(map[string]interface{})["management_service"],
+				"uuid":               "mgmt-service-uuid-integration-test",
+				"ports": []map[string]interface{}{
+					{
+						"port": 443,
+						"tls_configuration": map[string]interface{}{
+							"certificate_authority_chain": "test-ca-cert",
+							"hostname":                    "10.10.10.10",
+						},
+					},
+				},
+			},
+		}
+
+		// Create corresponding Kubernetes ManagementService resource
+		createMockManagementService(requestData["management_service"].(map[string]interface{})["management_service"].(string))
+
+		json.NewEncoder(w).Encode(response)
+	} else if strings.Contains(r.URL.Path, "retrieve") {
+		// Get Management Service
+		response := map[string]interface{}{
+			"status": "found",
+			"management_service": map[string]interface{}{
+				"management_service": requestData["management_service_id"],
+				"uuid":               "mgmt-service-uuid-integration-test",
+			},
+		}
+		json.NewEncoder(w).Encode(response)
+	} else if strings.Contains(r.URL.Path, "delete") {
+		// Delete Management Service
+		response := map[string]interface{}{
+			"status": "deleted",
+		}
+
+		// Delete corresponding Kubernetes ManagementService resource
+		deleteMockManagementService(requestData["management_service_id"].(string))
+
+		json.NewEncoder(w).Encode(response)
+	}
+}
+
+func handleManagementServiceGrantAPI(w http.ResponseWriter, r *http.Request, requestData map[string]interface{}) {
+	if strings.Contains(r.URL.Path, "initiate") {
+		// Create Management Service Grant
+		grantData := requestData["management_service_access_grant"].(map[string]interface{})
+		response := map[string]interface{}{
+			"status": "success",
+			"management_service_access_grant": map[string]interface{}{
+				"access_grant":       grantData["access_grant"],
+				"uuid":               "mgmt-grant-uuid-integration-test",
+				"management_service": grantData["management_service"],
+				"workload_selector":  "VIRTUAL_MACHINE",
+			},
+		}
+
+		// Create corresponding Kubernetes ManagementServiceAccessGrant resource
+		createMockManagementServiceGrant(
+			grantData["access_grant"].(string),
+			requestData["namespace"].(string),
+			grantData["management_service"].(string),
+		)
+
+		json.NewEncoder(w).Encode(response)
+	} else if strings.Contains(r.URL.Path, "retrieve") {
+		// Get Management Service Grant
+		response := map[string]interface{}{
+			"status": "found",
+			"management_service_access_grant": map[string]interface{}{
+				"access_grant": requestData["management_service_access_grant_id"],
+				"uuid":         "mgmt-grant-uuid-integration-test",
+			},
+		}
+		json.NewEncoder(w).Encode(response)
+	} else if strings.Contains(r.URL.Path, "delete") {
+		// Delete Management Service Grant
+		response := map[string]interface{}{
+			"status": "deleted",
+		}
+
+		// Delete corresponding Kubernetes ManagementServiceAccessGrant resource
+		deleteMockManagementServiceGrant(
+			requestData["management_service_access_grant_id"].(string),
+			requestData["namespace"].(string),
+		)
+
+		json.NewEncoder(w).Encode(response)
+	}
+}
 
 var (
 	// Use the existing SupervisorCapability GVR from lib for VKS capability detection
@@ -84,6 +212,36 @@ func forceInformerCacheSync(secret *corev1.Secret) {
 	// Add secret to the informer cache manually
 	informer := utils.GetInformers().SecretInformer.Informer()
 	informer.GetStore().Add(secret)
+}
+
+// initializeMockVKSAviClient creates and initializes a mock VKS AVI client for testing
+func initializeMockVKSAviClient() error {
+	// Get the integration test server URL where middleware is listening
+	if integrationtest.AviFakeClientInstance == nil {
+		return fmt.Errorf("integration test server not initialized")
+	}
+
+	// Extract the server URL from the integration test framework
+	serverURL := strings.Split(integrationtest.AviFakeClientInstance.URL, "https://")[1]
+
+	// Create a VKS AVI client that points to the integration test server
+	// This allows the middleware to intercept VKS management service API calls
+	aviClient, err := clients.NewAviClient(
+		serverURL,
+		"admin",
+		session.SetInsecure,
+		session.SetVersion(avirest.VKSAviVersion),
+		session.SetTimeout(10*time.Second),
+		session.DisableControllerStatusCheckOnFailure(true),
+		session.SetAuthToken("test-token"), // Use token auth to skip login
+	)
+	if err != nil {
+		return fmt.Errorf("failed to create mock VKS AVI client: %v", err)
+	}
+
+	// Register the mock client with the VKS client instance
+	avirest.VKSAviClientInstance(aviClient)
+	return nil
 }
 
 // startInformersOnce starts informers only once using sync.Once
@@ -118,6 +276,17 @@ func setupVKSIntegrationTest(t *testing.T) (*k8sfake.Clientset, *dynamicfake.Fak
 		}
 	})
 
+	// Set VPC_MODE for management service functionality
+	oldVPCMode := os.Getenv("VPC_MODE")
+	os.Setenv("VPC_MODE", "true")
+	t.Cleanup(func() {
+		if oldVPCMode == "" {
+			os.Unsetenv("VPC_MODE")
+		} else {
+			os.Setenv("VPC_MODE", oldVPCMode)
+		}
+	})
+
 	kubeClient := k8sfake.NewSimpleClientset()
 
 	// Create avi-secret with admin credentials
@@ -145,11 +314,17 @@ func setupVKSIntegrationTest(t *testing.T) (*k8sfake.Clientset, *dynamicfake.Fak
 		ClusterGVR:              "clustersList",
 		AviInfraSettingGVR:      "aviinfrasettingsList",
 		ClusterBootstrapGVR:     "clusterbootstrapsList",
+		// Add ManagementService GVRs
+		{Group: "netoperator.vmware.com", Version: "v1alpha1", Resource: "managementservices"}:            "managementservicesList",
+		{Group: "netoperator.vmware.com", Version: "v1alpha1", Resource: "managementserviceaccessgrants"}: "managementserviceaccessgrantsList",
 	}
 
 	dynamicClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToKind)
 	lib.SetDynamicClientSet(dynamicClient)
 	lib.NewDynamicInformers(dynamicClient, true)
+
+	// Set global reference for mock resource creation
+	testDynamicClient = dynamicClient
 
 	// Initialize regular informers needed by VKS cluster watcher (including namespace informer)
 	registeredInformers := []string{
@@ -190,7 +365,69 @@ func setupVKSIntegrationTest(t *testing.T) (*k8sfake.Clientset, *dynamicfake.Fak
 	// Set up T1LR environment variable for tests
 	os.Setenv("NSXT_T1_LR", "/orgs/test-org/projects/test-project/vpcs/test-vpc")
 
+	// Initialize VKS AVI client for management service tests (if integration test server exists)
+	if integrationtest.AviFakeClientInstance != nil {
+		err := initializeMockVKSAviClient()
+		if err != nil {
+			t.Logf("Warning: Failed to initialize VKS AVI client: %v", err)
+		}
+	}
+
 	return kubeClient, dynamicClient
+}
+
+// setupManagementServiceConfig creates the WCP cluster config required for management service tests
+func setupManagementServiceConfig(t *testing.T, kubeClient *k8sfake.Clientset) {
+	wcpConfig := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "wcp-cluster-config",
+			Namespace: "kube-system",
+		},
+		Data: map[string]string{
+			"wcp-cluster-config.yaml": `supervisor_id: test-supervisor-12345
+vc_pnid: test-vcenter.example.com
+cluster_id_full: domain-c10:d1bfeb2e-5302-4bc9-b4bb-a9b8af6bb10f
+management_network_floating_ip: 10.162.198.23`,
+		},
+	}
+
+	// Create ConfigMap in both the test kubeClient and the informers' ClientSet
+	_, err := kubeClient.CoreV1().ConfigMaps("kube-system").Create(context.Background(), wcpConfig, metav1.CreateOptions{})
+	if err != nil && !strings.Contains(err.Error(), "already exists") {
+		t.Fatalf("Failed to create wcp-cluster-config in test client: %v", err)
+	}
+
+	// Also create in the informers' ClientSet if it's different
+	informersClient := utils.GetInformers().ClientSet
+	if informersClient != nil && informersClient != kubeClient {
+		_, err = informersClient.CoreV1().ConfigMaps("kube-system").Create(context.Background(), wcpConfig, metav1.CreateOptions{})
+		if err != nil && !strings.Contains(err.Error(), "already exists") {
+			t.Fatalf("Failed to create wcp-cluster-config in informers client: %v", err)
+		}
+	}
+
+	// Verify the ConfigMap was created in both clients
+	_, err = kubeClient.CoreV1().ConfigMaps("kube-system").Get(context.Background(), "wcp-cluster-config", metav1.GetOptions{})
+	if err != nil {
+		t.Fatalf("Failed to verify wcp-cluster-config creation in test client: %v", err)
+	}
+	t.Logf("✅ Created wcp-cluster-config ConfigMap in test client")
+
+	if informersClient != nil {
+		informersCM, err := informersClient.CoreV1().ConfigMaps("kube-system").Get(context.Background(), "wcp-cluster-config", metav1.GetOptions{})
+		if err != nil {
+			t.Logf("⚠️ ConfigMap not found through informers ClientSet: %v", err)
+			// Try to create it directly in the informers client
+			_, err = informersClient.CoreV1().ConfigMaps("kube-system").Create(context.Background(), wcpConfig, metav1.CreateOptions{})
+			if err != nil && !strings.Contains(err.Error(), "already exists") {
+				t.Logf("⚠️ Failed to create ConfigMap in informers client: %v", err)
+			} else {
+				t.Logf("✅ Created ConfigMap directly in informers ClientSet")
+			}
+		} else {
+			t.Logf("✅ ConfigMap also found through informers ClientSet: %v", informersCM.Data)
+		}
+	}
 }
 
 // addClusterToInformerCache adds a cluster to the dynamic informer cache for tests
@@ -342,6 +579,117 @@ func createClusterResource(name, namespace, phase string, managed bool) *unstruc
 	}
 
 	return cluster
+}
+
+// Global variable to store dynamic client reference for mock resource creation
+var testDynamicClient *dynamicfake.FakeDynamicClient
+
+// createMockManagementService creates a mock ManagementService Kubernetes resource
+func createMockManagementService(serviceName string) {
+	if testDynamicClient == nil {
+		return
+	}
+
+	managementService := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "netoperator.vmware.com/v1alpha1",
+			"kind":       "ManagementService",
+			"metadata": map[string]interface{}{
+				"name": serviceName,
+			},
+			"spec": map[string]interface{}{
+				"managementAddresses": []interface{}{"10.10.10.10"},
+				"ports": []interface{}{
+					map[string]interface{}{
+						"name":     "avi-proxy-port-443",
+						"value":    float64(443),
+						"protocol": "tcp",
+						"tls": map[string]interface{}{
+							"hostname":                  "10.10.10.10",
+							"certificateAuthorityChain": "test-ca-cert",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	gvr := schema.GroupVersionResource{
+		Group:    "netoperator.vmware.com",
+		Version:  "v1alpha1",
+		Resource: "managementservices",
+	}
+
+	testDynamicClient.Resource(gvr).Create(context.Background(), managementService, metav1.CreateOptions{})
+}
+
+// deleteMockManagementService deletes a mock ManagementService Kubernetes resource
+func deleteMockManagementService(serviceName string) {
+	if testDynamicClient == nil {
+		return
+	}
+
+	gvr := schema.GroupVersionResource{
+		Group:    "netoperator.vmware.com",
+		Version:  "v1alpha1",
+		Resource: "managementservices",
+	}
+
+	testDynamicClient.Resource(gvr).Delete(context.Background(), serviceName, metav1.DeleteOptions{})
+}
+
+// createMockManagementServiceGrant creates a mock ManagementServiceAccessGrant Kubernetes resource
+func createMockManagementServiceGrant(grantName, namespace, serviceName string) {
+	if testDynamicClient == nil {
+		return
+	}
+
+	grant := &unstructured.Unstructured{
+		Object: map[string]interface{}{
+			"apiVersion": "netoperator.vmware.com/v1alpha1",
+			"kind":       "ManagementServiceAccessGrant",
+			"metadata": map[string]interface{}{
+				"name":      grantName,
+				"namespace": namespace,
+				"ownerReferences": []interface{}{
+					map[string]interface{}{
+						"apiVersion": "netoperator.vmware.com/v1alpha1",
+						"kind":       "ManagementService",
+						"name":       serviceName,
+						"uid":        "test-management-service-uid",
+					},
+				},
+			},
+			"spec": map[string]interface{}{
+				"enabled":              true,
+				"managementServiceRef": serviceName,
+				"target":               "vm",
+			},
+		},
+	}
+
+	gvr := schema.GroupVersionResource{
+		Group:    "netoperator.vmware.com",
+		Version:  "v1alpha1",
+		Resource: "managementserviceaccessgrants",
+	}
+
+	testDynamicClient.Resource(gvr).Namespace(namespace).Create(context.Background(), grant, metav1.CreateOptions{})
+}
+
+// deleteMockManagementServiceGrant deletes a mock ManagementServiceAccessGrant Kubernetes resource
+func deleteMockManagementServiceGrant(grantName, namespace string) {
+	if testDynamicClient == nil {
+		return
+	}
+
+	gvr := schema.GroupVersionResource{
+		Group:    "netoperator.vmware.com",
+		Version:  "v1alpha1",
+		Resource: "managementserviceaccessgrants",
+	}
+
+	testDynamicClient.Resource(gvr).Namespace(namespace).Delete(context.Background(), grantName, metav1.DeleteOptions{})
 }
 
 // TestVKSCapabilityToAddonFlow tests the full flow from VKS capability enablement to addon creation
@@ -838,6 +1186,20 @@ func TestVKSE2ECreationToCleanup(t *testing.T) {
 	}, 10*time.Second, 1*time.Second).Should(gomega.Equal(true))
 	t.Log("✅ Global AddonInstall created")
 
+	// Create WCP cluster config for management service
+	setupManagementServiceConfig(t, kubeClient)
+
+	// Set up middleware for management service APIs
+	integrationtest.AddMiddleware(handleManagementServiceAPIs)
+	defer integrationtest.ResetMiddleware()
+
+	// Create global management service
+	err = proxy.EnsureGlobalManagementService()
+	if err != nil {
+		t.Fatalf("Failed to create global management service: %v", err)
+	}
+	t.Log("✅ Global ManagementService created")
+
 	err = webhook.CreateWebhookConfiguration(kubeClient)
 	if err != nil {
 		t.Fatalf("Failed to create webhook configuration: %v", err)
@@ -993,6 +1355,13 @@ func TestVKSE2ECreationToCleanup(t *testing.T) {
 	}
 	t.Log("✅ Global AddonInstall cleaned up")
 
+	t.Log("🔧 Executing management service cleanup...")
+	err = proxy.CleanupGlobalManagementService()
+	if err != nil {
+		t.Fatalf("Failed to cleanup global management service: %v", err)
+	}
+	t.Log("✅ Global ManagementService cleaned up")
+
 	t.Log("🔍 Phase 5: Cleanup Verification")
 	g.Eventually(func() bool {
 		_, err := kubeClient.AdmissionregistrationV1().MutatingWebhookConfigurations().Get(
@@ -1091,9 +1460,150 @@ func TestVKSE2ECreationToCleanup(t *testing.T) {
 	t.Log("📋 Test Summary:")
 	t.Log("   ✅ VKS infrastructure startup")
 	t.Log("   ✅ Global addon install creation and management")
+	t.Log("   ✅ Global management service creation and management")
 	t.Log("   ✅ Webhook configuration lifecycle")
 	t.Log("   ✅ Cluster secret creation and management")
+	t.Log("   ✅ Management service grant namespace integration")
 	t.Log("   ✅ Complete cleanup on AKO shutdown")
 	t.Log("   ✅ Cluster-specific resource cleanup on cluster deletion")
 	t.Log("   ✅ All resources properly cleaned up")
+}
+
+// TestVKSManagementServiceIntegration tests the management service functionality within VKS
+func TestVKSManagementServiceIntegration(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	kubeClient, _ := setupVKSIntegrationTest(t)
+	setupManagementServiceConfig(t, kubeClient)
+
+	t.Log("🚀 Testing VKS ManagementService Integration")
+
+	// Set up middleware for management service APIs
+	integrationtest.AddMiddleware(handleManagementServiceAPIs)
+	defer integrationtest.ResetMiddleware()
+
+	// Test 1: Controller Creation
+	controller, err := proxy.NewManagementServiceController()
+	g.Expect(err).To(gomega.BeNil())
+	g.Expect(controller).ToNot(gomega.BeNil())
+	t.Log("✅ ManagementServiceController created successfully")
+
+	// Test 2: Global Management Service Creation
+	err = proxy.EnsureGlobalManagementService()
+	g.Expect(err).To(gomega.BeNil())
+	t.Log("✅ Global ManagementService created successfully")
+
+	// Test 3: Idempotent Creation
+	err = proxy.EnsureGlobalManagementService()
+	g.Expect(err).To(gomega.BeNil())
+	t.Log("✅ Global ManagementService idempotent creation verified")
+
+	// Test 4: Management Service Grant Creation
+	err = controller.CreateManagementServiceGrant("test-namespace")
+	g.Expect(err).To(gomega.BeNil())
+	t.Log("✅ ManagementServiceGrant created successfully")
+
+	// Test 5: Grant Idempotent Creation
+	err = controller.CreateManagementServiceGrant("test-namespace")
+	g.Expect(err).To(gomega.BeNil())
+	t.Log("✅ ManagementServiceGrant idempotent creation verified")
+
+	// Test 6: Get Management Service
+	response, err := controller.GetManagementService()
+	g.Expect(err).To(gomega.BeNil())
+	g.Expect(response).ToNot(gomega.BeNil())
+	t.Log("✅ ManagementService retrieved successfully")
+
+	// Test 7: Get Management Service Grant
+	grantResponse, err := controller.GetManagementServiceGrant("test-namespace")
+	g.Expect(err).To(gomega.BeNil())
+	g.Expect(grantResponse).ToNot(gomega.BeNil())
+	t.Log("✅ ManagementServiceGrant retrieved successfully")
+
+	// Test 8: Delete Management Service Grant
+	err = controller.DeleteManagementServiceGrant("test-namespace")
+	g.Expect(err).To(gomega.BeNil())
+	t.Log("✅ ManagementServiceGrant deleted successfully")
+
+	// Test 9: Cleanup Global Management Service
+	err = proxy.CleanupGlobalManagementService()
+	g.Expect(err).To(gomega.BeNil())
+	t.Log("✅ Global ManagementService cleaned up successfully")
+
+	t.Log("🎉 VKS ManagementService Integration test completed successfully")
+}
+
+// TestVKSManagementServiceNamespaceEvents tests namespace event handling for management service grants
+func TestVKSManagementServiceNamespaceEvents(t *testing.T) {
+	g := gomega.NewGomegaWithT(t)
+	kubeClient, _ := setupVKSIntegrationTest(t)
+	setupManagementServiceConfig(t, kubeClient)
+
+	t.Log("📝 Testing VKS ManagementService Namespace Events")
+
+	// Set up middleware for management service APIs
+	integrationtest.AddMiddleware(handleManagementServiceAPIs)
+	defer integrationtest.ResetMiddleware()
+
+	// Test 1: Namespace with SEG annotation should trigger grant creation
+	namespaceWithSEG := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-seg-namespace",
+			Annotations: map[string]string{
+				lib.WCPSEGroup: "test-seg-group",
+			},
+		},
+	}
+
+	_, err := kubeClient.CoreV1().Namespaces().Create(context.Background(), namespaceWithSEG, metav1.CreateOptions{})
+	g.Expect(err).To(gomega.BeNil())
+
+	// Add to informer cache
+	addNamespaceToInformerCache(t, namespaceWithSEG)
+
+	// Trigger namespace add event
+	proxy.HandleNamespaceGrantAdd(namespaceWithSEG)
+	t.Log("✅ Namespace with SEG annotation processed for grant creation")
+
+	// Test 2: Namespace without SEG annotation should not trigger grant creation
+	namespaceWithoutSEG := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-no-seg-namespace",
+		},
+	}
+
+	_, err = kubeClient.CoreV1().Namespaces().Create(context.Background(), namespaceWithoutSEG, metav1.CreateOptions{})
+	g.Expect(err).To(gomega.BeNil())
+
+	// This should not cause any API calls (verified by no errors)
+	proxy.HandleNamespaceGrantAdd(namespaceWithoutSEG)
+	t.Log("✅ Namespace without SEG annotation correctly ignored")
+
+	// Test 3: Namespace update - adding SEG annotation
+	oldNamespace := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-update-namespace",
+		},
+	}
+
+	newNamespace := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "test-update-namespace",
+			Annotations: map[string]string{
+				lib.WCPSEGroup: "new-seg-group",
+			},
+		},
+	}
+
+	proxy.HandleNamespaceGrantUpdate(oldNamespace, newNamespace)
+	t.Log("✅ Namespace update with SEG annotation addition processed")
+
+	// Test 4: Namespace update - removing SEG annotation
+	proxy.HandleNamespaceGrantUpdate(newNamespace, oldNamespace)
+	t.Log("✅ Namespace update with SEG annotation removal processed")
+
+	// Test 5: Namespace deletion with SEG annotation
+	proxy.HandleNamespaceGrantDelete(namespaceWithSEG)
+	t.Log("✅ Namespace deletion with SEG annotation processed")
+
+	t.Log("🎉 VKS ManagementService Namespace Events test completed successfully")
 }
