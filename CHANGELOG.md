@@ -527,3 +527,8 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Known Issues
  - Gateway API doesn't support VPC mode and will require both IPAM and `NetworkSettings.vipNetworkList` configured for VIP allocation.
+
+## AKO-1.13.4
+
+### Added
+- AKO now claims support for Kubernetes 1.34.
