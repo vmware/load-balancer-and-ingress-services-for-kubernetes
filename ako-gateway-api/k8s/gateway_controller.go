@@ -116,16 +116,6 @@ func (c *GatewayController) Start(stopCh <-chan struct{}) {
 		informersList = append(informersList, akogatewayapilib.AKOControlConfig().AviInfraSettingInformer().Informer().HasSynced)
 	}
 
-	// To be removed when CRDs are merged into Supervisor
-	if utils.IsWCP() {
-		if !cache.WaitForCacheSync(stopCh, informersList...) {
-			runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
-		} else {
-			utils.AviLog.Infof("Caches synced")
-		}
-		return
-	}
-
 	if !utils.IsWCP() {
 		go c.dynamicInformers.L7CRDInformer.Informer().Run(stopCh)
 		informersList = append(informersList, c.dynamicInformers.L7CRDInformer.Informer().HasSynced)

@@ -9,10 +9,15 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/alb-sdk/go/session"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	kubefake "k8s.io/client-go/kubernetes/fake"
+	clientfake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/api/v1alpha1"
 )
@@ -269,7 +274,7 @@ func TestUpdateStatusWithNonRetryableError(t *testing.T) {
 				resource = ap
 			}
 
-			fakeClient := fake.NewClientBuilder().
+			fakeClient := clientfake.NewClientBuilder().
 				WithScheme(scheme).
 				WithObjects(resource).
 				WithStatusSubresource(resource).
@@ -637,4 +642,346 @@ func TestParseAviErrorMessage(t *testing.T) {
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+func TestWaitForWCPCloudNameAndInitialize_AnnotationExists(t *testing.T) {
+	// Save original function and restore after test
+	originalFunc := newAviClientFunc
+	defer func() { newAviClientFunc = originalFunc }()
+
+	// Mock the function to return success
+	newAviClientFunc = func(host string, username string, options ...func(*session.AviSession) error) (*clients.AviClient, error) {
+		return &clients.AviClient{}, nil
+	}
+
+	// Create a namespace with the WCP cloud name annotation already set
+	ns := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: utils.GetAKONamespace(),
+			Annotations: map[string]string{
+				lib.WCPCloud: "test-cloud",
+			},
+		},
+	}
+
+	// Create a configmap with required data
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "avi-k8s-config",
+			Namespace: utils.GetAKONamespace(),
+		},
+		Data: map[string]string{
+			"clusterID":    "test-cluster-id",
+			"controllerIP": "192.168.1.100",
+		},
+	}
+
+	// Create a secret with AVI credentials
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      lib.AviSecret,
+			Namespace: utils.GetAKONamespace(),
+		},
+		Data: map[string][]byte{
+			"username":                 []byte("admin"),
+			"password":                 []byte("password"),
+			"authtoken":                []byte("token123"),
+			"certificateAuthorityData": []byte("ca-data"),
+		},
+	}
+
+	// Create fake kubernetes client
+	kubeClient := kubefake.NewSimpleClientset(ns, cm, secret)
+
+	// Create a real logger for testing
+	logger := utils.AviLog.WithName("test")
+
+	ctx := context.Background()
+
+	// Call the function
+	err := WaitForWCPCloudNameAndInitialize(ctx, kubeClient, logger)
+
+	// Verify success with mocked AVI client
+	assert.NoError(t, err)
+}
+
+func TestWaitForWCPCloudNameAndInitialize_NamespaceNotFound(t *testing.T) {
+	// Create fake kubernetes client with no namespace
+	kubeClient := kubefake.NewSimpleClientset()
+
+	// Create a real logger for testing
+	logger := utils.AviLog.WithName("test")
+
+	ctx := context.Background()
+
+	// Call the function
+	err := WaitForWCPCloudNameAndInitialize(ctx, kubeClient, logger)
+
+	// Verify error occurred
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+}
+
+func TestWaitForWCPCloudNameAndInitialize_NoAnnotation(t *testing.T) {
+	// Create a namespace without the WCP cloud name annotation
+	ns := &corev1.Namespace{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: utils.GetAKONamespace(),
+		},
+	}
+
+	// Create fake kubernetes client
+	kubeClient := kubefake.NewSimpleClientset(ns)
+
+	// Create a real logger for testing
+	logger := utils.AviLog.WithName("test")
+
+	// Create context with timeout to prevent test hanging
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	// Call the function
+	err := WaitForWCPCloudNameAndInitialize(ctx, kubeClient, logger)
+
+	// Verify timeout error occurred
+	assert.Error(t, err)
+	assert.Equal(t, context.DeadlineExceeded, err)
+}
+
+func TestInitializeClusterConfig_Success(t *testing.T) {
+	// Save original function and restore after test
+	originalFunc := newAviClientFunc
+	defer func() { newAviClientFunc = originalFunc }()
+
+	// Mock the function to return success
+	newAviClientFunc = func(host string, username string, options ...func(*session.AviSession) error) (*clients.AviClient, error) {
+		return &clients.AviClient{}, nil
+	}
+
+	// Create a configmap with required data
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "avi-k8s-config",
+			Namespace: utils.GetAKONamespace(),
+		},
+		Data: map[string]string{
+			"clusterID":    "test-cluster-id",
+			"controllerIP": "192.168.1.100",
+		},
+	}
+
+	// Create a secret with AVI credentials
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      lib.AviSecret,
+			Namespace: utils.GetAKONamespace(),
+		},
+		Data: map[string][]byte{
+			"username":                 []byte("admin"),
+			"password":                 []byte("password"),
+			"authtoken":                []byte("token123"),
+			"certificateAuthorityData": []byte("ca-data"),
+		},
+	}
+
+	// Create fake kubernetes client
+	kubeClient := kubefake.NewSimpleClientset(cm, secret)
+
+	// Create a real logger for testing
+	logger := utils.AviLog.WithName("test")
+
+	ctx := context.Background()
+
+	// Call the function
+	err := initializeClusterConfig(ctx, kubeClient, "test-cloud", logger)
+
+	// Verify success with mocked AVI client
+	assert.NoError(t, err)
+}
+
+func TestInitializeClusterConfig_ConfigMapNotFound(t *testing.T) {
+	// Create fake kubernetes client with no configmap
+	kubeClient := kubefake.NewSimpleClientset()
+
+	// Create a real logger for testing
+	logger := utils.AviLog.WithName("test")
+
+	ctx := context.Background()
+
+	// Call the function
+	err := initializeClusterConfig(ctx, kubeClient, "test-cloud", logger)
+
+	// Verify error occurred
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+}
+
+func TestInitializeClusterConfig_MissingClusterID(t *testing.T) {
+	// Create a configmap without clusterID
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "avi-k8s-config",
+			Namespace: utils.GetAKONamespace(),
+		},
+		Data: map[string]string{
+			"controllerIP": "192.168.1.100",
+		},
+	}
+
+	// Create fake kubernetes client
+	kubeClient := kubefake.NewSimpleClientset(cm)
+
+	// Create a real logger for testing
+	logger := utils.AviLog.WithName("test")
+
+	ctx := context.Background()
+
+	// Call the function
+	err := initializeClusterConfig(ctx, kubeClient, "test-cloud", logger)
+
+	// Verify error occurred
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "clusterID not found in configmap")
+}
+
+func TestInitializeClusterConfig_MissingControllerIP(t *testing.T) {
+	// Create a configmap without controllerIP
+	cm := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "avi-k8s-config",
+			Namespace: utils.GetAKONamespace(),
+		},
+		Data: map[string]string{
+			"clusterID": "test-cluster-id",
+		},
+	}
+
+	// Create fake kubernetes client
+	kubeClient := kubefake.NewSimpleClientset(cm)
+
+	// Create a real logger for testing
+	logger := utils.AviLog.WithName("test")
+
+	ctx := context.Background()
+
+	// Call the function
+	err := initializeClusterConfig(ctx, kubeClient, "test-cloud", logger)
+
+	// Verify error occurred
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "controllerIP not found in configmap")
+}
+
+func TestValidateAviSecret_SecretNotFound(t *testing.T) {
+	// Create fake kubernetes client with no secret
+	kubeClient := kubefake.NewSimpleClientset()
+
+	// Create a real logger for testing
+	logger := utils.AviLog.WithName("test")
+
+	ctx := context.Background()
+
+	// Call the function
+	err := validateAviSecret(ctx, kubeClient, "192.168.1.100", logger)
+
+	// Verify error occurred
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not found")
+}
+
+func TestValidateAviSecret_MissingUsername(t *testing.T) {
+	// Create a secret without username
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      lib.AviSecret,
+			Namespace: utils.GetAKONamespace(),
+		},
+		Data: map[string][]byte{
+			"password":                 []byte("password"),
+			"certificateAuthorityData": []byte("ca-data"),
+		},
+	}
+
+	// Create fake kubernetes client
+	kubeClient := kubefake.NewSimpleClientset(secret)
+
+	// Create a real logger for testing
+	logger := utils.AviLog.WithName("test")
+
+	ctx := context.Background()
+
+	// Call the function
+	err := validateAviSecret(ctx, kubeClient, "192.168.1.100", logger)
+
+	// Verify error occurred
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "username is required")
+}
+
+func TestValidateAviSecret_MissingCredentials(t *testing.T) {
+	// Create a secret without password or authtoken
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      lib.AviSecret,
+			Namespace: utils.GetAKONamespace(),
+		},
+		Data: map[string][]byte{
+			"username":                 []byte("admin"),
+			"certificateAuthorityData": []byte("ca-data"),
+		},
+	}
+
+	// Create fake kubernetes client
+	kubeClient := kubefake.NewSimpleClientset(secret)
+
+	// Create a real logger for testing
+	logger := utils.AviLog.WithName("test")
+
+	ctx := context.Background()
+
+	// Call the function
+	err := validateAviSecret(ctx, kubeClient, "192.168.1.100", logger)
+
+	// Verify error occurred
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "either password or authtoken must be provided")
+}
+
+func TestValidateAviSecret_ValidCredentials(t *testing.T) {
+	// Save original function and restore after test
+	originalFunc := newAviClientFunc
+	defer func() { newAviClientFunc = originalFunc }()
+
+	// Mock the function to return success
+	newAviClientFunc = func(host string, username string, options ...func(*session.AviSession) error) (*clients.AviClient, error) {
+		return &clients.AviClient{}, nil
+	}
+
+	// Create a secret with valid credentials
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      lib.AviSecret,
+			Namespace: utils.GetAKONamespace(),
+		},
+		Data: map[string][]byte{
+			"username":                 []byte("admin"),
+			"password":                 []byte("password"),
+			"authtoken":                []byte("token123"),
+			"certificateAuthorityData": []byte("ca-data"),
+		},
+	}
+
+	// Create fake kubernetes client
+	kubeClient := kubefake.NewSimpleClientset(secret)
+
+	// Create a real logger for testing
+	logger := utils.AviLog.WithName("test")
+
+	ctx := context.Background()
+
+	// Call the function
+	err := validateAviSecret(ctx, kubeClient, "192.168.1.100", logger)
+
+	// Verify success with mocked AVI client
+	assert.NoError(t, err)
 }
