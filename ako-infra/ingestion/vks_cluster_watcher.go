@@ -794,7 +794,6 @@ func StartVKSClusterWatcherWithRetry(stopCh <-chan struct{}, dynamicInformers *l
 			select {
 			case <-stopCh:
 				utils.AviLog.Infof("VKS cluster watcher: shutdown signal received during retry wait")
-				lib.CleanupSharedRoles(avirest.InfraAviClientInstance())
 				return
 			case <-time.After(retryInterval):
 				// Continue to next retry
@@ -802,7 +801,6 @@ func StartVKSClusterWatcherWithRetry(stopCh <-chan struct{}, dynamicInformers *l
 			}
 		} else {
 			utils.AviLog.Infof("VKS cluster watcher: shutdown gracefully")
-			lib.CleanupSharedRoles(avirest.InfraAviClientInstance())
 			return
 		}
 	}

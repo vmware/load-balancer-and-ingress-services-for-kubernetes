@@ -303,19 +303,12 @@ func (c *VCFK8sController) startVKSInfrastructure(stopCh <-chan struct{}) {
 
 	go func() {
 		c.AddVKSAddonEventHandler(stopCh)
-		// Cleanup on shutdown
 		<-stopCh
-		utils.AviLog.Infof("VKS: AKO shutdown detected, cleaning up VKS resources")
-
-		if err := addon.CleanupGlobalAddonInstall(); err != nil {
-			utils.AviLog.Errorf("VKS: Failed to cleanup global AddonInstall: %v", err)
-		} else {
-			utils.AviLog.Infof("VKS: Successfully cleaned up global AddonInstall")
-		}
+		utils.AviLog.Infof("VKS: AKO shutdown detected, stopping VKS resources")
 
 		proxy.StopNamespaceGrantProcessor()
 
-		utils.AviLog.Infof("VKS: All cleanup completed successfully")
+		utils.AviLog.Infof("VKS: All resources stopped successfully")
 	}()
 }
 
@@ -493,7 +486,7 @@ func (c *VCFK8sController) ValidBootstrapSecretData(controllerIP, secretName, se
 	avirest.InfraAviClientInstance(aviClient)
 	utils.AviLog.Infof("Successfully connected to AVI controller using secret provided by NCP")
 
-	// Check if controller version supports VKS Management Service APIs (>= )
+	// Check if controller version supports VKS Management Service APIs (>= 31.3.1)
 	minVersion, err := utils.NewVersion(avirest.VKSAviVersion)
 	if err != nil {
 		utils.AviLog.Warnf("VKS: Failed to parse minimum required version: %v", err)

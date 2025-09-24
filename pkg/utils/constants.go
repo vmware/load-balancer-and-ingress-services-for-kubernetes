@@ -93,12 +93,10 @@ const (
 	ENV_CTRL_PASSWORD             = "CTRL_PASSWORD"
 	ENV_CTRL_AUTHTOKEN            = "CTRL_AUTHTOKEN"
 	ENV_CTRL_IPADDRESS            = "CTRL_IPADDRESS"
-	ENV_CTRL_ADDRESS              = "CTRL_ADDRESS"
 	ENV_CTRL_CADATA               = "CTRL_CA_DATA"
 	POD_NAMESPACE                 = "POD_NAMESPACE"
 	VCF_CLUSTER                   = "VCF_CLUSTER"
 	VPC_MODE                      = "VPC_MODE"
-	MANAGED                       = "MANAGED"
 	MCI_ENABLED                   = "MCI_ENABLED"
 	USE_DEFAULT_SECRETS_ONLY      = "USE_DEFAULT_SECRETS_ONLY"
 	Namespace                     = "Namespace"
@@ -125,4 +123,8 @@ const (
 	// Constants used in Gateway context
 	WILDCARD         = "*"
 	FQDN_LABEL_REGEX = "([a-z0-9-]{1,})"
+
+	// Constants used for VKS Managed Mode
+	MANAGED          = "MANAGED"
+	ENV_CTRL_ADDRESS = "CTRL_ADDRESS"
 )

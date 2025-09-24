@@ -457,10 +457,9 @@ func (c *ManagementServiceController) CreateManagementServiceGrant(namespace str
 	}
 
 	payload := map[string]interface{}{
-		"cloud_uuid":    c.cloudUUID,
-		"supervisor_id": c.supervisorID,
-		"vcenter_host":  c.vcenterHost,
-		"namespace":     namespace,
+		"cloud_uuid":   c.cloudUUID,
+		"vcenter_host": c.vcenterHost,
+		"namespace":    namespace,
 		"management_service_access_grant": map[string]interface{}{
 			"access_grant":       grantName,
 			"management_service": c.serviceName,
@@ -534,7 +533,6 @@ func (c *ManagementServiceController) DeleteManagementServiceGrant(namespace str
 
 	payload := map[string]interface{}{
 		"cloud_uuid":                         c.cloudUUID,
-		"supervisor_id":                      c.supervisorID,
 		"vcenter_host":                       c.vcenterHost,
 		"namespace":                          namespace,
 		"management_service_access_grant_id": grantName,

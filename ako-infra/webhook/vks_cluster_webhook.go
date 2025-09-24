@@ -76,10 +76,6 @@ func StartVKSWebhook(kubeClient kubernetes.Interface, stopCh <-chan struct{}) {
 				select {
 				case <-stopCh:
 					utils.AviLog.Infof("VKS webhook: shutdown signal received during retry wait")
-					// Clean up webhook resources on shutdown
-					if err := CleanupAllWebhookResources(kubeClient); err != nil {
-						utils.AviLog.Warnf("VKS webhook: failed to cleanup resources during shutdown: %v", err)
-					}
 					return
 				case <-time.After(retryInterval):
 					// Continue to next retry
@@ -88,10 +84,6 @@ func StartVKSWebhook(kubeClient kubernetes.Interface, stopCh <-chan struct{}) {
 			} else {
 				// Server returned without error - this means graceful shutdown
 				utils.AviLog.Infof("VKS webhook: server stopped gracefully")
-				// Clean up webhook resources on graceful shutdown
-				if err := CleanupAllWebhookResources(kubeClient); err != nil {
-					utils.AviLog.Warnf("VKS webhook: failed to cleanup resources during graceful shutdown: %v", err)
-				}
 				return
 			}
 		}
