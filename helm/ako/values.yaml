@@ -131,6 +131,21 @@ resources:
     cpu: 200m
     memory: 300Mi
 
+nodeSelector: {}
+
+tolerations: []
+
+affinity:
+  podAntiAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+    - labelSelector:
+        matchExpressions:
+        - key: app.kubernetes.io/name
+          operator: In
+          values:
+          - ako
+      topologyKey: "kubernetes.io/hostname"
+
 securityContext: {}
 
 podSecurityContext: {}
