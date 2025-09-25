@@ -104,6 +104,7 @@ const (
 	ControllerAPIHeader           = "userHeader"
 	ControllerAPIScheme           = "scheme"
 	XAviUserAgentHeader           = "X-Avi-UserAgent"
+	HelmSecretType                = "helm.sh/release.v1"
 
 	RefreshAuthTokenInterval = 12  //hours
 	AuthTokenExpiry          = 240 //hours
