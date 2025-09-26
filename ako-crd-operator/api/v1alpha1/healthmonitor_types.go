@@ -202,6 +202,9 @@ type HealthMonitorStatus struct {
 	// Tenant is the tenant where the health monitor is created
 	// +optional
 	Tenant string `json:"tenant,omitempty"`
+	// Field is populated by AKO CRD operator as ako-crd-operator
+	// +optional
+	Controller string `json:"controller,omitempty"`
 }
 
 // +genclient
@@ -258,4 +261,9 @@ func (hm *HealthMonitor) SetObservedGeneration(generation int64) {
 // SetLastUpdated sets the last updated timestamp in the status
 func (hm *HealthMonitor) SetLastUpdated(time *metav1.Time) {
 	hm.Status.LastUpdated = time
+}
+
+// SetController sets the controller name in the status
+func (hm *HealthMonitor) SetController(controller string) {
+	hm.Status.Controller = controller
 }
