@@ -172,13 +172,6 @@ func (p *NamespaceGrantProcessor) processNamespaceEvent(event *NamespaceEvent) e
 			}
 			utils.AviLog.Infof("VKS ManagementServiceGrant: successfully created grant for namespace %s (SEG annotation added)", event.Namespace)
 			return nil
-		} else if event.OldHasSEG && !event.NewHasSEG {
-			// SEG annotation was removed
-			if err := controller.DeleteManagementServiceGrant(event.Namespace); err != nil {
-				return err
-			}
-			utils.AviLog.Infof("VKS ManagementServiceGrant: successfully removed grant for namespace %s (SEG annotation removed)", event.Namespace)
-			return nil
 		}
 	case NamespaceEventDelete:
 		if event.OldHasSEG {
@@ -463,7 +456,9 @@ func (c *ManagementServiceController) CreateManagementServiceGrant(namespace str
 		"management_service_access_grant": map[string]interface{}{
 			"access_grant":       grantName,
 			"management_service": c.serviceName,
-			"workload_selector":  WorkloadSelectorTypeVirtualMachine,
+			"workload_selector": map[string]interface{}{
+				"type": WorkloadSelectorTypeVirtualMachine,
+			},
 		},
 	}
 

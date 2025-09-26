@@ -458,12 +458,15 @@ func (c *VCFK8sController) ValidBootstrapSecretData(controllerIP, secretName, se
 	}
 
 	ctrlVersion := lib.GetControllerVersion()
+	actualControllerVersion := ""
 	if ctrlVersion == "" {
 		version, err := aviClient.AviSession.GetControllerVersion()
 		if err != nil {
 			utils.AviLog.Infof("Failed to get controller version from Avi session, err: %s", err)
 			return false
 		}
+		actualControllerVersion = version
+
 		maxVersion, err := utils.NewVersion(utils.MaxAviVersion)
 		if err != nil {
 			utils.AviLog.Errorf("Failed to create Version object, err: %s", err)
@@ -479,6 +482,14 @@ func (c *VCFK8sController) ValidBootstrapSecretData(controllerIP, secretName, se
 			version = utils.MaxAviVersion
 		}
 		ctrlVersion = version
+	} else {
+		actualVersion, err := aviClient.AviSession.GetControllerVersion()
+		if err != nil {
+			utils.AviLog.Infof("Failed to get actual controller version from Avi session, err: %s", err)
+			actualControllerVersion = ctrlVersion
+		} else {
+			actualControllerVersion = actualVersion
+		}
 	}
 	SetVersion := session.SetVersion(ctrlVersion)
 	SetVersion(aviClient.AviSession)
@@ -492,13 +503,13 @@ func (c *VCFK8sController) ValidBootstrapSecretData(controllerIP, secretName, se
 		utils.AviLog.Warnf("VKS: Failed to parse minimum required version: %v", err)
 		return true
 	}
-	currentVersion, err := utils.NewVersion(ctrlVersion)
+	currentVersion, err := utils.NewVersion(actualControllerVersion)
 	if err != nil {
-		utils.AviLog.Warnf("VKS: Failed to parse controller version %s: %v", ctrlVersion, err)
+		utils.AviLog.Warnf("VKS: Failed to parse actual controller version %s: %v", actualControllerVersion, err)
 		return true
 	}
 	if currentVersion.Compare(minVersion) < 0 {
-		utils.AviLog.Infof("VKS: Controller version %s does not support Management Service APIs (requires >= %s)", ctrlVersion, avirest.VKSAviVersion)
+		utils.AviLog.Infof("VKS: Controller version %s does not support Management Service APIs (requires >= %s)", actualControllerVersion, avirest.VKSAviVersion)
 		return true
 	}
 
