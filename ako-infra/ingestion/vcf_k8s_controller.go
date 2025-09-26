@@ -482,14 +482,6 @@ func (c *VCFK8sController) ValidBootstrapSecretData(controllerIP, secretName, se
 			version = utils.MaxAviVersion
 		}
 		ctrlVersion = version
-	} else {
-		actualVersion, err := aviClient.AviSession.GetControllerVersion()
-		if err != nil {
-			utils.AviLog.Infof("Failed to get actual controller version from Avi session, err: %s", err)
-			actualControllerVersion = ctrlVersion
-		} else {
-			actualControllerVersion = actualVersion
-		}
 	}
 	SetVersion := session.SetVersion(ctrlVersion)
 	SetVersion(aviClient.AviSession)
@@ -498,6 +490,16 @@ func (c *VCFK8sController) ValidBootstrapSecretData(controllerIP, secretName, se
 	utils.AviLog.Infof("Successfully connected to AVI controller using secret provided by NCP")
 
 	// Check if controller version supports VKS Management Service APIs (>= 31.3.1)
+	if actualControllerVersion == "" {
+		if actualVersion, err := aviClient.AviSession.GetControllerVersion(); err != nil {
+			actualControllerVersion = ctrlVersion
+			utils.AviLog.Warnf("VKS: Failed to get actual controller version from API, using configured version %s: %v", ctrlVersion, err)
+		} else {
+			utils.AviLog.Infof("VKS: Got actual controller version %s from API for feature detection", actualControllerVersion)
+			actualControllerVersion = actualVersion
+		}
+	}
+
 	minVersion, err := utils.NewVersion(avirest.VKSAviVersion)
 	if err != nil {
 		utils.AviLog.Warnf("VKS: Failed to parse minimum required version: %v", err)
