@@ -408,17 +408,12 @@ func ConfigureSeGroup(client *clients.AviClient, seGroup *models.ServiceEngineGr
 		}
 
 		if vcenterServerName != "" {
-			clusterIDs, err := lib.GetAvailabilityZonesCRData(lib.GetDynamicClientSet())
-			if err != nil {
-				utils.AviLog.Warnf("Failed to get Availability Zones for the supervisor cluster, err: %s", err.Error())
-				return err
-			}
 			vcRef := fmt.Sprintf("/api/vcenterserver/?name=%s", vcenterServerName)
 			seGroup.Vcenters = append(seGroup.Vcenters,
 				&models.PlacementScopeConfig{
 					VcenterRef: &vcRef,
 					NsxtClusters: &models.NsxtClusters{
-						ClusterIds: clusterIDs,
+						ClusterIds: []string{lib.GetClusterIDSplit()},
 						Include:    &include,
 					},
 				})
