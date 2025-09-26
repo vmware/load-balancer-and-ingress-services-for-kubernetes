@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
+	constants "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/lib"
 
 	"github.com/vmware/alb-sdk/go/session"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/event"

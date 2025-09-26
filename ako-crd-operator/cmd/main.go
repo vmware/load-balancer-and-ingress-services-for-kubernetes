@@ -25,10 +25,11 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/event"
+	constants "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/lib"
 	session2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/session"
 	utils2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -104,6 +105,7 @@ func main() {
 	sessionManager.CreateAviClients(ctx, 4)
 	aviClients := sessionManager.GetAviClients()
 	clusterName := os.Getenv("CLUSTER_NAME")
+	lib.SetNamePrefix(constants.Prefix)
 
 	cacheManager := cache.NewCache(
 		session2.NewAviSessionClient(aviClients.AviClient[0]),

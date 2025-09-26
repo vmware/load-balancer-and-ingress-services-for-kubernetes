@@ -422,7 +422,7 @@ func ParseRouteBackendExtensionCR(key, namespace, name string, poolNode *nodes.A
 			if pkiProfileKind, found, err := unstructured.NestedString(pkiProfileMap, "kind"); err == nil && found && pkiProfileKind == "CRD" {
 				if pkiProfileName, found, err := unstructured.NestedString(pkiProfileMap, "name"); err == nil && found {
 					// Set PKI profile reference using clustername-namespace-name format - this will be used by the pool node for backend SSL validation
-					pkiProfileFullName := fmt.Sprintf("%s-%s-%s", lib.GetClusterName(), namespace, pkiProfileName)
+					pkiProfileFullName := getPKIProfileName(namespace, pkiProfileName)
 					poolNode.PkiProfileRef = proto.String(fmt.Sprintf("/api/pkiprofile?name=%s", pkiProfileFullName))
 				}
 			}
@@ -494,4 +494,11 @@ func IsApplicationProfileProcessed(obj interface{}, namespace, name string) bool
 
 	utils.AviLog.Warnf("key:%s/%s, msg: ApplicationProfile CRD is not ready", namespace, name)
 	return false
+}
+
+// getPKIProfileName generates PKI profile name using clustername-namespace-name format
+// to match the naming convention used by the ako-crd-operator
+func getPKIProfileName(namespace, objectName string) string {
+	name := lib.GetClusterName() + "-" + namespace + "-" + objectName
+	return lib.Encode(name, lib.EVHVS)
 }
