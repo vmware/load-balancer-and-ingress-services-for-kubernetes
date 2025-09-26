@@ -2054,7 +2054,6 @@ func TestL7WrongSubDomainMultiSNIForEvh(t *testing.T) {
 	svcName := objNameMap.GenerateName("avisvc")
 	integrationtest.AddSecret(secretName, "default", "tlsCert", "tlsKey")
 	integrationtest.AddSecret("my-secret2", "default", "tlsCert", "tlsKey")
-	modelName, _ := GetModelName("foo.com", "default")
 	SetUpTestForIngress(t, svcName, integrationtest.AllModels...)
 
 	ingrFake := (integrationtest.FakeIngress{
@@ -2091,7 +2090,7 @@ func TestL7WrongSubDomainMultiSNIForEvh(t *testing.T) {
 		t.Fatalf("Couldn't update the Ingress %v", err)
 	}
 
-	modelName, _ = GetModelName("bar.com", "default")
+	modelName, _ := GetModelName("bar.com", "default")
 	integrationtest.PollForCompletion(t, modelName, 5)
 	g.Eventually(func() bool {
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)

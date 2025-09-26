@@ -3559,6 +3559,7 @@ func checkRequiredValuesYaml(client *clients.AviClient, isGateway bool, returnEr
 	// TODO: Check if this code will ever git hit
 	k8sClient := utils.GetInformers().ClientSet
 	aviCMNamespace := utils.GetAKONamespace()
+	// TODO: Redundant code. Remove next release.
 	if lib.GetNamespaceToSync() != "" {
 		aviCMNamespace = lib.GetNamespaceToSync()
 	}

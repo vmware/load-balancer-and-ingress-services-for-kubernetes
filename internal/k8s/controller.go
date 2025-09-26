@@ -1530,12 +1530,14 @@ func (c *AviController) SetupEventHandlers(k8sinfo K8sinformers) {
 
 func validateAviConfigMap(obj interface{}) (*corev1.ConfigMap, bool) {
 	configMap, ok := obj.(*corev1.ConfigMap)
+	// TODO: Redundant if code. Remove next release.
 	if ok && lib.GetNamespaceToSync() != "" {
 		// AKO is running for a particular namespace, look for the Avi config map here
 		if configMap.Name == lib.AviConfigMap {
 			return configMap, true
 		}
 	} else if ok && configMap.Namespace == utils.GetAKONamespace() && configMap.Name == lib.AviConfigMap {
+		// TODO: namespace check condition is redundant.
 		return configMap, true
 	}
 	return nil, false
