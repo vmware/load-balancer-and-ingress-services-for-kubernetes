@@ -16,6 +16,7 @@ package status
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -25,6 +26,7 @@ import (
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	tests "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/gatewayapitests"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 )
@@ -58,6 +60,7 @@ func TestDedicatedGatewayWithValidListeners(t *testing.T) {
 		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionProgrammed)) != nil
 	}, 40*time.Second).Should(gomega.Equal(true))
 
+	programmedConditionMessage := fmt.Sprintf("VSUUID:virtualservice-ako-gw-%s--%s-%s-L7-dedicated-EVH-random-uuid", lib.GetClusterName(), DEFAULT_NAMESPACE, gatewayName)
 	expectedStatus := &gatewayv1.GatewayStatus{
 		Conditions: []metav1.Condition{
 			{
@@ -70,12 +73,12 @@ func TestDedicatedGatewayWithValidListeners(t *testing.T) {
 			{
 				Type:               string(gatewayv1.GatewayConditionProgrammed),
 				Status:             metav1.ConditionTrue,
-				Message:            "Virtual service configured/updated",
+				Message:            programmedConditionMessage,
 				ObservedGeneration: 1,
 				Reason:             string(gatewayv1.GatewayReasonProgrammed),
 			},
 		},
-		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}, true, true),
+		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}, true, true, programmedConditionMessage),
 	}
 
 	gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
@@ -112,6 +115,7 @@ func TestDedicatedGatewayWithTLSListeners(t *testing.T) {
 		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
 	}, 30*time.Second).Should(gomega.Equal(true))
 
+	programmedConditionMessage := fmt.Sprintf("VSUUID:virtualservice-ako-gw-%s--%s-%s-L7-dedicated-EVH-random-uuid", lib.GetClusterName(), DEFAULT_NAMESPACE, gatewayName)
 	expectedStatus := &gatewayv1.GatewayStatus{
 		Conditions: []metav1.Condition{
 			{
@@ -124,7 +128,7 @@ func TestDedicatedGatewayWithTLSListeners(t *testing.T) {
 			{
 				Type:               string(gatewayv1.GatewayConditionProgrammed),
 				Status:             metav1.ConditionTrue,
-				Message:            "Virtual service configured/updated",
+				Message:            programmedConditionMessage,
 				ObservedGeneration: 1,
 				Reason:             string(gatewayv1.GatewayReasonProgrammed),
 			},
@@ -187,6 +191,7 @@ func TestGatewayTransitionFromNormalToDedicatedMode(t *testing.T) {
 		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
 	}, 30*time.Second).Should(gomega.Equal(true))
 
+	programmedConditionMessage := fmt.Sprintf("VSUUID:virtualservice-ako-gw-%s--%s-%s-EVH-random-uuid", lib.GetClusterName(), DEFAULT_NAMESPACE, gatewayName)
 	expectedStatus := &gatewayv1.GatewayStatus{
 		Conditions: []metav1.Condition{
 			{
@@ -199,7 +204,7 @@ func TestGatewayTransitionFromNormalToDedicatedMode(t *testing.T) {
 			{
 				Type:               string(gatewayv1.GatewayConditionProgrammed),
 				Status:             metav1.ConditionTrue,
-				Message:            "Virtual service configured/updated",
+				Message:            programmedConditionMessage,
 				ObservedGeneration: 1,
 				Reason:             string(gatewayv1.GatewayReasonProgrammed),
 			},
@@ -255,6 +260,7 @@ func TestGatewayTransitionFromDedicatedToNormalMode(t *testing.T) {
 		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
 	}, 30*time.Second).Should(gomega.Equal(true))
 
+	programmedConditionMessage := fmt.Sprintf("VSUUID:virtualservice-ako-gw-%s--%s-%s-L7-dedicated-EVH-random-uuid", lib.GetClusterName(), DEFAULT_NAMESPACE, gatewayName)
 	expectedStatus := &gatewayv1.GatewayStatus{
 		Conditions: []metav1.Condition{
 			{
@@ -267,7 +273,7 @@ func TestGatewayTransitionFromDedicatedToNormalMode(t *testing.T) {
 			{
 				Type:               string(gatewayv1.GatewayConditionProgrammed),
 				Status:             metav1.ConditionTrue,
-				Message:            "Virtual service configured/updated",
+				Message:            programmedConditionMessage,
 				ObservedGeneration: 1,
 				Reason:             string(gatewayv1.GatewayReasonProgrammed),
 			},
@@ -474,6 +480,7 @@ func TestDedicatedGatewayWithMixedValidInvalidListeners(t *testing.T) {
 		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
 	}, 30*time.Second).Should(gomega.Equal(true))
 
+	programmedConditionMessage := fmt.Sprintf("VSUUID:virtualservice-ako-gw-%s--%s-%s-L7-dedicated-EVH-random-uuid", lib.GetClusterName(), DEFAULT_NAMESPACE, gatewayName)
 	expectedStatus := &gatewayv1.GatewayStatus{
 		Conditions: []metav1.Condition{
 			{
@@ -486,7 +493,7 @@ func TestDedicatedGatewayWithMixedValidInvalidListeners(t *testing.T) {
 			{
 				Type:               string(gatewayv1.GatewayConditionProgrammed),
 				Status:             metav1.ConditionTrue,
-				Message:            "Virtual service configured/updated",
+				Message:            programmedConditionMessage,
 				ObservedGeneration: 1,
 				Reason:             string(gatewayv1.GatewayReasonProgrammed),
 			},
@@ -499,11 +506,26 @@ func TestDedicatedGatewayWithMixedValidInvalidListeners(t *testing.T) {
 	expectedStatus.Listeners[0].Conditions[0].Message = "Hostname is not supported in dedicated mode"
 	expectedStatus.Listeners[0].Conditions[0].Type = string(gatewayv1.ListenerConditionAccepted)
 
+	expectedStatus.Listeners[0].Conditions[1].Type = string(gatewayv1.ListenerConditionProgrammed)
+	expectedStatus.Listeners[0].Conditions[1].Status = metav1.ConditionFalse
+	expectedStatus.Listeners[0].Conditions[1].Reason = string(gatewayv1.ListenerReasonInvalid)
+	expectedStatus.Listeners[0].Conditions[1].Message = "Virtual service not configured/updated for this listener"
+
 	// Second listener should be valid
 	expectedStatus.Listeners[1].Conditions[0].Reason = string(gatewayv1.ListenerReasonAccepted)
 	expectedStatus.Listeners[1].Conditions[0].Status = metav1.ConditionTrue
 	expectedStatus.Listeners[1].Conditions[0].Message = "Listener is valid"
 	expectedStatus.Listeners[1].Conditions[0].Type = string(gatewayv1.ListenerConditionAccepted)
+
+	programmedCondition := metav1.Condition{
+		Type:               string(gatewayv1.ListenerConditionProgrammed),
+		Status:             metav1.ConditionTrue,
+		Message:            programmedConditionMessage,
+		ObservedGeneration: 1,
+		Reason:             string(gatewayv1.ListenerReasonProgrammed),
+	}
+
+	expectedStatus.Listeners[1].Conditions = append(expectedStatus.Listeners[1].Conditions, programmedCondition)
 
 	gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
 	if err != nil || gateway == nil {

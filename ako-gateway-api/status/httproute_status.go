@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 
@@ -29,6 +30,7 @@ import (
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
+	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -38,7 +40,8 @@ type httproute struct{}
 
 func (o *httproute) Get(key string, name string, namespace string) *gatewayv1.HTTPRoute {
 
-	obj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Lister().HTTPRoutes(namespace).Get(name)
+	// Use GatewayAPI Clientset to get the latest state of the HTTPRoute object
+	obj, err := akogatewayapilib.AKOControlConfig().GatewayAPIClientset().GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), name, metav1.GetOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: unable to get the HTTPRoute object. err: %s", key, err)
 		return nil
@@ -65,7 +68,20 @@ func (o *httproute) GetAll(key string) map[string]*gatewayv1.HTTPRoute {
 }
 
 func (o *httproute) Delete(key string, option status.StatusOptions) {
-	// TODO: Add this code when we publish the status from the rest layer
+	nsName := strings.Split(option.Options.ServiceMetadata.HTTPRoute, "/")
+	if len(nsName) != 2 {
+		utils.AviLog.Warnf("key: %s, msg: invalid HttpRoute name and namespace", key)
+		return
+	}
+	namespace := nsName[0]
+	name := nsName[1]
+	httpRoute := o.Get(key, name, namespace)
+	if httpRoute != nil {
+		// Update HTTPRoute status to remove VS UUID
+		if err := o.removeVSUUIDFromHTTPRouteStatus(key, httpRoute, option.Options); err != nil {
+			utils.AviLog.Warnf("key: %s, msg: failed to remove VS UUID from HTTPRoute status: %v", key, err)
+		}
+	}
 }
 
 func (o *httproute) Update(key string, option status.StatusOptions) {
@@ -78,12 +94,27 @@ func (o *httproute) Update(key string, option status.StatusOptions) {
 	name := nsName[1]
 	httpRoute := o.Get(key, name, namespace)
 	if httpRoute != nil {
-		o.Patch(key, httpRoute, option.Options.Status)
+		if option.Options.Status != nil {
+			option.Options.Status.HTTPRouteStatus = akogatewayapiobjects.GatewayApiLister().GetRouteToRouteStatusMapping(lib.HTTPRoute + "/" + namespace + "/" + name)
+			o.Patch(key, httpRoute, option.Options.Status)
+		}
+		// Update HTTPRoute status Accepted condition with VS UUID
+		if err := o.updateHTTPRouteStatusWithVSUUID(key, httpRoute, option.Options); err != nil {
+			utils.AviLog.Warnf("key: %s, msg: failed to update HTTPRoute status with VS UUID: %v", key, err)
+		}
 	}
 }
 
 func (o *httproute) BulkUpdate(key string, options []status.StatusOptions) {
-	// TODO: Add this code when we publish the status from the rest layer
+	httpRouteMap := o.GetAll(key)
+	for _, option := range options {
+		httpRoute := httpRouteMap[option.Options.ServiceMetadata.HTTPRoute]
+		if httpRoute != nil {
+			if err := o.updateHTTPRouteStatusWithVSUUID(key, httpRoute, option.Options); err != nil {
+				utils.AviLog.Warnf("key: %s, msg: failed to update HTTPRoute status with VS UUID: %v", key, err)
+			}
+		}
+	}
 }
 
 func (o *httproute) Patch(key string, obj runtime.Object, status *status.Status, retryNum ...int) error {
@@ -134,4 +165,165 @@ func (o *httproute) isStatusEqual(old, new *gatewayv1.HTTPRouteStatus) bool {
 		}
 	}
 	return reflect.DeepEqual(oldStatus, newStatus)
+}
+
+// updateHTTPRouteStatusWithVSUUID updates HTTPRoute status with VS UUID
+func (o *httproute) updateHTTPRouteStatusWithVSUUID(key string, httpRoute *gatewayv1.HTTPRoute, options *status.UpdateOptions) error {
+	// Loop over route parent status and match with gateway name
+	gatewayNSName := options.ServiceMetadata.Gateway
+	ruleName := options.ServiceMetadata.HTTPRouteRuleName
+	virtualServiceUUID := options.VirtualServiceUUID
+
+	if gatewayNSName == "" || ruleName == "" || virtualServiceUUID == "" {
+		utils.AviLog.Debugf("key: %s, msg: Missing required fields for HTTPRoute status update - Gateway: %s, RuleName: %s, VSUUID: %s", key, gatewayNSName, ruleName, virtualServiceUUID)
+		return nil
+	}
+
+	// Parse gateway namespace and name
+	gatewayParts := strings.Split(gatewayNSName, "/")
+	if len(gatewayParts) != 2 {
+		return fmt.Errorf("invalid gateway name format: %s", gatewayNSName)
+	}
+	gatewayNamespace := gatewayParts[0]
+	gatewayName := gatewayParts[1]
+
+	// Create or update HTTPRoute status
+	httpRouteStatus := akogatewayapiobjects.GatewayApiLister().GetRouteToRouteStatusMapping(lib.HTTPRoute + "/" + options.ServiceMetadata.HTTPRoute)
+	if httpRouteStatus.Parents == nil {
+		httpRouteStatus.Parents = []gatewayv1.RouteParentStatus{}
+	}
+
+	// Find or create parent status for this gateway
+	for i := range httpRouteStatus.Parents {
+		if string(httpRouteStatus.Parents[i].ParentRef.Name) == gatewayName &&
+			(httpRouteStatus.Parents[i].ParentRef.Namespace == nil || string(*httpRouteStatus.Parents[i].ParentRef.Namespace) == gatewayNamespace) {
+			parentStatus := &httpRouteStatus.Parents[i]
+
+			// Add VSUUID only if the HTTPRoute is Accepted for this Gateway
+			for _, condition := range parentStatus.Conditions {
+				if condition.Type == string(gatewayv1.RouteConditionAccepted) && condition.Status == metav1.ConditionTrue {
+					message, err := o.buildJSONMessage(parentStatus.Conditions, ruleName, virtualServiceUUID, false)
+					if err != nil {
+						return err
+					}
+					newCondition := NewCondition().
+						Type(string(gatewayv1.RouteConditionAccepted)).
+						Status(metav1.ConditionTrue).
+						Reason(string(gatewayv1.RouteReasonAccepted)).
+						ObservedGeneration(httpRoute.ObjectMeta.Generation).
+						Message(message)
+					newCondition.SetIn(&parentStatus.Conditions)
+				}
+			}
+		}
+	}
+
+	akogatewayapiobjects.GatewayApiLister().UpdateRouteToRouteStatusMapping(lib.HTTPRoute+"/"+options.ServiceMetadata.HTTPRoute, httpRouteStatus)
+	// Patch the HTTPRoute status
+	return o.Patch(key, httpRoute, &status.Status{HTTPRouteStatus: httpRouteStatus})
+}
+
+// removeVSUUIDFromHTTPRouteStatus updates HTTPRoute status to remove VS UUID
+func (o *httproute) removeVSUUIDFromHTTPRouteStatus(key string, httpRoute *gatewayv1.HTTPRoute, options *status.UpdateOptions) error {
+	// Loop over route parent status and match with gateway name
+	gatewayNSName := options.ServiceMetadata.Gateway
+	ruleName := options.ServiceMetadata.HTTPRouteRuleName
+
+	if gatewayNSName == "" {
+		utils.AviLog.Debugf("key: %s, msg: Missing gateway name for HTTPRoute status delete", key)
+		return nil
+	}
+
+	// Parse gateway namespace and name
+	gatewayParts := strings.Split(gatewayNSName, "/")
+	if len(gatewayParts) != 2 {
+		return fmt.Errorf("invalid gateway name format: %s", gatewayNSName)
+	}
+	gatewayNamespace := gatewayParts[0]
+	gatewayName := gatewayParts[1]
+
+	// Update HTTPRoute status
+	httpRouteStatus := akogatewayapiobjects.GatewayApiLister().GetRouteToRouteStatusMapping(lib.HTTPRoute + "/" + options.ServiceMetadata.HTTPRoute)
+	if httpRouteStatus.Parents == nil {
+		utils.AviLog.Debugf("key: %s, msg: No parents to update for HTTPRoute status delete", key)
+		return nil // No parents to update
+	}
+
+	// Find parent status for this gateway
+	for i := range httpRouteStatus.Parents {
+		if string(httpRouteStatus.Parents[i].ParentRef.Name) == gatewayName &&
+			(httpRouteStatus.Parents[i].ParentRef.Namespace == nil || string(*httpRouteStatus.Parents[i].ParentRef.Namespace) == gatewayNamespace) {
+
+			// Add VSUUID only if the HTTPRoute is Accepted for this Gateway
+			for _, condition := range httpRouteStatus.Parents[i].Conditions {
+				if condition.Type == string(gatewayv1.RouteConditionAccepted) && condition.Status == metav1.ConditionTrue {
+					message, err := o.buildJSONMessage(httpRouteStatus.Parents[i].Conditions, ruleName, "", true)
+					if err != nil {
+						return err
+					}
+					status := metav1.ConditionTrue
+					reason := string(gatewayv1.RouteReasonAccepted)
+					if message == "" {
+						status = metav1.ConditionFalse
+						reason = string(gatewayv1.RouteReasonPending)
+					}
+					newCondition := NewCondition().
+						Type(string(gatewayv1.RouteConditionAccepted)).
+						Status(status).
+						Reason(reason).
+						ObservedGeneration(httpRoute.ObjectMeta.Generation).
+						Message(message)
+					newCondition.SetIn(&httpRouteStatus.Parents[i].Conditions)
+				}
+			}
+		}
+	}
+
+	akogatewayapiobjects.GatewayApiLister().UpdateRouteToRouteStatusMapping(lib.HTTPRoute+"/"+options.ServiceMetadata.HTTPRoute, httpRouteStatus)
+	// Patch the HTTPRoute status
+	return o.Patch(key, httpRoute, &status.Status{HTTPRouteStatus: httpRouteStatus})
+}
+
+// buildJSONMessage builds or updates a JSON message for HTTPRoute conditions
+// If isDelete is true, it removes the ruleName from the message
+// If isDelete is false, it adds/updates the ruleName with virtualServiceUUID
+func (o *httproute) buildJSONMessage(conditions []metav1.Condition, ruleName, virtualServiceUUID string, isDelete bool) (string, error) {
+	// Find existing Accepted condition to get current message
+	existingMessage := ""
+	for _, condition := range conditions {
+		if condition.Type == string(gatewayv1.RouteConditionAccepted) {
+			existingMessage = condition.Message
+			break
+		}
+	}
+
+	// Parse existing message as JSON map
+	ruleVSMap := make(map[string]string)
+	if existingMessage != "" && existingMessage != "Parent reference is valid" {
+		// Try to unmarshal as JSON first
+		if err := json.Unmarshal([]byte(existingMessage), &ruleVSMap); err != nil {
+			return "", err
+		}
+	}
+
+	if isDelete {
+		// Remove the rule from the map
+		delete(ruleVSMap, ruleName)
+
+		// If map is empty, return deletion message
+		if len(ruleVSMap) == 0 {
+			return "", nil
+		}
+	} else {
+		// Add or update the rule in the map
+		ruleVSMap[ruleName] = virtualServiceUUID
+	}
+
+	// Marshal the map to JSON
+	messageBytes, err := json.Marshal(ruleVSMap)
+	if err != nil {
+		return "", err
+	}
+
+	return string(messageBytes), nil
 }
