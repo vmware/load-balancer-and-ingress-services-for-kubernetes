@@ -20,6 +20,7 @@ import (
 	"os"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -124,6 +125,7 @@ func (c *GatewayController) InitController(informers k8s.K8sinformers, registere
 			// Something bad sync. We need to return and shutdown the API server
 			utils.AviLog.Fatalf("Couldn't run full sync successfully on bootup, going to shutdown AKO GatewayAPI container")
 		}
+
 		if interval != 0 {
 			worker = utils.NewFullSyncThread(time.Duration(interval) * time.Second)
 			worker.SyncFunction = c.FullSync
@@ -136,6 +138,9 @@ func (c *GatewayController) InitController(informers k8s.K8sinformers, registere
 	}
 
 	c.cleanupStaleVSes()
+
+	// Sync Gateway API object statuses after successful bootup
+	syncGatewayAPIObjectStatuses()
 
 	graphQueue.SyncFunc = SyncFromNodesLayer
 	graphQueue.Run(stopCh, graphWG)
@@ -710,4 +715,120 @@ func SetDeleteSyncChannel() {
 		akogatewayapilib.AKOControlConfig().PodEventf(corev1.EventTypeNormal, lib.AKODeleteConfigTimeout, "Timed out while waiting for rest layer to respond for delete config")
 	}
 
+}
+
+func syncGatewayAPIObjectStatuses() {
+	utils.AviLog.Infof("Starting Gateway API status sync during bootup")
+	aviObjCache := avicache.SharedAviObjCache()
+	vsKeys := aviObjCache.VsCacheMeta.AviGetAllKeys()
+	utils.AviLog.Debugf("Gateway API status sync for vsKeys %+v", utils.Stringify(vsKeys))
+
+	var gatewayStatusOptions []status.StatusOptions
+	var httpRouteStatusOptions []status.StatusOptions
+
+	for _, vsKey := range vsKeys {
+		if vsKey.Name == lib.DummyVSForStaleData {
+			continue
+		}
+		vsCache, ok := aviObjCache.VsCacheMeta.AviCacheGet(vsKey)
+		if !ok {
+			continue
+		}
+
+		vsCacheObj, found := vsCache.(*avicache.AviVsCache)
+		if !found {
+			continue
+		}
+
+		vsSvcMetadataObj := vsCacheObj.ServiceMetadataObj
+
+		// Only process Gateway API objects
+		if vsSvcMetadataObj.Gateway == "" {
+			continue
+		}
+
+		if strings.HasSuffix(vsCacheObj.Name, lib.EVHSuffix) {
+			IPAddrs := getIPAddrsFromCache(vsCacheObj, aviObjCache)
+			gatewayStatusOptions = append(gatewayStatusOptions,
+				status.StatusOptions{
+					ObjType: lib.Gateway,
+					Op:      lib.UpdateStatus,
+					Key:     lib.SyncStatusKey,
+					Options: &status.UpdateOptions{
+						Key:                lib.SyncStatusKey,
+						Vip:                IPAddrs,
+						ServiceMetadata:    vsSvcMetadataObj,
+						VirtualServiceUUID: vsCacheObj.Uuid,
+						Tenant:             vsCacheObj.Tenant,
+					},
+				})
+		} else {
+
+			httpRouteRuleName := vsSvcMetadataObj.HTTPRouteRuleName
+			httpRouteServiceMetadata := vsSvcMetadataObj
+
+			// For child VS, get the HTTPRouteRuleName from the graph object if not present in VS Cache serviceMetadata
+			// This handles upgrade cases where HTTPRouteRuleName would not be set initially in VS Cache serviceMetadata
+			if httpRouteRuleName == "" {
+				if vsCacheObj.ParentVSRef == (avicache.NamespaceName{}) {
+					continue
+				}
+				modelName := lib.GetModelName(vsCacheObj.ParentVSRef.Namespace, vsCacheObj.ParentVSRef.Name)
+				if modelFound, modelIntf := objects.SharedAviGraphLister().Get(modelName); modelFound {
+					graphObject := modelIntf.(*nodes.AviObjectGraph)
+					vsNodes := graphObject.GetAviEvhVS()
+					for _, vsNode := range vsNodes {
+						for _, evhNode := range vsNode.EvhNodes {
+							if evhNode.Name == vsCacheObj.Name && evhNode.ServiceMetadata.HTTPRouteRuleName != "" {
+								httpRouteRuleName = evhNode.ServiceMetadata.HTTPRouteRuleName
+								httpRouteServiceMetadata = evhNode.ServiceMetadata
+								break
+							}
+						}
+						if httpRouteRuleName != "" {
+							break
+						}
+					}
+				}
+			}
+
+			// If HTTPRouteRuleName is not found, skip this VS
+			if httpRouteRuleName == "" {
+				continue
+			}
+
+			httpRouteStatusOptions = append(httpRouteStatusOptions,
+				status.StatusOptions{
+					ObjType: lib.HTTPRoute,
+					Op:      lib.UpdateStatus,
+					Key:     lib.SyncStatusKey,
+					Options: &status.UpdateOptions{
+						Key:                lib.SyncStatusKey,
+						ServiceMetadata:    httpRouteServiceMetadata,
+						VirtualServiceUUID: vsCacheObj.Uuid,
+						Tenant:             vsCacheObj.Tenant,
+					},
+				})
+		}
+	}
+
+	akogatewayapistatus.BulkUpdate(lib.SyncStatusKey, lib.Gateway, gatewayStatusOptions)
+	akogatewayapistatus.BulkUpdate(lib.SyncStatusKey, lib.HTTPRoute, httpRouteStatusOptions)
+	utils.AviLog.Infof("Gateway API status syncing completed")
+	lib.AKOControlConfig().PodEventf(corev1.EventTypeNormal, lib.StatusSync, "Gateway API status syncing completed")
+}
+
+// getIPAddrsFromCache extracts IP addresses from VS cache object
+func getIPAddrsFromCache(vsCacheObj *avicache.AviVsCache, aviObjCache *avicache.AviObjCache) []string {
+	var IPAddrs []string
+	for _, vsvipKey := range vsCacheObj.VSVipKeyCollection {
+		vsvipCache, found := aviObjCache.VSVIPCache.AviCacheGet(vsvipKey)
+		if found {
+			vsvipCacheObj, ok := vsvipCache.(*avicache.AviVSVIPCache)
+			if ok {
+				IPAddrs = append(IPAddrs, vsvipCacheObj.Vips...)
+			}
+		}
+	}
+	return IPAddrs
 }

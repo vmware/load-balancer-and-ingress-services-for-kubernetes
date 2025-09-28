@@ -57,13 +57,15 @@ func DequeueStatus(objIntf interface{}) error {
 		utils.AviLog.Debugf("key: %s, msg: unknown object received", option.Key)
 		return nil
 	}
-	if option.Options != nil && option.Options.ServiceMetadata.HTTPRoute != "" && option.Options.Status == nil {
+	if option.Options != nil && option.Options.ServiceMetadata.HTTPRoute != "" && option.Options.Status == nil && option.Options.VirtualServiceUUID == "" {
 		utils.AviLog.Debugf("key: %s, msg: Status update for ChildVs received", option.Options.ServiceMetadata.HTTPRoute)
 		return nil
 	}
-	if option.Op == lib.UpdateStatus {
+
+	switch option.Op {
+	case lib.UpdateStatus:
 		obj.Update(option.Key, option)
-	} else if option.Op == lib.DeleteStatus {
+	case lib.DeleteStatus:
 		obj.Delete(option.Key, option)
 	}
 	return nil
