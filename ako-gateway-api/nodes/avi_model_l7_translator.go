@@ -121,10 +121,16 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 	childNode.Tenant = parentNode[0].Tenant
 	childNode.EVHParent = false
 
-	childNode.ServiceMetadata = lib.ServiceMetadataObj{
-		Gateway:   parentNsName,
-		HTTPRoute: routeModel.GetNamespace() + "/" + routeModel.GetName(),
+	ruleName := utils.Stringify(utils.Hash(utils.Stringify(rule.Matches)))
+	if rule.Name != "" {
+		ruleName = rule.Name
 	}
+	childNode.ServiceMetadata = lib.ServiceMetadataObj{
+		Gateway:           parentNsName,
+		HTTPRoute:         routeModel.GetNamespace() + "/" + routeModel.GetName(),
+		HTTPRouteRuleName: ruleName,
+	}
+
 	childNode.ApplicationProfileRef = proto.String(fmt.Sprintf("/api/applicationprofile/?name=%s", utils.DEFAULT_L7_APP_PROFILE))
 	childNode.ServiceEngineGroup = lib.GetSEGName()
 	childNode.VrfContext = lib.GetVrf()
