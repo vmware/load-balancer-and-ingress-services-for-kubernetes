@@ -784,6 +784,7 @@ func GetDefaultIngController() bool {
 	return false
 }
 
+// TODO: Redundant function. Remove next release.
 func GetNamespaceToSync() string {
 	namespace := os.Getenv("SYNC_NAMESPACE")
 	if namespace != "" {
