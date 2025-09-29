@@ -1190,9 +1190,6 @@ var ConfigDeleteSyncChan chan struct{}
 
 var akoApi api.ApiServerInterface
 
-// This variable being used only for testing
-var OtherCMDeleteFlag bool
-
 func SetStaticRouteSyncHandler() {
 	StaticRouteSyncChan = make(chan struct{})
 }

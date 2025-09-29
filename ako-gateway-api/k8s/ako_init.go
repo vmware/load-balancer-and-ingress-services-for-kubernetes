@@ -629,10 +629,6 @@ func (c *GatewayController) HandleConfigMap(k8sinfo k8s.K8sinformers, ctrlCh cha
 
 		},
 		DeleteFunc: func(obj interface{}) {
-			_, ok := validateAviConfigMap(obj)
-			if !ok {
-				return
-			}
 			utils.AviLog.Warnf("avi k8s configmap deleted, sync will be disabled.")
 			c.DisableSync = true
 			lib.SetDisableSync(c.DisableSync)

@@ -358,12 +358,6 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 
 		},
 		DeleteFunc: func(obj interface{}) {
-			_, ok := validateAviConfigMap(obj)
-			if !ok {
-				// only used in testing
-				lib.OtherCMDeleteFlag = true
-				return
-			}
 			utils.AviLog.Warnf("avi k8s configmap deleted, shutting down api server")
 			lib.ShutdownApi()
 		},

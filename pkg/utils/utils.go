@@ -43,6 +43,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
+
 	// TODO: Check this to convert to v1beta1 in next release. Couldn't conver as MCI and SI uses that.
 	akocrd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned"
 
@@ -185,7 +186,7 @@ func getSecretTypeFilter() fields.Selector {
 
 func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []string, ocs oshiftclientset.Interface, akoClientSet akocrd.Interface, namespace string, akoNSBoundInformer bool) *Informers {
 	cs := kubeClient.ClientSet
-	var kubeInformerFactory, akoNSInformerFactory kubeinformers.SharedInformerFactory
+	var kubeInformerFactory kubeinformers.SharedInformerFactory
 	if namespace == "" {
 		kubeInformerFactory = kubeinformers.NewSharedInformerFactoryWithOptions(cs, InformerDefaultResync)
 	} else {
@@ -196,9 +197,6 @@ func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []strin
 
 	// We listen to configmaps only in the namespace in which AKO runs.
 	akoNS := GetAKONamespace()
-
-	akoNSInformerFactory = kubeinformers.NewSharedInformerFactoryWithOptions(cs, InformerDefaultResync, kubeinformers.WithNamespace(akoNS))
-	AviLog.Infof("Initializing configmap informer in %v", akoNS)
 
 	// To initialize the MCI and SI informers
 	akoInformerFactory := akoinformers.NewSharedInformerFactoryWithOptions(akoClientSet, time.Second*30)
@@ -257,6 +255,16 @@ func instantiateInformers(kubeClient KubeClientIntf, registeredInformers []strin
 		case NodeInformer:
 			informers.NodeInformer = kubeInformerFactory.Core().V1().Nodes()
 		case ConfigMapInformer:
+			aviConfigmapName := "avi-k8s-config"
+			AviLog.Infof("Initializing configmap informer for configmap %s in namespace: %s", aviConfigmapName, akoNS)
+			tweakListOptions := func(options *metav1.ListOptions) {
+				options.FieldSelector = fields.SelectorFromSet(fields.Set{"metadata.name": aviConfigmapName}).String()
+			}
+			akoNSInformerFactory := kubeinformers.NewSharedInformerFactoryWithOptions(
+				cs,
+				InformerDefaultResync,
+				kubeinformers.WithNamespace(akoNS),
+				kubeinformers.WithTweakListOptions(tweakListOptions))
 			informers.ConfigMapInformer = akoNSInformerFactory.Core().V1().ConfigMaps()
 		case IngressInformer:
 			informers.IngressInformer = kubeInformerFactory.Networking().V1().Ingresses()
