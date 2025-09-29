@@ -1297,3 +1297,57 @@ func GetHTTPRouteRuleWithCustomCRDs(pathType string, paths []string, headers []s
 	}
 	return rule
 }
+
+// SetupDedicatedGateway creates a Gateway with dedicated mode annotation
+func SetupDedicatedGateway(t *testing.T, name, namespace, gatewayClass string, ipAddress []gatewayv1.GatewaySpecAddress, listeners []gatewayv1.Listener) {
+	g := &Gateway{}
+	g.Gateway = g.GatewayV1(name, namespace, gatewayClass, ipAddress, listeners)
+	// Add dedicated mode annotation
+	if g.Gateway.Annotations == nil {
+		g.Gateway.Annotations = make(map[string]string)
+	}
+	g.Gateway.Annotations[akogatewayapilib.DedicatedGatewayModeAnnotation] = "true"
+	g.Create(t)
+}
+
+// UpdateDedicatedGateway updates a Gateway with dedicated mode annotation
+func UpdateDedicatedGateway(t *testing.T, name, namespace, gatewayClass string, ipAddress []gatewayv1.GatewaySpecAddress, listeners []gatewayv1.Listener) {
+	g := &Gateway{}
+	g.Gateway = g.GatewayV1(name, namespace, gatewayClass, ipAddress, listeners)
+	// Add dedicated mode annotation
+	if g.Gateway.Annotations == nil {
+		g.Gateway.Annotations = make(map[string]string)
+	}
+	g.Gateway.Annotations[akogatewayapilib.DedicatedGatewayModeAnnotation] = "true"
+	g.Update(t)
+}
+
+// GetDedicatedListenersV1 creates listeners for dedicated mode gateways
+func GetDedicatedListenersV1(ports []int32, secrets ...string) []gatewayv1.Listener {
+	listeners := make([]gatewayv1.Listener, 0, len(ports))
+	for _, port := range ports {
+		listener := gatewayv1.Listener{
+			Name:     gatewayv1.SectionName(fmt.Sprintf("listener-%d", port)),
+			Port:     gatewayv1.PortNumber(port),
+			Protocol: gatewayv1.ProtocolType("HTTP"), // Default to HTTP
+		}
+
+		if len(secrets) > 0 {
+			certRefs := make([]gatewayv1.SecretObjectReference, 0, len(secrets))
+			for _, secret := range secrets {
+				secretRef := gatewayv1.SecretObjectReference{
+					Name: gatewayv1.ObjectName(secret),
+				}
+				certRefs = append(certRefs, secretRef)
+			}
+			tlsMode := gatewayv1.TLSModeTerminate
+			listener.TLS = &gatewayv1.GatewayTLSConfig{
+				Mode:            &tlsMode,
+				CertificateRefs: certRefs,
+			}
+			listener.Protocol = gatewayv1.ProtocolType("HTTPS")
+		}
+		listeners = append(listeners, listener)
+	}
+	return listeners
+}

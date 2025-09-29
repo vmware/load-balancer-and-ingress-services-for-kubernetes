@@ -7,6 +7,7 @@ import (
 
 	"github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
+	apimeta "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
@@ -32,13 +33,22 @@ func TestDedicatedGatewayWithHTTPRoute(t *testing.T) {
 	modelName := "admin/" + akogatewayapilib.Prefix + "cluster--" + DEFAULT_NAMESPACE + "-" + gatewayName + "-L7-dedicated-EVH"
 
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := GetDedicatedListenersV1(ports)
-	SetupDedicatedGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
-
-	// Wait for dedicated mode annotation to be processed
-	time.Sleep(5 * time.Second)
+	listeners := tests.GetDedicatedListenersV1(ports)
+	tests.SetupDedicatedGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
+	g.Eventually(func() bool {
+		gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		if gateway.Annotations[akogatewayapilib.DedicatedGatewayModeAnnotation] != "true" {
+			t.Logf("Gateway is not in dedicated mode, annotations: %+v", gateway.Annotations)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
 
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
@@ -119,13 +129,22 @@ func TestDedicatedGatewayWithMultipleHTTPRouteRules(t *testing.T) {
 	modelName := "admin/" + akogatewayapilib.Prefix + "cluster--" + DEFAULT_NAMESPACE + "-" + gatewayName + "-L7-dedicated-EVH"
 
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := GetDedicatedListenersV1(ports)
-	SetupDedicatedGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
-
-	// Wait for dedicated mode annotation to be processed
-	time.Sleep(5 * time.Second)
-
+	listeners := tests.GetDedicatedListenersV1(ports)
+	tests.SetupDedicatedGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 	g := gomega.NewGomegaWithT(t)
+
+	g.Eventually(func() bool {
+		gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		if gateway.Annotations[akogatewayapilib.DedicatedGatewayModeAnnotation] != "true" {
+			t.Logf("Gateway is not in dedicated mode, annotations: %+v", gateway.Annotations)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
 
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
@@ -151,15 +170,11 @@ func TestDedicatedGatewayWithMultipleHTTPRouteRules(t *testing.T) {
 	rule3 := tests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/admin"}, []string{},
 		map[string][]string{}, [][]string{{"avisvc-backend", "default", "8080", "1"}}, nil)
 
-	// Rule 4: Root path prefix (should have lowest priority)
-	rule4 := tests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/"}, []string{},
+	// Rule 4: Regex path matching for API versioning: /api/v[0-9]+/.*
+	rule4 := tests.GetHTTPRouteRuleV1(integrationtest.REGULAREXPRESSION, []string{"/api/v[0-9]+/.*"}, []string{},
 		map[string][]string{}, [][]string{{"avisvc-backend", "default", "8080", "1"}}, nil)
 
-	// Rule 5: Regex path matching for API versioning: /api/v[0-9]+/.*
-	rule5 := tests.GetHTTPRouteRuleV1(integrationtest.REGULAREXPRESSION, []string{"/api/v[0-9]+/.*"}, []string{},
-		map[string][]string{}, [][]string{{"avisvc-backend", "default", "8080", "1"}}, nil)
-
-	rules := []gatewayv1.HTTPRouteRule{rule1, rule2, rule3, rule4, rule5}
+	rules := []gatewayv1.HTTPRouteRule{rule1, rule2, rule3, rule4}
 	hostnames := []gatewayv1.Hostname{}
 	tests.SetupHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs, hostnames, rules)
 
@@ -191,27 +206,32 @@ func TestDedicatedGatewayWithMultipleHTTPRouteRules(t *testing.T) {
 	// Should have 1 HTTP policy since one of the paths is "/" (root path doesn't create default backend policy)
 	g.Expect(nodes[0].HttpPolicyRefs).To(gomega.HaveLen(1))
 
-	// Should have 5 pools (one for each rule)
+	// Should have 4 pools (one for each rule)
 	g.Eventually(func() bool {
-		return len(nodes[0].PoolRefs) == 5 && len(nodes[0].PoolGroupRefs) == 5
+		return len(nodes[0].PoolRefs) == 4 && len(nodes[0].PoolGroupRefs) == 4
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	// Verify AVI markers include HTTPRoute information
 	g.Expect(nodes[0].AviMarkers.HTTPRouteName).To(gomega.Equal(httpRouteName))
 	g.Expect(nodes[0].AviMarkers.HTTPRouteNamespace).To(gomega.Equal(DEFAULT_NAMESPACE))
 
-	// Verify HTTP policy has correct number of request rules (5 HTTPRoute rules, no default-backend-rule since we have root path)
+	// Verify HTTP policy has correct number of request rules (4 HTTPRoute rules with one default-backend-rule)
 	httpPolicy := nodes[0].HttpPolicyRefs[0]
 	g.Expect(httpPolicy.RequestRules).To(gomega.HaveLen(5))
 
 	// Verify rule ordering: Exact match should come first, then longest path prefixes, then regex
 	// The rules should be ordered by path match type priority and then by path length
-	expectedPaths := []string{"/api/v1/users", "/admin", "/api", "/"}
+	expectedPaths := []string{"/api/v1/users", "/admin", "/api", "/api/v[0-9]+/.*", "/"}
 	for i, rule := range httpPolicy.RequestRules {
 		if i < len(expectedPaths) {
 			// For non-regex rules, check MatchStr
 			if rule.Match.Path.MatchCriteria != nil && *rule.Match.Path.MatchCriteria != "REGEX_MATCH" {
-				g.Expect(rule.Match.Path.MatchStr).To(gomega.ContainElement(expectedPaths[i]))
+				g.Expect(rule.Match.Path.MatchStr).To(gomega.Equal([]string{expectedPaths[i]}))
+				i++
+			} else if rule.Match.Path.MatchCriteria != nil && *rule.Match.Path.MatchCriteria == "REGEX_MATCH" {
+				g.Expect(rule.Match.Path.MatchStr).To(gomega.BeEmpty())
+				g.Expect(rule.Match.Path.StringGroupRefs).ToNot(gomega.BeEmpty())
+				i++
 			}
 		}
 	}
@@ -221,18 +241,6 @@ func TestDedicatedGatewayWithMultipleHTTPRouteRules(t *testing.T) {
 	stringGroup := nodes[0].StringGroupRefs[0]
 	g.Expect(stringGroup.StringGroup.Kv).To(gomega.HaveLen(1))
 	g.Expect(*stringGroup.StringGroup.Kv[0].Key).To(gomega.Equal("/api/v[0-9]+/.*"))
-
-	// Verify that one of the request rules uses regex matching
-	regexRuleFound := false
-	for _, rule := range httpPolicy.RequestRules {
-		if rule.Match.Path.MatchCriteria != nil && *rule.Match.Path.MatchCriteria == "REGEX_MATCH" {
-			regexRuleFound = true
-			g.Expect(rule.Match.Path.MatchStr).To(gomega.BeEmpty()) // Regex uses string groups, not MatchStr
-			g.Expect(rule.Match.Path.StringGroupRefs).ToNot(gomega.BeEmpty())
-			break
-		}
-	}
-	g.Expect(regexRuleFound).To(gomega.BeTrue(), "Expected to find a regex matching rule")
 
 	// Clean up
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, "avisvc-backend")
@@ -251,13 +259,22 @@ func TestDedicatedGatewayWithHeaderMatching(t *testing.T) {
 	modelName := "admin/" + akogatewayapilib.Prefix + "cluster--" + DEFAULT_NAMESPACE + "-" + gatewayName + "-L7-dedicated-EVH"
 
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := GetDedicatedListenersV1(ports)
-	SetupDedicatedGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
-
-	// Wait for dedicated mode annotation to be processed
-	time.Sleep(5 * time.Second)
+	listeners := tests.GetDedicatedListenersV1(ports)
+	tests.SetupDedicatedGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
+	g.Eventually(func() bool {
+		gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		if gateway.Annotations[akogatewayapilib.DedicatedGatewayModeAnnotation] != "true" {
+			t.Logf("Gateway is not in dedicated mode, annotations: %+v", gateway.Annotations)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
 
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
@@ -352,13 +369,22 @@ func TestDedicatedGatewayWithRequestFilters(t *testing.T) {
 	modelName := "admin/" + akogatewayapilib.Prefix + "cluster--" + DEFAULT_NAMESPACE + "-" + gatewayName + "-L7-dedicated-EVH"
 
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := GetDedicatedListenersV1(ports)
-	SetupDedicatedGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
-
-	// Wait for dedicated mode annotation to be processed
-	time.Sleep(5 * time.Second)
+	listeners := tests.GetDedicatedListenersV1(ports)
+	tests.SetupDedicatedGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
+	g.Eventually(func() bool {
+		gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		if gateway.Annotations[akogatewayapilib.DedicatedGatewayModeAnnotation] != "true" {
+			t.Logf("Gateway is not in dedicated mode, annotations: %+v", gateway.Annotations)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
 
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
@@ -443,7 +469,9 @@ func TestDedicatedGatewayWithRequestFilters(t *testing.T) {
 		if len(rule.HdrAction) > 0 {
 			g.Expect(rule.HdrAction).ToNot(gomega.BeEmpty())
 			// Should have header actions for add, remove, replace
-			g.Expect(len(rule.HdrAction)).To(gomega.BeNumerically(">=", 1))
+			g.Expect(*rule.HdrAction[0].Action).To(gomega.Equal("HTTP_ADD_HDR"))
+			g.Expect(*rule.HdrAction[1].Action).To(gomega.Equal("HTTP_REPLACE_HDR"))
+			g.Expect(*rule.HdrAction[2].Action).To(gomega.Equal("HTTP_REMOVE_HDR"))
 		}
 
 		// Check for redirect action
@@ -476,13 +504,21 @@ func TestDedicatedGatewayWithResponseFilters(t *testing.T) {
 	modelName := "admin/" + akogatewayapilib.Prefix + "cluster--" + DEFAULT_NAMESPACE + "-" + gatewayName + "-L7-dedicated-EVH"
 
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := GetDedicatedListenersV1(ports)
-	SetupDedicatedGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
-
-	// Wait for dedicated mode annotation to be processed
-	time.Sleep(5 * time.Second)
-
+	listeners := tests.GetDedicatedListenersV1(ports)
+	tests.SetupDedicatedGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 	g := gomega.NewGomegaWithT(t)
+	g.Eventually(func() bool {
+		gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		if gateway.Annotations[akogatewayapilib.DedicatedGatewayModeAnnotation] != "true" {
+			t.Logf("Gateway is not in dedicated mode, annotations: %+v", gateway.Annotations)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
 
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
@@ -557,14 +593,16 @@ func TestDedicatedGatewayWithResponseFilters(t *testing.T) {
 	g.Expect(httpPolicy.ResponseRules).To(gomega.HaveLen(1))
 
 	// Verify the last rule is the default-backend-rule
-	lastRule := httpPolicy.RequestRules[len(httpPolicy.RequestRules)-1]
+	lastRule := httpPolicy.RequestRules[1]
 	g.Expect(*lastRule.Name).To(gomega.Equal("default-backend-rule"))
 
 	// Verify response filters are applied
 	responseRule := httpPolicy.ResponseRules[0]
 	g.Expect(responseRule.HdrAction).ToNot(gomega.BeEmpty())
 	// Should have header actions for add, remove, replace
-	g.Expect(len(responseRule.HdrAction)).To(gomega.BeNumerically(">=", 1))
+	g.Expect(*responseRule.HdrAction[0].Action).To(gomega.Equal("HTTP_ADD_HDR"))
+	g.Expect(*responseRule.HdrAction[1].Action).To(gomega.Equal("HTTP_REPLACE_HDR"))
+	g.Expect(*responseRule.HdrAction[2].Action).To(gomega.Equal("HTTP_REMOVE_HDR"))
 
 	// Clean up
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, "avisvc-backend")
@@ -583,13 +621,22 @@ func TestDedicatedGatewayWithMultipleBackends(t *testing.T) {
 	modelName := "admin/" + akogatewayapilib.Prefix + "cluster--" + DEFAULT_NAMESPACE + "-" + gatewayName + "-L7-dedicated-EVH"
 
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := GetDedicatedListenersV1(ports)
-	SetupDedicatedGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
-
-	// Wait for dedicated mode annotation to be processed
-	time.Sleep(5 * time.Second)
+	listeners := tests.GetDedicatedListenersV1(ports)
+	tests.SetupDedicatedGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
+	g.Eventually(func() bool {
+		gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		if gateway.Annotations[akogatewayapilib.DedicatedGatewayModeAnnotation] != "true" {
+			t.Logf("Gateway is not in dedicated mode, annotations: %+v", gateway.Annotations)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
 
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
@@ -684,13 +731,21 @@ func TestDedicatedGatewayWithRegexPathMatching(t *testing.T) {
 	modelName := "admin/" + akogatewayapilib.Prefix + "cluster--" + DEFAULT_NAMESPACE + "-" + gatewayName + "-L7-dedicated-EVH"
 
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := GetDedicatedListenersV1(ports)
-	SetupDedicatedGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
-
-	// Wait for dedicated mode annotation to be processed
-	time.Sleep(5 * time.Second)
-
+	listeners := tests.GetDedicatedListenersV1(ports)
+	tests.SetupDedicatedGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 	g := gomega.NewGomegaWithT(t)
+	g.Eventually(func() bool {
+		gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		if gateway.Annotations[akogatewayapilib.DedicatedGatewayModeAnnotation] != "true" {
+			t.Logf("Gateway is not in dedicated mode, annotations: %+v", gateway.Annotations)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
 
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
@@ -764,7 +819,7 @@ func TestDedicatedGatewayWithRegexPathMatching(t *testing.T) {
 	g.Expect(httpPolicy.RequestRules).To(gomega.HaveLen(2)) // 1 HTTPRoute rule + 1 default-backend-rule
 
 	// Verify the last rule is the default-backend-rule
-	lastRule := httpPolicy.RequestRules[len(httpPolicy.RequestRules)-1]
+	lastRule := httpPolicy.RequestRules[1]
 	g.Expect(*lastRule.Name).To(gomega.Equal("default-backend-rule"))
 
 	// Verify regex path matching is configured
@@ -796,13 +851,22 @@ func TestDedicatedGatewayComplexScenario(t *testing.T) {
 	modelName := "admin/" + akogatewayapilib.Prefix + "cluster--" + DEFAULT_NAMESPACE + "-" + gatewayName + "-L7-dedicated-EVH"
 
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := GetDedicatedListenersV1(ports)
-	SetupDedicatedGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
-
-	// Wait for dedicated mode annotation to be processed
-	time.Sleep(5 * time.Second)
+	listeners := tests.GetDedicatedListenersV1(ports)
+	tests.SetupDedicatedGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
+	g.Eventually(func() bool {
+		gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		if gateway.Annotations[akogatewayapilib.DedicatedGatewayModeAnnotation] != "true" {
+			t.Logf("Gateway is not in dedicated mode, annotations: %+v", gateway.Annotations)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
 
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
@@ -930,13 +994,22 @@ func TestDedicatedGatewayWithMultipleMatches(t *testing.T) {
 	modelName := "admin/" + akogatewayapilib.Prefix + "cluster--" + DEFAULT_NAMESPACE + "-" + gatewayName + "-L7-dedicated-EVH"
 
 	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
-	listeners := GetDedicatedListenersV1(ports)
-	SetupDedicatedGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
-
-	// Wait for dedicated mode annotation to be processed
-	time.Sleep(5 * time.Second)
+	listeners := tests.GetDedicatedListenersV1(ports)
+	tests.SetupDedicatedGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
 
 	g := gomega.NewGomegaWithT(t)
+	g.Eventually(func() bool {
+		gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		if gateway.Annotations[akogatewayapilib.DedicatedGatewayModeAnnotation] != "true" {
+			t.Logf("Gateway is not in dedicated mode, annotations: %+v", gateway.Annotations)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
 
 	g.Eventually(func() bool {
 		found, _ := objects.SharedAviGraphLister().Get(modelName)
@@ -1019,7 +1092,7 @@ func TestDedicatedGatewayWithMultipleMatches(t *testing.T) {
 	g.Expect(httpPolicy.RequestRules).To(gomega.HaveLen(7)) // 6 HTTPRoute rules + 1 default-backend-rule
 
 	// Verify the last rule is the default-backend-rule
-	lastRule := httpPolicy.RequestRules[len(httpPolicy.RequestRules)-1]
+	lastRule := httpPolicy.RequestRules[6]
 	g.Expect(*lastRule.Name).To(gomega.Equal("default-backend-rule"))
 	g.Expect(*lastRule.SwitchingAction.Action).To(gomega.Equal("HTTP_SWITCHING_SELECT_LOCAL"))
 	g.Expect(*lastRule.SwitchingAction.StatusCode).To(gomega.Equal("HTTP_LOCAL_RESPONSE_STATUS_CODE_404"))
@@ -1030,9 +1103,13 @@ func TestDedicatedGatewayWithMultipleMatches(t *testing.T) {
 
 	// Verify that HTTPRoute rules contain the actual HTTPRoute rules
 	// The 6 rules should be combinations of paths and headers from both HTTPRoute rules
-	for _, rule := range httpRouteRules {
+
+	allPaths := []string{"/management", "/dashboard", "/admin", "/api/v1", "/api/v2", "/api/v3", "/"}
+
+	for i, rule := range httpRouteRules {
 		// Each rule should have path matching
 		g.Expect(rule.Match.Path.MatchStr).ToNot(gomega.BeEmpty())
+		g.Expect(rule.Match.Path.MatchStr).To(gomega.Equal([]string{allPaths[i]}))
 
 		// Each rule should have header matching
 		g.Expect(rule.Match.Hdrs).ToNot(gomega.BeEmpty())
@@ -1043,10 +1120,6 @@ func TestDedicatedGatewayWithMultipleMatches(t *testing.T) {
 			g.Expect(*hdrMatch.MatchCriteria).To(gomega.Equal("HDR_EQUALS"))
 			g.Expect(*hdrMatch.MatchCase).To(gomega.Equal("SENSITIVE"))
 		}
-
-		// The path should be one from either HTTPRoute rule
-		allPaths := []string{"/api/v1", "/api/v2", "/api/v3", "/admin", "/management", "/dashboard"}
-		g.Expect(rule.Match.Path.MatchStr).To(gomega.ContainElement(gomega.BeElementOf(allPaths)))
 
 		// Check if this rule has header modification (from rule2)
 		if len(rule.HdrAction) > 0 {
@@ -1060,18 +1133,6 @@ func TestDedicatedGatewayWithMultipleMatches(t *testing.T) {
 			apiPaths := []string{"/api/v1", "/api/v2", "/api/v3"}
 			g.Expect(rule.Match.Path.MatchStr).To(gomega.ContainElement(gomega.BeElementOf(apiPaths)))
 		}
-	}
-
-	// Verify that multiple path matches are handled correctly
-	allPaths := []string{}
-	for _, rule := range httpRouteRules {
-		allPaths = append(allPaths, rule.Match.Path.MatchStr...)
-	}
-
-	// Should contain paths from both rules
-	expectedPaths := []string{"/api/v1", "/api/v2", "/api/v3", "/admin", "/management", "/dashboard"}
-	for _, expectedPath := range expectedPaths {
-		g.Expect(allPaths).To(gomega.ContainElement(expectedPath))
 	}
 
 	// Clean up

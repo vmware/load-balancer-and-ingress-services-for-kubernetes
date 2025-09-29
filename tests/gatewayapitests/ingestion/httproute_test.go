@@ -15,10 +15,8 @@
 package ingestion
 
 import (
-	"context"
 	"testing"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
@@ -391,34 +389,6 @@ func TestHTTPRouteWithAppProfileExtensionRef(t *testing.T) {
 	waitAndverify(t, gwClassKey)
 }
 
-// Helper function to setup a dedicated gateway for HTTPRoute tests
-func setupDedicatedGatewayForHTTPRoute(t *testing.T, name, namespace, gatewayClass string, listeners []gatewayv1.Listener) {
-	gateway := gatewayv1.Gateway{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "gateway.networking.k8s.io/v1",
-			Kind:       "Gateway",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-			Annotations: map[string]string{
-				"ako.vmware.com/dedicated-gateway-mode": "true",
-			},
-		},
-		Spec: gatewayv1.GatewaySpec{
-			GatewayClassName: gatewayv1.ObjectName(gatewayClass),
-			Listeners:        listeners,
-		},
-		Status: gatewayv1.GatewayStatus{},
-	}
-
-	gw, err := akogatewayapitests.GatewayClient.GatewayV1().Gateways(namespace).Create(context.TODO(), &gateway, metav1.CreateOptions{})
-	if err != nil {
-		t.Fatalf("Couldn't create dedicated gateway for HTTPRoute test, err: %+v", err)
-	}
-	t.Logf("Created dedicated gateway %+v for HTTPRoute test", gw.Name)
-}
-
 func TestHTTPRouteWithDedicatedGatewayCUD(t *testing.T) {
 	gatewayClassName := "dedicated-gateway-class-httproute-01"
 	gatewayName := "dedicated-gateway-httproute-01"
@@ -444,7 +414,7 @@ func TestHTTPRouteWithDedicatedGatewayCUD(t *testing.T) {
 			Protocol: gatewayv1.HTTPProtocolType,
 		},
 	}
-	setupDedicatedGatewayForHTTPRoute(t, gatewayName, namespace, gatewayClassName, listeners)
+	akogatewayapitests.SetupDedicatedGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
 	waitAndverify(t, gwKey)
 
 	// Create HTTPRoute (no hostnames since dedicated gateway doesn't support them)
@@ -516,7 +486,7 @@ func TestHTTPRouteWithDedicatedGatewayAndFilters(t *testing.T) {
 			Protocol: gatewayv1.HTTPProtocolType,
 		},
 	}
-	setupDedicatedGatewayForHTTPRoute(t, gatewayName, namespace, gatewayClassName, listeners)
+	akogatewayapitests.SetupDedicatedGateway(t, gatewayName, namespace, gatewayClassName, nil, listeners)
 	waitAndverify(t, gwKey)
 
 	// Create HTTPRoute with URL rewrite filter
