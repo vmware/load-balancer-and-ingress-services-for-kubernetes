@@ -1068,8 +1068,7 @@ func FetchSEGroupWithMarkerSet(client *clients.AviClient, overrideUri ...NextPag
 // This utility returns true if AKO is configured to create
 // VS with Enhanced Virtual Hosting
 func IsEvhEnabled() bool {
-	evh := os.Getenv(ENABLE_EVH)
-	if evh == "true" {
+	if evh, _ := strconv.ParseBool(os.Getenv(ENABLE_EVH)); evh {
 		return true
 	}
 	return utils.IsVCFCluster()
@@ -2070,8 +2069,7 @@ func GetControllerVersion() string {
 }
 
 func VIPPerNamespace() bool {
-	vipPerNS := os.Getenv(VIP_PER_NAMESPACE)
-	if vipPerNS == "true" {
+	if vipPerNS, _ := strconv.ParseBool(os.Getenv(VIP_PER_NAMESPACE)); vipPerNS {
 		return true
 	}
 	return utils.IsVCFCluster()
