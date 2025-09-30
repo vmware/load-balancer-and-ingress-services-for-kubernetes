@@ -117,8 +117,8 @@ type BackendTLS struct {
 }
 
 // RouteBackendExtensionSpec defines the desired state of RouteBackendExtension
-// +kubebuilder:validation:XValidation:rule="(self.lbAlgorithm == 'LB_ALGORITHM_CONSISTENT_HASH') && has(self.lbAlgorithmHash)",message="lbAlgorithmHash must be set if and only if lbAlgorithm is LB_ALGORITHM_CONSISTENT_HASH"
-// +kubebuilder:validation:XValidation:rule="!has(self.lbAlgorithmHash) || (self.lbAlgorithmHash == 'LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER') && has(self.lbAlgorithmConsistentHashHdr)",message="lbAlgorithmConsistentHashHdr must be set if and only if lbAlgorithmHash is LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER"
+// +kubebuilder:validation:XValidation:rule="(self.lbAlgorithm == 'LB_ALGORITHM_CONSISTENT_HASH') == has(self.lbAlgorithmHash)",message="lbAlgorithmHash must be set if and only if lbAlgorithm is LB_ALGORITHM_CONSISTENT_HASH"
+// +kubebuilder:validation:XValidation:rule="!has(self.lbAlgorithmHash) || (self.lbAlgorithmHash == 'LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER') == has(self.lbAlgorithmConsistentHashHdr)",message="lbAlgorithmConsistentHashHdr must be set if and only if lbAlgorithmHash is LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER"
 type RouteBackendExtensionSpec struct {
 	// Defines LB algorithm on Pool
 	// +optional
@@ -130,7 +130,6 @@ type RouteBackendExtensionSpec struct {
 	LBAlgorithmConsistentHashHdr string `json:"lbAlgorithmConsistentHashHdr,omitempty"`
 	//Criteria used as a key for determining the hash between the client and server
 	// +optional
-	// +kubebuilder:default=LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS
 	LBAlgorithmHash LBAlgorithmHashType `json:"lbAlgorithmHash,omitempty"`
 	// Defines the persistence profile type on Pool
 	// +optional
