@@ -784,6 +784,7 @@ func GetDefaultIngController() bool {
 	return false
 }
 
+// TODO: Redundant function. Remove next release.
 func GetNamespaceToSync() string {
 	namespace := os.Getenv("SYNC_NAMESPACE")
 	if namespace != "" {
@@ -827,6 +828,14 @@ func IsPrometheusEnabled() bool {
 		return true
 	}
 	utils.AviLog.Infof("Prometheus is not enabled")
+	return false
+}
+
+func IsAKOCRDOperatorEnabled() bool {
+	//Start CRD informers and event handlers if AKO CRD Operator is enabled or cluster in use is a VCF cluster
+	if ok, _ := strconv.ParseBool(os.Getenv("AKO_CRD_OPERATOR_ENABLED")); ok || utils.IsVCFCluster() {
+		return true
+	}
 	return false
 }
 
@@ -1075,8 +1084,7 @@ func FetchSEGroupWithMarkerSet(client *clients.AviClient, overrideUri ...NextPag
 // This utility returns true if AKO is configured to create
 // VS with Enhanced Virtual Hosting
 func IsEvhEnabled() bool {
-	evh := os.Getenv(ENABLE_EVH)
-	if evh == "true" {
+	if evh, _ := strconv.ParseBool(os.Getenv(ENABLE_EVH)); evh {
 		return true
 	}
 	return utils.IsVCFCluster()
@@ -1818,7 +1826,7 @@ func ValidateSvcforClass(key string, svc *corev1.Service) bool {
 			_, found_name := svc.ObjectMeta.Labels[GatewayNameLabelKey]
 			_, found_namespace := svc.ObjectMeta.Labels[GatewayNamespaceLabelKey]
 			if found_name || found_namespace {
-				utils.AviLog.Warnf("key: %s, msg: skipping LoadBalancerClass validation as LB service has Gateway labels, will use GatewayClass for AdvancedL4 validation", key)
+				utils.AviLog.Infof("key: %s, msg: skipping LoadBalancerClass validation as LB service has Gateway labels, will use GatewayClass for AdvancedL4 validation", key)
 				return true
 			}
 		}
@@ -2111,8 +2119,7 @@ func GetControllerVersion() string {
 }
 
 func VIPPerNamespace() bool {
-	vipPerNS := os.Getenv(VIP_PER_NAMESPACE)
-	if vipPerNS == "true" {
+	if vipPerNS, _ := strconv.ParseBool(os.Getenv(VIP_PER_NAMESPACE)); vipPerNS {
 		return true
 	}
 	return utils.IsVCFCluster()
