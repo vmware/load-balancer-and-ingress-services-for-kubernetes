@@ -4,7 +4,7 @@ set -xe
 #SRP intallation
 sudo rm -rf /srp-tools
 sudo mkdir /srp-tools
-sudo wget --tries=5 --timeout=60 --quiet --output-document /srp-tools/srp https://packages.vcfd.broadcom.net/artifactory/srp-generic-local/srpcli/1.5.1-20241206185708-af7c503/linux-amd64/srp
+sudo wget --tries=5 --timeout=60 --quiet --output-document /srp-tools/srp https://packages.vcfd.broadcom.net/artifactory/srp-generic-local/srpcli/1.34.3-20250923143853-9177b56/linux-amd64/srp
 sudo chmod +x /srp-tools/srp
 sudo /srp-tools/srp --version
 sudo /srp-tools/srp update --yes
