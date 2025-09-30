@@ -586,9 +586,6 @@ func TestVKSClusterWatcher_HandleProvisionedCluster(t *testing.T) {
 
 			// Start the AviInfraSetting informer and wait for cache sync (like integration tests)
 			aviStopCh := make(chan struct{})
-			defer func() {
-				safeCloseChannel(aviStopCh)
-			}()
 			go func() {
 				time.Sleep(30 * time.Second) // Allow test to complete
 				safeCloseChannel(aviStopCh)
