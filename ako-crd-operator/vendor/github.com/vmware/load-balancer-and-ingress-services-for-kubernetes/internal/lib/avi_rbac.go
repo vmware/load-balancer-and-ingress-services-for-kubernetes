@@ -169,6 +169,8 @@ func createRole(aviClient *clients.AviClient, permissions []AKOPermission,
 			utils.AviLog.Infof("Role %s already exists with current permissions, reusing", roleName)
 			return existingRole, nil
 		}
+	} else if err != nil {
+		utils.AviLog.Infof("Role %s does not exist or failed to retrieve (will create new): %v", roleName, err)
 	}
 
 	var privileges []*models.Permission

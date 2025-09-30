@@ -310,10 +310,14 @@ func (e *SkipSyncError) Error() string        { return e.Msg }
 func (e *WebSyncError) GetWebAPIError() error { return e.Err }
 func (e *WebSyncError) Unwrap() error         { return e.Err }
 
-var CloudName string
+var CloudName, CloudUUID string
 
 func SetCloudName(cloudName string) {
 	CloudName = cloudName
+}
+
+func SetCloudUUID(cloudUUID string) {
+	CloudUUID = cloudUUID
 }
 
 func init() {

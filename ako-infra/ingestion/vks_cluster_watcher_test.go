@@ -208,8 +208,8 @@ func setupVKSTest(t *testing.T, clusterName, namespaceName, cniRefName string) *
 	// Start the AviInfraSetting informer and wait for cache sync
 	stopCh := make(chan struct{})
 	go func() {
-		defer close(stopCh)
 		time.Sleep(30 * time.Second) // Allow test to complete
+		safeCloseChannel(stopCh)
 	}()
 	go lib.RunAviInfraSettingInformer(stopCh)
 
@@ -235,11 +235,22 @@ func setupVKSTest(t *testing.T, clusterName, namespaceName, cniRefName string) *
 	}
 }
 
+// safeCloseChannel safely closes a channel without panicking if it's already closed
+func safeCloseChannel(ch chan struct{}) {
+	if ch != nil {
+		select {
+		case <-ch:
+			// Channel is already closed
+		default:
+			// Channel is still open, close it
+			close(ch)
+		}
+	}
+}
+
 // Cleanup cleans up test resources
 func (setup *VKSTestSetup) Cleanup() {
-	if setup.StopCh != nil {
-		close(setup.StopCh)
-	}
+	safeCloseChannel(setup.StopCh)
 }
 
 func TestVKSClusterWatcher_GetClusterPhase(t *testing.T) {
@@ -482,7 +493,7 @@ func TestVKSClusterWatcher_HandleProvisionedCluster(t *testing.T) {
 
 			// Start informers and ensure proper cache sync
 			stopCh := make(chan struct{})
-			defer close(stopCh)
+			defer safeCloseChannel(stopCh)
 
 			// Run informer in background
 			go func() {
@@ -575,10 +586,9 @@ func TestVKSClusterWatcher_HandleProvisionedCluster(t *testing.T) {
 
 			// Start the AviInfraSetting informer and wait for cache sync (like integration tests)
 			aviStopCh := make(chan struct{})
-			defer close(aviStopCh)
 			go func() {
-				defer close(aviStopCh)
 				time.Sleep(30 * time.Second) // Allow test to complete
+				safeCloseChannel(aviStopCh)
 			}()
 			go lib.RunAviInfraSettingInformer(aviStopCh)
 
@@ -1325,8 +1335,8 @@ func TestVKSClusterWatcher_UpsertAviCredentialsSecret_Comprehensive(t *testing.T
 			// Start the AviInfraSetting informer and wait for cache sync (like integration tests)
 			stopCh := make(chan struct{})
 			go func() {
-				defer close(stopCh)
 				time.Sleep(30 * time.Second) // Allow test to complete
+				safeCloseChannel(stopCh)
 			}()
 			go lib.RunAviInfraSettingInformer(stopCh)
 
