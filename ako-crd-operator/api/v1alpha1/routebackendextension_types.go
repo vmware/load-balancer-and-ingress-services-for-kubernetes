@@ -156,6 +156,8 @@ type RouteBackendExtensionStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:path=routebackendextension,scope=Namespaced
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.status"
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp"
 // +kubebuilder:resource:path=routebackendextensions,shortName=rbe,singular=routebackendextension,scope=Namespaced
 // RouteBackendExtension is the Schema for the routebackendextensions API.
 type RouteBackendExtension struct {
