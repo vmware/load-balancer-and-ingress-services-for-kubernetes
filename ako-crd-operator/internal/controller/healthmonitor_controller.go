@@ -29,8 +29,8 @@ import (
 	"github.com/vmware/alb-sdk/go/session"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/api/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/cache"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
 	akoerrors "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/errors"
+	crdlib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/lib"
 	avisession "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/session"
 	controllerutils "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/utils"
 
@@ -127,9 +127,9 @@ func (r *HealthMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		return ctrl.Result{}, err
 	}
 	if hm.ObjectMeta.DeletionTimestamp.IsZero() {
-		if !controllerutil.ContainsFinalizer(hm, constants.HealthMonitorFinalizer) {
+		if !controllerutil.ContainsFinalizer(hm, crdlib.HealthMonitorFinalizer) {
 			patch := client.MergeFrom(hm.DeepCopy())
-			controllerutil.AddFinalizer(hm, constants.HealthMonitorFinalizer)
+			controllerutil.AddFinalizer(hm, crdlib.HealthMonitorFinalizer)
 			if err := r.Patch(ctx, hm, patch); err != nil {
 				log.Error("Failed to add finalizer to HealthMonitor")
 				return ctrl.Result{}, err
@@ -143,7 +143,7 @@ func (r *HealthMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 		}
 		if removeFinalizer {
 			patch := client.MergeFrom(hm.DeepCopy())
-			controllerutil.RemoveFinalizer(hm, constants.HealthMonitorFinalizer)
+			controllerutil.RemoveFinalizer(hm, crdlib.HealthMonitorFinalizer)
 			if err := r.Patch(ctx, hm, patch); err != nil {
 				return ctrl.Result{}, err
 			}
@@ -151,7 +151,7 @@ func (r *HealthMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			if err := r.Status().Update(ctx, hm); err != nil {
 				return ctrl.Result{}, err
 			}
-			return ctrl.Result{RequeueAfter: constants.RequeueInterval}, nil
+			return ctrl.Result{RequeueAfter: crdlib.RequeueInterval}, nil
 		}
 		return ctrl.Result{}, nil
 	}
@@ -214,7 +214,7 @@ func healthMonitorSecretPredicate(obj client.Object) bool {
 	if !ok {
 		return false
 	}
-	return secret.Type == constants.HealthMonitorSecretType
+	return secret.Type == crdlib.HealthMonitorSecretType
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -261,7 +261,7 @@ func (r *HealthMonitorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *HealthMonitorReconciler) DeleteObject(ctx context.Context, hm *akov1alpha1.HealthMonitor) (error, bool) {
 	log := utils.LoggerFromContext(ctx)
 	if hm.Status.UUID != "" && hm.Status.Tenant != "" {
-		if err := r.AviClient.AviSessionDelete(fmt.Sprintf("%s/%s", constants.HealthMonitorURL, hm.Status.UUID), nil, nil, session.SetOptTenant(hm.Status.Tenant)); err != nil {
+		if err := r.AviClient.AviSessionDelete(fmt.Sprintf("%s/%s", crdlib.HealthMonitorURL, hm.Status.UUID), nil, nil, session.SetOptTenant(hm.Status.Tenant)); err != nil {
 			// Handle 404 as success case - object doesn't exist, which is the desired state for delete
 			if aviError, ok := err.(session.AviError); ok {
 				switch aviError.HttpStatusCode {
@@ -318,7 +318,7 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 	}
 
 	hmReq := &HealthMonitorRequest{
-		Name:              fmt.Sprintf("%s-%s-%s", r.ClusterName, hm.Namespace, hm.Name),
+		Name:              crdlib.GetObjectName(hm.Namespace, hm.Name),
 		HealthMonitorSpec: hm.Spec,
 		Markers:           controllerutils.CreateMarkers(r.ClusterName, hm.Namespace),
 	}
@@ -364,7 +364,7 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 			log.Debug("overwriting healthmonitor")
 		}
 		resp := map[string]interface{}{}
-		if err := r.AviClient.AviSessionPut(utils.GetUriEncoded(fmt.Sprintf("%s/%s", constants.HealthMonitorURL, hm.Status.UUID)), hmReq, &resp, session.SetOptTenant(namespaceTenant)); err != nil {
+		if err := r.AviClient.AviSessionPut(utils.GetUriEncoded(fmt.Sprintf("%s/%s", crdlib.HealthMonitorURL, hm.Status.UUID)), hmReq, &resp, session.SetOptTenant(namespaceTenant)); err != nil {
 			log.Errorf("error updating healthmonitor %s", err.Error())
 			r.EventRecorder.Event(hm, corev1.EventTypeWarning, "UpdateFailed", fmt.Sprintf("Failed to update HealthMonitor on Avi Controller: %v", err))
 			return err
@@ -397,12 +397,12 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 func (r *HealthMonitorReconciler) createHealthMonitor(ctx context.Context, hmReq *HealthMonitorRequest, hm *akov1alpha1.HealthMonitor, tenant string) (map[string]interface{}, error) {
 	log := utils.LoggerFromContext(ctx)
 	resp := map[string]interface{}{}
-	if err := r.AviClient.AviSessionPost(utils.GetUriEncoded(constants.HealthMonitorURL), hmReq, &resp, session.SetOptTenant(tenant)); err != nil {
+	if err := r.AviClient.AviSessionPost(utils.GetUriEncoded(crdlib.HealthMonitorURL), hmReq, &resp, session.SetOptTenant(tenant)); err != nil {
 		log.Errorf("error posting healthmonitor: %s", err.Error())
 		if aviError, ok := err.(session.AviError); ok {
 			if aviError.HttpStatusCode == http.StatusConflict && strings.Contains(aviError.Error(), "already exists") {
 				log.Info("healthmonitor already exists. trying to get uuid")
-				err := r.AviClient.AviSessionGet(utils.GetUriEncoded(fmt.Sprintf("%s?name=%s", constants.HealthMonitorURL, hmReq.Name)), &resp, session.SetOptTenant(tenant))
+				err := r.AviClient.AviSessionGet(utils.GetUriEncoded(fmt.Sprintf("%s?name=%s", crdlib.HealthMonitorURL, hmReq.Name)), &resp, session.SetOptTenant(tenant))
 				if err != nil {
 					log.Errorf("error getting healthmonitor: %s", err.Error())
 					return nil, err
@@ -413,7 +413,7 @@ func (r *HealthMonitorReconciler) createHealthMonitor(ctx context.Context, hmReq
 					return nil, err
 				}
 				log.Info("updating healthmonitor")
-				if err := r.AviClient.AviSessionPut(utils.GetUriEncoded(fmt.Sprintf("%s/%s", constants.HealthMonitorURL, uuid)), hmReq, &resp, session.SetOptTenant(tenant)); err != nil {
+				if err := r.AviClient.AviSessionPut(utils.GetUriEncoded(fmt.Sprintf("%s/%s", crdlib.HealthMonitorURL, uuid)), hmReq, &resp, session.SetOptTenant(tenant)); err != nil {
 					log.Errorf("error updating healthmonitor: %s", err.Error())
 					return nil, err
 				}
@@ -513,12 +513,12 @@ func (r *HealthMonitorReconciler) resolveSecret(ctx context.Context, namespace s
 			Message:        fmt.Sprintf("Secret %s not found", hmReq.Authentication.SecretRef),
 		}
 	}
-	if secret.Type != constants.HealthMonitorSecretType {
-		log.Errorf("secret is not of %s type", constants.HealthMonitorSecretType)
+	if secret.Type != crdlib.HealthMonitorSecretType {
+		log.Errorf("secret is not of %s type", crdlib.HealthMonitorSecretType)
 		return "", akoerrors.AKOCRDOperatorError{
 			HttpStatusCode: http.StatusBadRequest,
 			Reason:         "ConfigurationError",
-			Message:        fmt.Sprintf("Secret %s is not of type %s", hmReq.Authentication.SecretRef, constants.HealthMonitorSecretType),
+			Message:        fmt.Sprintf("Secret %s is not of type %s", hmReq.Authentication.SecretRef, crdlib.HealthMonitorSecretType),
 		}
 	}
 

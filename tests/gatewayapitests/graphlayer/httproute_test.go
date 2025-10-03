@@ -5907,7 +5907,7 @@ func TestHTTPRouteWithRouteBackendExtensionBackendTLS(t *testing.T) {
 	g.Expect(poolNode.SslProfileRef).NotTo(gomega.BeNil())
 	g.Expect(*poolNode.SslProfileRef).To(gomega.ContainSubstring("System-Standard"))
 	g.Expect(poolNode.PkiProfileRef).NotTo(gomega.BeNil())
-	g.Expect(*poolNode.PkiProfileRef).To(gomega.ContainSubstring(fmt.Sprintf("cluster-%s-%s", DEFAULT_NAMESPACE, pkiProfileName)))
+	g.Expect(*poolNode.PkiProfileRef).To(gomega.ContainSubstring("ako-crd-operator-cluster--0b6ba42e8d5697de9305a54bb9495ab58b13233a"))
 	g.Expect(poolNode.HostCheckEnabled).NotTo(gomega.BeNil())
 	g.Expect(*poolNode.HostCheckEnabled).To(gomega.Equal(true))
 	g.Expect(poolNode.DomainName).NotTo(gomega.BeNil())
@@ -6178,7 +6178,7 @@ func TestHTTPRouteWithRouteBackendExtensionPKIProfileUpdate(t *testing.T) {
 	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 	poolNode = nodes[0].EvhNodes[0].PoolRefs[0]
 	g.Expect(poolNode.PkiProfileRef).NotTo(gomega.BeNil())
-	g.Expect(*poolNode.PkiProfileRef).To(gomega.ContainSubstring(fmt.Sprintf("cluster-%s-%s", DEFAULT_NAMESPACE, pkiProfileName)))
+	g.Expect(*poolNode.PkiProfileRef).To(gomega.ContainSubstring("ako-crd-operator-cluster--98de025e684b63e1c3a0c4f924f43e0b822d2657"))
 
 	// Clean up
 	rbe.DeleteRouteBackendExtensionCR(t)

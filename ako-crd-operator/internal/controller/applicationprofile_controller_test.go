@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 
@@ -28,7 +29,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/alb-sdk/go/session"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/api/v1alpha1"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
+	crdlib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/test/mock"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -45,6 +46,9 @@ import (
 )
 
 func TestApplicationProfileController(t *testing.T) {
+	lib.SetClusterName("test-cluster")
+	lib.SetNamePrefix(crdlib.Prefix)
+	os.Setenv("ENABLE_EVH", "true")
 	tests := []struct {
 		name         string
 		ap           *akov1alpha1.ApplicationProfile
@@ -57,14 +61,15 @@ func TestApplicationProfileController(t *testing.T) {
 			name: "success: add finalizer",
 			ap: &akov1alpha1.ApplicationProfile{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "test",
+					Name:      "test",
+					Namespace: "default",
 				},
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
 				responseUUID := map[string]interface{}{
 					"uuid": "123",
 				}
-				mockAviClient.EXPECT().AviSessionPost(constants.ApplicationProfileURL, gomock.Any(), gomock.Any(), gomock.Any()).Do(func(url string, request interface{}, response interface{}, params interface{}) {
+				mockAviClient.EXPECT().AviSessionPost(crdlib.ApplicationProfileURL, gomock.Any(), gomock.Any(), gomock.Any()).Do(func(url string, request interface{}, response interface{}, params interface{}) {
 					if resp, ok := response.(*map[string]interface{}); ok {
 						*resp = responseUUID
 					}
@@ -78,7 +83,7 @@ func TestApplicationProfileController(t *testing.T) {
 				},
 				Status: akov1alpha1.ApplicationProfileStatus{
 					UUID:              "123",
-					BackendObjectName: "test-cluster--test",
+					BackendObjectName: "ako-crd-operator-test-cluster--738bb014438bdbfe7f14e44b60f97b07e22e4dc0",
 					Tenant:            "admin",
 					Conditions: []metav1.Condition{
 						{
@@ -106,7 +111,7 @@ func TestApplicationProfileController(t *testing.T) {
 				responseUUID := map[string]interface{}{
 					"uuid": "123",
 				}
-				mockAviClient.EXPECT().AviSessionPost(constants.ApplicationProfileURL, gomock.Any(), gomock.Any(), gomock.Any()).Do(func(url string, request interface{}, response interface{}, params interface{}) {
+				mockAviClient.EXPECT().AviSessionPost(crdlib.ApplicationProfileURL, gomock.Any(), gomock.Any(), gomock.Any()).Do(func(url string, request interface{}, response interface{}, params interface{}) {
 					if resp, ok := response.(*map[string]interface{}); ok {
 						*resp = responseUUID
 					}
@@ -131,7 +136,7 @@ func TestApplicationProfileController(t *testing.T) {
 							Message:            "ApplicationProfile created successfully on Avi Controller",
 						},
 					},
-					BackendObjectName: "test-cluster-default-test",
+					BackendObjectName: "ako-crd-operator-test-cluster--738bb014438bdbfe7f14e44b60f97b07e22e4dc0",
 					Tenant:            "admin",
 					LastUpdated:       &metav1.Time{Time: time.Now().Truncate(time.Second)},
 				},
@@ -152,18 +157,18 @@ func TestApplicationProfileController(t *testing.T) {
 				responseBody := map[string]interface{}{
 					"results": []interface{}{map[string]interface{}{"uuid": "123"}},
 				}
-				mockAviClient.EXPECT().AviSessionPost(constants.ApplicationProfileURL, gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
+				mockAviClient.EXPECT().AviSessionPost(crdlib.ApplicationProfileURL, gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
 					HttpStatusCode: http.StatusConflict,
 					AviResult: session.AviResult{
 						Message: &[]string{"already exists"}[0],
 					},
 				})
-				mockAviClient.EXPECT().AviSessionGet(fmt.Sprintf("%s?name=%s", constants.ApplicationProfileURL, "test-cluster-default-test"), gomock.Any(), gomock.Any()).Do(func(url string, response interface{}, params interface{}) {
+				mockAviClient.EXPECT().AviSessionGet(fmt.Sprintf("%s?name=%s", crdlib.ApplicationProfileURL, "ako-crd-operator-test-cluster--738bb014438bdbfe7f14e44b60f97b07e22e4dc0"), gomock.Any(), gomock.Any()).Do(func(url string, response interface{}, params interface{}) {
 					if resp, ok := response.(*map[string]interface{}); ok {
 						*resp = responseBody
 					}
 				}).Return(nil).AnyTimes()
-				mockAviClient.EXPECT().AviSessionPut(constants.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Do(func(url string, request interface{}, response interface{}, params interface{}) {
+				mockAviClient.EXPECT().AviSessionPut(crdlib.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Do(func(url string, request interface{}, response interface{}, params interface{}) {
 					if resp, ok := response.(*map[string]interface{}); ok {
 						*resp = responseBody
 					}
@@ -188,7 +193,7 @@ func TestApplicationProfileController(t *testing.T) {
 							Message:            "ApplicationProfile updated successfully on Avi Controller",
 						},
 					},
-					BackendObjectName: "test-cluster-default-test",
+					BackendObjectName: "ako-crd-operator-test-cluster--738bb014438bdbfe7f14e44b60f97b07e22e4dc0",
 					Tenant:            "admin",
 					LastUpdated:       &metav1.Time{Time: time.Now().Truncate(time.Second)},
 				},
@@ -209,7 +214,7 @@ func TestApplicationProfileController(t *testing.T) {
 				},
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionPut(constants.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				mockAviClient.EXPECT().AviSessionPut(crdlib.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 			},
 			want: &akov1alpha1.ApplicationProfile{
 				ObjectMeta: metav1.ObjectMeta{
@@ -229,7 +234,7 @@ func TestApplicationProfileController(t *testing.T) {
 							Message:            "ApplicationProfile updated successfully on Avi Controller",
 						},
 					},
-					BackendObjectName: "test-cluster-default-test",
+					BackendObjectName: "ako-crd-operator-test-cluster--738bb014438bdbfe7f14e44b60f97b07e22e4dc0",
 					Tenant:            "admin",
 					LastUpdated:       &metav1.Time{Time: time.Now().Truncate(time.Second)},
 				},
@@ -288,7 +293,7 @@ func TestApplicationProfileController(t *testing.T) {
 				},
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionDelete(constants.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				mockAviClient.EXPECT().AviSessionDelete(crdlib.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 			},
 			want:    nil,
 			wantErr: false,
@@ -306,7 +311,7 @@ func TestApplicationProfileController(t *testing.T) {
 				},
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionDelete(constants.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
+				mockAviClient.EXPECT().AviSessionDelete(crdlib.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
 					HttpStatusCode: 404,
 				}).AnyTimes()
 			},
@@ -349,7 +354,7 @@ func TestApplicationProfileController(t *testing.T) {
 				cache.EXPECT().GetObjectByUUID(gomock.Any(), "123").Return(nil, false).AnyTimes()
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionPut(constants.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				mockAviClient.EXPECT().AviSessionPut(crdlib.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 			},
 			want: &akov1alpha1.ApplicationProfile{
 				ObjectMeta: metav1.ObjectMeta{
@@ -370,7 +375,7 @@ func TestApplicationProfileController(t *testing.T) {
 							Message:            "ApplicationProfile updated successfully on Avi Controller",
 						},
 					},
-					BackendObjectName:  "test-cluster-default-test",
+					BackendObjectName:  "ako-crd-operator-test-cluster--738bb014438bdbfe7f14e44b60f97b07e22e4dc0",
 					Tenant:             "admin",
 					LastUpdated:        &metav1.Time{Time: time.Now().Truncate(time.Second)},
 					ObservedGeneration: 1,
@@ -395,7 +400,7 @@ func TestApplicationProfileController(t *testing.T) {
 				},
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionPut(constants.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				mockAviClient.EXPECT().AviSessionPut(crdlib.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 			},
 			want: &akov1alpha1.ApplicationProfile{
 				ObjectMeta: metav1.ObjectMeta{
@@ -416,7 +421,7 @@ func TestApplicationProfileController(t *testing.T) {
 							Message:            "ApplicationProfile updated successfully on Avi Controller",
 						},
 					},
-					BackendObjectName:  "test-cluster-default-test",
+					BackendObjectName:  "ako-crd-operator-test-cluster--738bb014438bdbfe7f14e44b60f97b07e22e4dc0",
 					Tenant:             "admin",
 					LastUpdated:        &metav1.Time{Time: time.Now().Truncate(time.Second)},
 					ObservedGeneration: 1,
@@ -436,7 +441,7 @@ func TestApplicationProfileController(t *testing.T) {
 				},
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionPost(constants.ApplicationProfileURL, gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
+				mockAviClient.EXPECT().AviSessionPost(crdlib.ApplicationProfileURL, gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
 					HttpStatusCode: 500,
 					AviResult: session.AviResult{
 						Message: &[]string{"internal server error"}[0],
@@ -457,13 +462,13 @@ func TestApplicationProfileController(t *testing.T) {
 				},
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionPost(constants.ApplicationProfileURL, gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
+				mockAviClient.EXPECT().AviSessionPost(crdlib.ApplicationProfileURL, gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
 					HttpStatusCode: http.StatusConflict,
 					AviResult: session.AviResult{
 						Message: &[]string{"already exists"}[0],
 					},
 				})
-				mockAviClient.EXPECT().AviSessionGet(fmt.Sprintf("%s?name=%s", constants.ApplicationProfileURL, "test-cluster-default-test"), gomock.Any(), gomock.Any()).Return(errors.New("GET failed")).AnyTimes()
+				mockAviClient.EXPECT().AviSessionGet(fmt.Sprintf("%s?name=%s", crdlib.ApplicationProfileURL, "ako-crd-operator-test-cluster--738bb014438bdbfe7f14e44b60f97b07e22e4dc0"), gomock.Any(), gomock.Any()).Return(errors.New("GET failed")).AnyTimes()
 			},
 			want:    nil,
 			wantErr: true,
@@ -482,13 +487,13 @@ func TestApplicationProfileController(t *testing.T) {
 				responseBody := map[string]interface{}{
 					"results": []interface{}{}, // Empty results to cause extractUUID to fail
 				}
-				mockAviClient.EXPECT().AviSessionPost(constants.ApplicationProfileURL, gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
+				mockAviClient.EXPECT().AviSessionPost(crdlib.ApplicationProfileURL, gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
 					HttpStatusCode: http.StatusConflict,
 					AviResult: session.AviResult{
 						Message: &[]string{"already exists"}[0],
 					},
 				})
-				mockAviClient.EXPECT().AviSessionGet(fmt.Sprintf("%s?name=%s", constants.ApplicationProfileURL, "test-cluster-default-test"), gomock.Any(), gomock.Any()).Do(func(url string, response interface{}, params interface{}) {
+				mockAviClient.EXPECT().AviSessionGet(fmt.Sprintf("%s?name=%s", crdlib.ApplicationProfileURL, "ako-crd-operator-test-cluster--738bb014438bdbfe7f14e44b60f97b07e22e4dc0"), gomock.Any(), gomock.Any()).Do(func(url string, response interface{}, params interface{}) {
 					if resp, ok := response.(*map[string]interface{}); ok {
 						*resp = responseBody
 					}
@@ -511,18 +516,18 @@ func TestApplicationProfileController(t *testing.T) {
 				responseBody := map[string]interface{}{
 					"results": []interface{}{map[string]interface{}{"uuid": "123"}},
 				}
-				mockAviClient.EXPECT().AviSessionPost(constants.ApplicationProfileURL, gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
+				mockAviClient.EXPECT().AviSessionPost(crdlib.ApplicationProfileURL, gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
 					HttpStatusCode: http.StatusConflict,
 					AviResult: session.AviResult{
 						Message: &[]string{"already exists"}[0],
 					},
 				})
-				mockAviClient.EXPECT().AviSessionGet(fmt.Sprintf("%s?name=%s", constants.ApplicationProfileURL, "test-cluster-default-test"), gomock.Any(), gomock.Any()).Do(func(url string, response interface{}, params interface{}) {
+				mockAviClient.EXPECT().AviSessionGet(fmt.Sprintf("%s?name=%s", crdlib.ApplicationProfileURL, "ako-crd-operator-test-cluster--738bb014438bdbfe7f14e44b60f97b07e22e4dc0"), gomock.Any(), gomock.Any()).Do(func(url string, response interface{}, params interface{}) {
 					if resp, ok := response.(*map[string]interface{}); ok {
 						*resp = responseBody
 					}
 				}).Return(nil).AnyTimes()
-				mockAviClient.EXPECT().AviSessionPut(constants.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("PUT failed")).AnyTimes()
+				mockAviClient.EXPECT().AviSessionPut(crdlib.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("PUT failed")).AnyTimes()
 			},
 			want:    nil,
 			wantErr: true,
@@ -541,7 +546,7 @@ func TestApplicationProfileController(t *testing.T) {
 				responseUUID := map[string]interface{}{
 					"invalid": "response", // Invalid response to cause extractUUID to fail
 				}
-				mockAviClient.EXPECT().AviSessionPost(constants.ApplicationProfileURL, gomock.Any(), gomock.Any(), gomock.Any()).Do(func(url string, request interface{}, response interface{}, params interface{}) {
+				mockAviClient.EXPECT().AviSessionPost(crdlib.ApplicationProfileURL, gomock.Any(), gomock.Any(), gomock.Any()).Do(func(url string, request interface{}, response interface{}, params interface{}) {
 					if resp, ok := response.(*map[string]interface{}); ok {
 						*resp = responseUUID
 					}
@@ -564,7 +569,7 @@ func TestApplicationProfileController(t *testing.T) {
 				},
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionPut(constants.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("PUT failed")).AnyTimes()
+				mockAviClient.EXPECT().AviSessionPut(crdlib.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("PUT failed")).AnyTimes()
 			},
 			want:    nil,
 			wantErr: true,
@@ -583,7 +588,7 @@ func TestApplicationProfileController(t *testing.T) {
 				},
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionDelete(constants.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
+				mockAviClient.EXPECT().AviSessionDelete(crdlib.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
 					HttpStatusCode: 500,
 					AviResult: session.AviResult{
 						Message: &[]string{"server error"}[0],
@@ -608,7 +613,7 @@ func TestApplicationProfileController(t *testing.T) {
 				},
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionDelete(constants.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
+				mockAviClient.EXPECT().AviSessionDelete(crdlib.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
 					HttpStatusCode: 403,
 					AviResult: session.AviResult{
 						Message: &[]string{"Cannot delete, object is referred by: ['VirtualService custom-vs', 'Pool custom-pool']"}[0],
@@ -649,7 +654,7 @@ func TestApplicationProfileController(t *testing.T) {
 				},
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionPost(constants.ApplicationProfileURL, gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
+				mockAviClient.EXPECT().AviSessionPost(crdlib.ApplicationProfileURL, gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
 					HttpStatusCode: 400, // Non-retryable error
 					AviResult: session.AviResult{
 						Message: &[]string{"bad request"}[0],
@@ -775,7 +780,9 @@ func TestApplicationProfileController(t *testing.T) {
 
 // TestApplicationProfileControllerKubernetesError tests error scenarios in Reconcile function
 func TestApplicationProfileControllerKubernetesError(t *testing.T) {
-
+	lib.SetNamePrefix(crdlib.Prefix)
+	lib.SetClusterName("test-cluster")
+	os.Setenv("ENABLE_EVH", "true")
 	tests := []struct {
 		name    string
 		setup   func() (*fake.ClientBuilder, ctrl.Request)
@@ -935,7 +942,7 @@ func TestApplicationProfileControllerKubernetesError(t *testing.T) {
 				return builder, req
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionPut(constants.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				mockAviClient.EXPECT().AviSessionPut(crdlib.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 			},
 			wantErr: true,
 		},
@@ -976,6 +983,9 @@ func TestApplicationProfileControllerKubernetesError(t *testing.T) {
 // @AI-Generated
 // [Generated by Cursor claude-4-sonnet]
 func TestApplicationProfileControllerTenantChange(t *testing.T) {
+	lib.SetNamePrefix(crdlib.Prefix)
+	lib.SetClusterName("test-cluster")
+	os.Setenv("ENABLE_EVH", "true")
 	tests := []struct {
 		name             string
 		initialAP        *akov1alpha1.ApplicationProfile
@@ -1032,7 +1042,7 @@ func TestApplicationProfileControllerTenantChange(t *testing.T) {
 
 				// Expect creation call for new tenant
 				mockAviClient.EXPECT().AviSessionPost(
-					constants.ApplicationProfileURL,
+					crdlib.ApplicationProfileURL,
 					gomock.Any(), // Request body
 					gomock.Any(), // Response
 					gomock.Any(), // Options - tenant-b
@@ -1137,7 +1147,7 @@ func TestApplicationProfileControllerTenantChange(t *testing.T) {
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
 				// Expect creation call for the tenant
 				mockAviClient.EXPECT().AviSessionPost(
-					constants.ApplicationProfileURL,
+					crdlib.ApplicationProfileURL,
 					gomock.Any(), // Request body
 					gomock.Any(), // Response
 					gomock.Any(), // Options - tenant-b

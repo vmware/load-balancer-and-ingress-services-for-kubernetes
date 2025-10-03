@@ -39,7 +39,7 @@ import (
 	controllerutils "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/utils"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/cache"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
+	crdlib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/lib"
 	avisession "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/session"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
@@ -119,7 +119,7 @@ func (r *RouteBackendExtensionReconciler) Reconcile(ctx context.Context, req ctr
 			// For 404(object not found) also, we are not retrying. So user has to update the object again to trigger
 			// processing.
 			// other way to retry for certain number of times for each object and then stop
-			return ctrl.Result{RequeueAfter: constants.RequeueInterval}, err
+			return ctrl.Result{RequeueAfter: crdlib.RequeueInterval}, err
 		}
 	}
 	return ctrl.Result{}, nil
@@ -215,22 +215,22 @@ func (r *RouteBackendExtensionReconciler) ValidatedObject(ctx context.Context, r
 	}
 	for _, hm := range rbe.Spec.HealthMonitor {
 		// Check HM Present or not
-		uri := fmt.Sprintf("%s?name=%s", constants.HealthMonitorURL, hm.Name)
+		uri := fmt.Sprintf("%s?name=%s", crdlib.HealthMonitorURL, hm.Name)
 		err := r.AviClient.AviSessionGet(utils.GetUriEncoded(uri), &resp, session.SetOptTenant(tenant))
 		if err != nil {
 			// This log message will change in multitenancy
 			log.Errorf("error in getting healthmonitor: %s from tenant %s. Err: %s", hm.Name, tenant, err.Error())
-			r.SetStatus(rbe, err.Error(), constants.REJECTED)
+			r.SetStatus(rbe, err.Error(), crdlib.REJECTED)
 			return err
 		} else if resp == nil {
 			log.Errorf("error in getting healthmonitor: : %s from tenant %s. Count: 0.000000", hm.Name, tenant)
 			err = fmt.Errorf("error in getting healthmonitor: %s from tenant %s. Object not found", hm.Name, tenant)
-			r.SetStatus(rbe, err.Error(), constants.REJECTED)
+			r.SetStatus(rbe, err.Error(), crdlib.REJECTED)
 			return err
 		} else if len(resp) == 0 || resp["count"] == nil || resp["count"].(float64) == float64(0) {
 			log.Errorf("error in getting healthmonitor: %s from tenant %s. Object not found", hm.Name, tenant)
 			err = fmt.Errorf("error in getting healthmonitor: %s from tenant %s. Object not found", hm.Name, tenant)
-			r.SetStatus(rbe, err.Error(), constants.REJECTED)
+			r.SetStatus(rbe, err.Error(), crdlib.REJECTED)
 			return err
 		}
 	}
@@ -245,7 +245,7 @@ func (r *RouteBackendExtensionReconciler) ValidatedObject(ctx context.Context, r
 		err := r.Client.Get(ctx, pkiProfileKey, pkiProfile)
 		if err != nil {
 			log.Errorf("error getting PKIProfile %s from namespace %s. Err: %s", rbe.Spec.BackendTLS.PKIProfile.Name, rbe.Namespace, err.Error())
-			r.SetStatus(rbe, err.Error(), constants.REJECTED)
+			r.SetStatus(rbe, err.Error(), crdlib.REJECTED)
 			return err
 		}
 
@@ -255,7 +255,7 @@ func (r *RouteBackendExtensionReconciler) ValidatedObject(ctx context.Context, r
 				rbe.Spec.BackendTLS.PKIProfile.Name, pkiProfile.Status.Tenant, rbe.Namespace, tenant)
 			err = fmt.Errorf("PKIProfile %s tenant %s does not match namespace %s tenant %s",
 				rbe.Spec.BackendTLS.PKIProfile.Name, pkiProfile.Status.Tenant, rbe.Namespace, tenant)
-			r.SetStatus(rbe, err.Error(), constants.REJECTED)
+			r.SetStatus(rbe, err.Error(), crdlib.REJECTED)
 			return err
 		}
 
@@ -271,11 +271,11 @@ func (r *RouteBackendExtensionReconciler) ValidatedObject(ctx context.Context, r
 		if !isReady {
 			log.Errorf("RBE is rejected beacause PKIProfile %s is not ready in namespace %s", rbe.Spec.BackendTLS.PKIProfile.Name, rbe.Namespace)
 			err = fmt.Errorf("RBE is rejected beacause PKIProfile %s is not ready in namespace %s", rbe.Spec.BackendTLS.PKIProfile.Name, rbe.Namespace)
-			r.SetStatus(rbe, err.Error(), constants.REJECTED)
+			r.SetStatus(rbe, err.Error(), crdlib.REJECTED)
 			return err
 		}
 	}
-	err = r.SetStatus(rbe, "", constants.ACCEPTED)
+	err = r.SetStatus(rbe, "", crdlib.ACCEPTED)
 	if err != nil {
 		log.Errorf("error in setting status: %s", err.Error())
 		return err
@@ -285,7 +285,7 @@ func (r *RouteBackendExtensionReconciler) ValidatedObject(ctx context.Context, r
 }
 
 func (r *RouteBackendExtensionReconciler) SetStatus(rbe *akov1alpha1.RouteBackendExtension, error1 string, status string) error {
-	rbe.SetRouteBackendExtensionController(constants.AKOCRDController)
+	rbe.SetRouteBackendExtensionController(crdlib.AKOCRDController)
 	rbe.Status.Error = error1
 	rbe.Status.Status = status
 	if r.Client == nil {

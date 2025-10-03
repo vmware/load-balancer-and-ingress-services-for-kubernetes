@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
+	crdlib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/lib"
 
 	"github.com/vmware/alb-sdk/go/session"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/event"
@@ -112,10 +112,10 @@ func (s *Session) CreateAviClients(ctx context.Context, numClient int) {
 	if ctrlUsername == "" || (ctrlPassword == "" && ctrlAuthToken == "") || ctrlIpAddress == "" {
 		var passwordLog, authTokenLog string
 		if ctrlPassword != "" {
-			passwordLog = constants.Sensitive
+			passwordLog = crdlib.Sensitive
 		}
 		if ctrlAuthToken != "" {
-			authTokenLog = constants.Sensitive
+			authTokenLog = crdlib.Sensitive
 		}
 		s.eventManager.PodEventf(
 			corev1.EventTypeWarning,

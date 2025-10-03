@@ -30,7 +30,7 @@ import (
 	"github.com/vmware/alb-sdk/go/session"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/api/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/cache"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
+	crdlib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/lib"
 	avisession "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/session"
 	controllerutils "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/utils"
 
@@ -117,9 +117,9 @@ func (r *ApplicationProfileReconciler) Reconcile(ctx context.Context, req ctrl.R
 		return ctrl.Result{}, err
 	}
 	if ap.ObjectMeta.DeletionTimestamp.IsZero() {
-		if !controllerutil.ContainsFinalizer(ap, constants.ApplicationProfileFinalizer) {
+		if !controllerutil.ContainsFinalizer(ap, crdlib.ApplicationProfileFinalizer) {
 			patch := client.MergeFrom(ap.DeepCopy())
-			controllerutil.AddFinalizer(ap, constants.ApplicationProfileFinalizer)
+			controllerutil.AddFinalizer(ap, crdlib.ApplicationProfileFinalizer)
 			if err := r.Patch(ctx, ap, patch); err != nil {
 				log.Error("Failed to add finalizer to ApplicationProfile")
 				return ctrl.Result{}, err
@@ -133,7 +133,7 @@ func (r *ApplicationProfileReconciler) Reconcile(ctx context.Context, req ctrl.R
 		}
 		if removeFinalizer {
 			patch := client.MergeFrom(ap.DeepCopy())
-			controllerutil.RemoveFinalizer(ap, constants.ApplicationProfileFinalizer)
+			controllerutil.RemoveFinalizer(ap, crdlib.ApplicationProfileFinalizer)
 			if err := r.Patch(ctx, ap, patch); err != nil {
 				return ctrl.Result{}, err
 			}
@@ -141,7 +141,7 @@ func (r *ApplicationProfileReconciler) Reconcile(ctx context.Context, req ctrl.R
 			if err := r.Status().Update(ctx, ap); err != nil {
 				return ctrl.Result{}, err
 			}
-			return ctrl.Result{RequeueAfter: constants.RequeueInterval}, nil
+			return ctrl.Result{RequeueAfter: crdlib.RequeueInterval}, nil
 		}
 		r.EventRecorder.Event(ap, corev1.EventTypeNormal, "Deleted", "ApplicationProfile deleted successfully from Avi Controller")
 		log.Info("successfully deleted applicationprofile")
@@ -189,7 +189,7 @@ func (r *ApplicationProfileReconciler) SetupWithManager(mgr ctrl.Manager) error 
 func (r *ApplicationProfileReconciler) DeleteObject(ctx context.Context, ap *akov1alpha1.ApplicationProfile) (error, bool) {
 	log := utils.LoggerFromContext(ctx)
 	if ap.Status.UUID != "" && ap.Status.Tenant != "" {
-		if err := r.AviClient.AviSessionDelete(utils.GetUriEncoded(fmt.Sprintf("%s/%s", constants.ApplicationProfileURL, ap.Status.UUID)), nil, nil, session.SetOptTenant(ap.Status.Tenant)); err != nil {
+		if err := r.AviClient.AviSessionDelete(utils.GetUriEncoded(fmt.Sprintf("%s/%s", crdlib.ApplicationProfileURL, ap.Status.UUID)), nil, nil, session.SetOptTenant(ap.Status.Tenant)); err != nil {
 			// Handle 404 as success case - object doesn't exist, which is the desired state for delete
 			if aviError, ok := err.(session.AviError); ok {
 				switch aviError.HttpStatusCode {
@@ -245,7 +245,7 @@ func (r *ApplicationProfileReconciler) ReconcileIfRequired(ctx context.Context, 
 	}
 
 	apReq := &ApplicationProfileRequest{
-		Name:                   fmt.Sprintf("%s-%s-%s", r.ClusterName, ap.Namespace, ap.Name),
+		Name:                   crdlib.GetObjectName(ap.Namespace, ap.Name),
 		ApplicationProfileSpec: ap.Spec,
 		Markers:                controllerutils.CreateMarkers(r.ClusterName, ap.Namespace),
 	}
@@ -282,7 +282,7 @@ func (r *ApplicationProfileReconciler) ReconcileIfRequired(ctx context.Context, 
 			log.Debugf("overwriting applicationprofile")
 		}
 		resp := map[string]interface{}{}
-		if err := r.AviClient.AviSessionPut(utils.GetUriEncoded(fmt.Sprintf("%s/%s", constants.ApplicationProfileURL, ap.Status.UUID)), apReq, &resp, session.SetOptTenant(namespaceTenant)); err != nil {
+		if err := r.AviClient.AviSessionPut(utils.GetUriEncoded(fmt.Sprintf("%s/%s", crdlib.ApplicationProfileURL, ap.Status.UUID)), apReq, &resp, session.SetOptTenant(namespaceTenant)); err != nil {
 			log.Errorf("error updating application profile %s", err.Error())
 			r.EventRecorder.Event(ap, corev1.EventTypeWarning, "UpdateFailed", fmt.Sprintf("Failed to update ApplicationProfile on Avi Controller: %v", err))
 			return err
@@ -314,12 +314,12 @@ func (r *ApplicationProfileReconciler) ReconcileIfRequired(ctx context.Context, 
 func (r *ApplicationProfileReconciler) createApplicationProfile(ctx context.Context, apReq *ApplicationProfileRequest, ap *akov1alpha1.ApplicationProfile, tenant string) (map[string]interface{}, error) {
 	log := utils.LoggerFromContext(ctx)
 	resp := map[string]interface{}{}
-	if err := r.AviClient.AviSessionPost(utils.GetUriEncoded(constants.ApplicationProfileURL), apReq, &resp, session.SetOptTenant(tenant)); err != nil {
+	if err := r.AviClient.AviSessionPost(utils.GetUriEncoded(crdlib.ApplicationProfileURL), apReq, &resp, session.SetOptTenant(tenant)); err != nil {
 		log.Errorf("error posting application profile: %s", err.Error())
 		if aviError, ok := err.(session.AviError); ok {
 			if aviError.HttpStatusCode == http.StatusConflict && strings.Contains(aviError.Error(), "already exists") {
 				log.Info("application profile already exists. trying to get uuid")
-				err := r.AviClient.AviSessionGet(utils.GetUriEncoded(fmt.Sprintf("%s?name=%s", constants.ApplicationProfileURL, apReq.Name)), &resp, session.SetOptTenant(tenant))
+				err := r.AviClient.AviSessionGet(utils.GetUriEncoded(fmt.Sprintf("%s?name=%s", crdlib.ApplicationProfileURL, apReq.Name)), &resp, session.SetOptTenant(tenant))
 				if err != nil {
 					log.Errorf("error getting application profile %s", err.Error())
 					return nil, err
@@ -330,7 +330,7 @@ func (r *ApplicationProfileReconciler) createApplicationProfile(ctx context.Cont
 					return nil, err
 				}
 				log.Info("updating application profile")
-				if err := r.AviClient.AviSessionPut(utils.GetUriEncoded(fmt.Sprintf("%s/%s", constants.ApplicationProfileURL, uuid)), apReq, &resp, session.SetOptTenant(tenant)); err != nil {
+				if err := r.AviClient.AviSessionPut(utils.GetUriEncoded(fmt.Sprintf("%s/%s", crdlib.ApplicationProfileURL, uuid)), apReq, &resp, session.SetOptTenant(tenant)); err != nil {
 					log.Errorf("error updating application profile", err.Error())
 					return nil, err
 				}
