@@ -43,6 +43,11 @@ type PKIProfileSpec struct {
 // PKIProfileStatus defines the observed state of PKIProfile
 type PKIProfileStatus struct {
 	// Conditions represent the latest available observations of the PKIProfile's current state
+	// Supported condition types:
+	// - "Programmed": Indicates whether the PKIProfile has been successfully
+	//   processed and programmed on the Avi Controller
+	//   Possible reasons for True: "Created", "Updated"
+	//   Possible reasons for False: "CreationFailed", "UpdateFailed", "UUIDExtractionFailed", "DeletionFailed", "DeletionSkipped"
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 	// UUID is unique identifier of the pki profile object
 	UUID string `json:"uuid"`
