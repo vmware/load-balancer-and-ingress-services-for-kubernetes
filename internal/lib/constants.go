@@ -77,6 +77,7 @@ const (
 	ShardVSPrefix                              = "Shared-L7"
 	ShardEVHVSPrefix                           = "Shared-L7-EVH-"
 	AKOPrefix                                  = "ako-"
+	AKOGWPrefix                                = "ako-gw-"
 	DedicatedSuffix                            = "-L7-dedicated"
 	EVHSuffix                                  = "-EVH"
 	PassthroughPrefix                          = "Shared-Passthrough-"

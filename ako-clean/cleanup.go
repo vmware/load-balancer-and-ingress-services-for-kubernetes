@@ -69,7 +69,6 @@ func (cfg *AKOCleanupConfig) Cleanup(ctx context.Context) error {
 	akoControlConfig.SetIsLeaderFlag(true)
 	lib.SetClusterID(cfg.clusterID)
 	lib.SetNamePrefix("")
-	lib.SetAKOUser(lib.AKOPrefix)
 
 	referer := "https://" + cfg.host
 	if cfg.useEnvoy {
@@ -91,56 +90,93 @@ func (cfg *AKOCleanupConfig) Cleanup(ctx context.Context) error {
 
 	avirest.InfraAviClientInstance(aviRestClientPool.AviClient[0])
 
-	ops := []func() error{
-		setCloudName,
-		func() error {
-			if VPCMode {
-				os.Setenv(utils.VPC_MODE, "true")
-				lib.SetNamePrefix("")
-				lib.SetAKOUser(lib.AKOPrefix)
-				return nil
-			}
-			return checkVirtualServicesAndUpdateClusterName()
-		},
-		populateCache,
-		cleanupVirtualServices,
-		cleanupVsVips,
-		cleanupVSDatascripts,
-		cleanupHTTPPolicySets,
-		cleanupL4PolicySets,
-		cleanupPoolGroups,
-		cleanupPools,
-		cleanupAppProfiles,
-		cleanupHealthMonitors,
-		func() error {
-			if VPCMode {
-				return nil
-			}
-			return avirest.DeleteServiceEngines()
-		},
-		func() error {
-			if VPCMode {
-				return nil
-			}
-			return avirest.DeleteServiceEngineGroup()
-		},
-		cleanupVIPNetwork,
+	prefixesToCleanup := []string{
+		lib.AKOPrefix,   // "ako-"
+		lib.AKOGWPrefix, // "ako-gw-"
 	}
 
-	for _, op := range ops {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
-			err = op()
-			if err != nil {
-				if strings.Contains(err.Error(), SEGroupNotFoundError) {
+	var cleanupErrors []string
+
+	for _, prefix := range prefixesToCleanup {
+		utils.AviLog.Infof("AKO cleanup: Starting cleanup for prefix %s for cluster %s",
+			prefix, cfg.clusterID)
+
+		lib.SetAKOUser(prefix)
+
+		ops := []func() error{
+			setCloudName,
+			func() error {
+				if VPCMode {
+					os.Setenv(utils.VPC_MODE, "true")
+					lib.SetNamePrefix("")
+					lib.SetAKOUser(prefix)
 					return nil
 				}
-				return err
+				return checkVirtualServicesAndUpdateClusterName()
+			},
+			populateCache,
+			cleanupVirtualServices,
+			cleanupVsVips,
+			cleanupVSDatascripts,
+			cleanupHTTPPolicySets,
+			cleanupL4PolicySets,
+			cleanupPoolGroups,
+			cleanupPools,
+			cleanupAppProfiles,
+			cleanupHealthMonitors,
+			func() error {
+				if VPCMode {
+					return nil
+				}
+				return avirest.DeleteServiceEngines()
+			},
+			func() error {
+				if VPCMode {
+					return nil
+				}
+				return avirest.DeleteServiceEngineGroup()
+			},
+			cleanupVIPNetwork,
+		}
+
+		prefixError := func() error {
+			for _, op := range ops {
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				default:
+					if err := op(); err != nil {
+						if strings.Contains(err.Error(), SEGroupNotFoundError) {
+							// For SEGroup not found, we can continue with other prefixes
+							utils.AviLog.Infof("AKO cleanup: SEGroup not found for prefix %s, continuing", prefix)
+							return nil
+						}
+						errorMsg := fmt.Sprintf("prefix %s cleanup failed: %v", prefix, err)
+						utils.AviLog.Errorf("AKO cleanup: %s", errorMsg)
+						cleanupErrors = append(cleanupErrors, errorMsg)
+						return err
+					}
+				}
 			}
+			return nil
+		}()
+
+		if prefixError == nil {
+			utils.AviLog.Infof("AKO cleanup: Successfully completed cleanup for prefix %s",
+				prefix)
+		} else {
+			utils.AviLog.Errorf("AKO cleanup: Failed cleanup for prefix %s",
+				prefix)
 		}
 	}
+
+	if len(cleanupErrors) > 0 {
+		combinedError := fmt.Sprintf("partial cleanup failures: %s", strings.Join(cleanupErrors, "; "))
+		utils.AviLog.Errorf("AKO cleanup: %s", combinedError)
+		return fmt.Errorf("cleanup failures: %s", strings.Join(cleanupErrors, "; "))
+	}
+
+	utils.AviLog.Infof("AKO cleanup: Successfully completed cleanup for cluster %s", cfg.clusterID)
 	return nil
 }
 
