@@ -18,28 +18,22 @@ function get_git_ws {
 
 BUILD_VERSION_SCRIPT=$WORKSPACE/hack/jenkins/get_build_version.sh
 AKO_CHARTS_PATH="$(get_git_ws)/helm/ako"
-AKO_OPERATOR_CHARTS_PATH="$(get_git_ws)/ako-operator/helm/ako-operator"
 AKO_CRD_OPERATOR_CHARTS_PATH="$(get_git_ws)/ako-crd-operator/helm/ako-crd-operator/chart"
 
 build_version=$(bash $BUILD_VERSION_SCRIPT "dummy" $BUILD_NUMBER)
 
 target_path=/mnt/builds/ako_OS/$BRANCH/ci-build-$build_version
 ako_target_path=$target_path/ako
-ako_operator_target_path=$target_path/ako-operator
 ako_crd_operator_target_path=$target_path/ako-crd-operator
 
 sudo mkdir -p $target_path
 sudo mkdir -p $ako_target_path
-sudo mkdir -p $ako_operator_target_path
 sudo mkdir -p $ako_crd_operator_target_path
 
 # Copy ako helm charts
 sudo cp -r $AKO_CHARTS_PATH/* $ako_target_path/
 sudo sed -i --regexp-extended "s/^(\s*)(appVersion\s*:\s*latest\s*$)/\1appVersion: $build_version/" $ako_target_path/Chart.yaml
 sudo sed -i 's|repository:.*|repository: "file://../ako-crd-operator"|' $ako_target_path/Chart.yaml
-
-# Copy ako-operator helm charts
-sudo cp -r $AKO_OPERATOR_CHARTS_PATH/* $ako_operator_target_path/
 
 # Copy ako-crd-operator helm charts
 sudo cp -r $AKO_CRD_OPERATOR_CHARTS_PATH/* $ako_crd_operator_target_path/

@@ -1,5 +1,5 @@
 /*
-
+Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -215,38 +215,78 @@ type Image struct {
 
 // AKOConfigSpec defines the desired state of AKOConfig
 type AKOConfigSpec struct {
-	// ImageRepository is where the AKO controller resides.
+	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
+	// Important: Run "make" to regenerate code after modifying this file
+
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// ImageRepository is where the AKO controller resides
 	ImageRepository string `json:"imageRepository,omitempty"`
-	// ImagePullPolicy defines when the AKO controller image gets pulled.
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// ImagePullPolicy defines when the AKO controller image gets pulled
 	ImagePullPolicy string `json:"imagePullPolicy,omitempty"`
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	// ImagePullSecrets will add pull secrets to the statefulset for AKO. Required if using secure private container image registry for AKO image
 	ImagePullSecrets []ImagePullSecret `json:"imagePullSecrets,omitempty"`
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	// ReplicaCount defines the number of replicas for AKO Statefulset
-	ReplicaCount          int `json:"replicaCount,omitempty"`
-	AKOSettings           `json:"akoSettings,omitempty"`
-	NetworkSettings       `json:"networkSettings,omitempty"`
-	L7Settings            `json:"l7Settings,omitempty"`
-	L4Settings            `json:"l4Settings,omitempty"`
-	ControllerSettings    `json:"controllerSettings,omitempty"`
-	NodePortSelector      `json:"nodePortSelector,omitempty"`
-	Resources             `json:"resources,omitempty"`
-	Rbac                  `json:"rbac,omitempty"`
+	ReplicaCount int `json:"replicaCount,omitempty"`
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="AKO Settings"
+	// AKOSettings defines the settings required for the AKO controller
+	AKOSettings AKOSettings `json:"akoSettings,omitempty"`
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// NetworkSettings defines the network details required for the AKO controller
+	NetworkSettings NetworkSettings `json:"networkSettings,omitempty"`
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Layer 7 Settings"
+	// L7Settings defines the L7 configuration for the AKO controller
+	L7Settings L7Settings `json:"l7Settings,omitempty"`
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Layer 4 Settings"
+	// L4Settings defines the L4 configuration for the AKO controller
+	L4Settings L4Settings `json:"l4Settings,omitempty"`
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// ControllerSettings defines the Avi Controller parameters
+	ControllerSettings ControllerSettings `json:"controllerSettings,omitempty"`
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="NodePort Selector"
+	// NodePortSelector defines the node port settings, to be used only if the serviceTYpe is selected NodePort
+	NodePortSelector NodePortSelector `json:"nodePortSelector,omitempty"`
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// Resources defines the limits and requests for cpu and memory to be used by the AKO controller
+	Resources Resources `json:"resources,omitempty"`
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// Rbac enables the pod security policy for AKO
+	Rbac Rbac `json:"rbac,omitempty"`
+	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="PVC"
+	// PersistentVolumeClaim where the logs need to be stored
 	PersistentVolumeClaim string `json:"pvc,omitempty"`
-	MountPath             string `json:"mountPath,omitempty"`
-	LogFile               string `json:"logFile,omitempty"`
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// MountPath is where the logFile will be mounted on
+	MountPath string `json:"mountPath,omitempty"`
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// LogFile is the name of the file where AKO will dump its logs
+	LogFile string `json:"logFile,omitempty"`
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
 	// AKOGatewayLogFile is the name of the file where ako-gateway-api container will dump its logs
-	AKOGatewayLogFile string       `json:"akoGatewayLogFile,omitempty"`
-	FeatureGates      FeatureGates `json:"featureGates,omitempty"`
-	GatewayAPI        GatewayAPI   `json:"gatewayAPI,omitempty"`
+	AKOGatewayLogFile string `json:"akoGatewayLogFile,omitempty"`
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// FeatureGates is to enable or disable experimental features
+	FeatureGates FeatureGates `json:"featureGates,omitempty"`
+	//+operator-sdk:csv:customresourcedefinitions:type=spec
+	// GatewayAPI defines settings for AKO Gateway API container
+	GatewayAPI GatewayAPI `json:"gatewayAPI,omitempty"`
 }
 
 // AKOConfigStatus defines the observed state of AKOConfig
 type AKOConfigStatus struct {
+	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
+	// Important: Run "make" to regenerate code after modifying this file
+
+	// +operator-sdk:csv:customresourcedefinitions:type=status,displayName="State",xDescriptors="urn:alm:descriptor:urn:alm:descriptor:io.kubernetes.phase"
+	// State defines the current Kubernetes phase of AKOConfig object
 	State string `json:"state,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:deprecatedversion:warning="The v1alpha1 version is deprecated for AKOConfig CRD, please use v1beta1 version"
 
 // AKOConfig is the Schema for the akoconfigs API
 type AKOConfig struct {

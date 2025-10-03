@@ -1,4 +1,5 @@
-## Append samples you want in your CSV to this file as resources ##
+## Append samples of your project ##
 resources:
+- ako_v1beta1_akoconfig.yaml
 - ako_v1alpha1_akoconfig.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples
