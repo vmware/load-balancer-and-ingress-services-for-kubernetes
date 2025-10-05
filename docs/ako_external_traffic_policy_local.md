@@ -27,9 +27,10 @@ With this feature, AKO now:
 
 This feature works with:
 - **Kubernetes clusters** using Ingress resources
+- **Kubernetes and OpenShift clusters** using Gateway API (HTTPRoute resources)
 - **OpenShift clusters** using Route objects
 
-The behavior is consistent across both platforms when `externalTrafficPolicy: Local` is configured.
+The behavior is consistent across all platforms and resource types when `externalTrafficPolicy: Local` is configured.
 
 ## Configuration
 
@@ -112,7 +113,52 @@ spec:
 
 **Note**: Ensure the Kubernetes secret object `ingress-secret` (with `tls.crt` and `tls.key` data) is created before ingress creation.
 
-### 4. Create an OpenShift Route (Alternative to Ingress)
+### 4. Create a Gateway API HTTPRoute (Alternative to Ingress or OpenShift Route)
+
+```yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: test-gateway
+  namespace: hostrule-ns
+spec:
+  gatewayClassName: avi-lb
+  listeners:
+  - name: https
+    protocol: HTTPS
+    port: 443
+    hostname: "test-hostrules-switch-1.avi.internal"
+    tls:
+      certificateRefs:
+        - kind: Secret
+          group: ""
+          name: ingress-secret
+      mode: Terminate
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: test-http-route
+  namespace: hostrule-ns
+spec:
+  parentRefs:
+  - name: test-gateway
+    namespace: hostrule-ns
+    sectionName: https
+  hostnames:
+  - "test-hostrules-switch-1.avi.internal"
+  rules:
+  - matches:
+      - path:
+         value: "/foo"
+    backendRefs:
+    - name: ew-app
+      port: 80
+```
+
+**Note**: Ensure the Gateway API CRDs are installed in your cluster. The `avi-lb` GatewayClass is automatically created by AKO installation.
+
+### 5. Create an OpenShift Route (OpenShift-specific alternative)
 
 ```yaml
 apiVersion: route.openshift.io/v1
@@ -140,8 +186,6 @@ spec:
       <private-key-content>
       -----END PRIVATE KEY-----
 ```
-
-
 
 ## Behavior Comparison
 
