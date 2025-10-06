@@ -50,7 +50,7 @@ spec:
             description: RouteBackendExtensionSpec defines the desired state of RouteBackendExtension
             properties:
               backendTLS:
-                description: Defines the group of settings that enable AKO to leverage
+                description: Defines the group of settings that enable Avi SE to leverage
                   SSL to talk to backend servers
                 properties:
                   domainName:

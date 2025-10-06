@@ -192,6 +192,11 @@ type HealthMonitorStatus struct {
 	// +optional
 	LastUpdated *metav1.Time `json:"lastUpdated,omitempty"`
 	// Conditions is the list of conditions for the health monitor
+	// Supported condition types:
+	// - "Programmed": Indicates whether the HealthMonitor has been successfully
+	//   processed and programmed on the Avi Controller
+	//   Possible reasons for True: "Created", "Updated"
+	//   Possible reasons for False: "CreationFailed", "UpdateFailed", "UUIDExtractionFailed", "DeletionFailed", "DeletionSkipped"
 	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 	// BackendObjectName is the name of the backend object
@@ -202,6 +207,9 @@ type HealthMonitorStatus struct {
 	// Tenant is the tenant where the health monitor is created
 	// +optional
 	Tenant string `json:"tenant,omitempty"`
+	// Field is populated by AKO CRD operator as ako-crd-operator
+	// +optional
+	Controller string `json:"controller,omitempty"`
 }
 
 // +genclient
@@ -258,4 +266,9 @@ func (hm *HealthMonitor) SetObservedGeneration(generation int64) {
 // SetLastUpdated sets the last updated timestamp in the status
 func (hm *HealthMonitor) SetLastUpdated(time *metav1.Time) {
 	hm.Status.LastUpdated = time
+}
+
+// SetController sets the controller name in the status
+func (hm *HealthMonitor) SetController(controller string) {
+	hm.Status.Controller = controller
 }

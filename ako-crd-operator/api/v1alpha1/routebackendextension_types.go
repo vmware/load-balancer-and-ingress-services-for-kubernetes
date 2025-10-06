@@ -137,7 +137,7 @@ type RouteBackendExtensionSpec struct {
 	// Represents health monitor objects
 	// +optional
 	HealthMonitor []BackendHealthMonitor `json:"healthMonitor,omitempty"`
-	// Defines the group of settings that enable AKO to leverage SSL to talk to backend servers
+	// Defines the group of settings that enable Avi SE to leverage SSL to talk to backend servers
 	// +optional
 	BackendTLS *BackendTLS `json:"backendTLS,omitempty"`
 }

@@ -96,8 +96,8 @@ func TestPKIProfileController(t *testing.T) {
 					ObservedGeneration: 0,
 					Conditions: []metav1.Condition{
 						{
-							Type:    "Ready",
-							Status:  "True",
+							Type:    string(akov1alpha1.ObjectConditionProgrammed),
+							Status:  metav1.ConditionTrue,
 							Reason:  "Created",
 							Message: "PKIProfile created successfully on Avi Controller",
 						},
@@ -145,8 +145,8 @@ func TestPKIProfileController(t *testing.T) {
 					ObservedGeneration: 0,
 					Conditions: []metav1.Condition{
 						{
-							Type:   "Ready",
-							Status: "True",
+							Type:   string(akov1alpha1.ObjectConditionProgrammed),
+							Status: metav1.ConditionTrue,
 							Reason: "Created",
 						},
 					},
@@ -205,8 +205,8 @@ func TestPKIProfileController(t *testing.T) {
 					ObservedGeneration: 0,
 					Conditions: []metav1.Condition{
 						{
-							Type:   "Ready",
-							Status: "True",
+							Type:   string(akov1alpha1.ObjectConditionProgrammed),
+							Status: metav1.ConditionTrue,
 							Reason: "Updated",
 						},
 					},
@@ -257,8 +257,8 @@ func TestPKIProfileController(t *testing.T) {
 					ObservedGeneration: 0,
 					Conditions: []metav1.Condition{
 						{
-							Type:   "Deleted",
-							Status: "True",
+							Type:   string(akov1alpha1.ObjectConditionProgrammed),
+							Status: metav1.ConditionTrue,
 							Reason: "DeletionSkipped",
 						},
 					},
@@ -310,8 +310,8 @@ func TestPKIProfileController(t *testing.T) {
 					ObservedGeneration: 0,
 					Conditions: []metav1.Condition{
 						{
-							Type:    "Ready",
-							Status:  "False",
+							Type:    string(akov1alpha1.ObjectConditionProgrammed),
+							Status:  metav1.ConditionFalse,
 							Reason:  "BadRequest",
 							Message: "Invalid PKIProfile specification: Bad Request",
 						},
@@ -503,36 +503,13 @@ func TestPKIProfileSetStatus(t *testing.T) {
 	lib.SetClusterName("test-cluster")
 	os.Setenv("ENABLE_EVH", "true")
 	tests := []struct {
-		name          string
-		initialPKI    *akov1alpha1.PKIProfile
-		conditionType string
-		reason        string
-		message       string
+		name            string
+		initialPKI      *akov1alpha1.PKIProfile
+		conditionType   akov1alpha1.ObjectConditionType
+		conditionStatus metav1.ConditionStatus
+		reason          akov1alpha1.ObjectConditionReason
+		message         string
 	}{
-		{
-			name: "success: set Ready condition to True",
-			initialPKI: &akov1alpha1.PKIProfile{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-pki",
-					Namespace: "default",
-				},
-			},
-			conditionType: "Ready",
-			reason:        "ValidationSucceeded",
-			message:       "PKIProfile validation succeeded",
-		},
-		{
-			name: "error: set Ready condition to False",
-			initialPKI: &akov1alpha1.PKIProfile{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-pki-error",
-					Namespace: "default",
-				},
-			},
-			conditionType: "Ready",
-			reason:        "ValidationFailed",
-			message:       "CA certificate at index 0 is empty",
-		},
 		{
 			name: "success: set Deleted condition to True",
 			initialPKI: &akov1alpha1.PKIProfile{
@@ -541,9 +518,10 @@ func TestPKIProfileSetStatus(t *testing.T) {
 					Namespace: "default",
 				},
 			},
-			conditionType: "Deleted",
-			reason:        "DeletionSkipped",
-			message:       "UUID not present, PKIProfile may not have been created on Avi Controller",
+			conditionType:   akov1alpha1.ObjectConditionProgrammed,
+			conditionStatus: metav1.ConditionTrue,
+			reason:          akov1alpha1.ObjectReasonDeletionSkipped,
+			message:         "UUID not present, PKIProfile may not have been created on Avi Controller",
 		},
 	}
 
@@ -570,7 +548,7 @@ func TestPKIProfileSetStatus(t *testing.T) {
 
 			// Test SetStatus
 			ctx := context.Background()
-			err := reconciler.SetStatus(ctx, tt.initialPKI, tt.conditionType, tt.reason, tt.message)
+			err := reconciler.SetStatus(ctx, tt.initialPKI, tt.conditionType, tt.conditionStatus, tt.reason, tt.message)
 			assert.NoError(t, err)
 
 			// Check status was set correctly
@@ -582,13 +560,9 @@ func TestPKIProfileSetStatus(t *testing.T) {
 			// Check conditions
 			found := false
 			for _, condition := range tt.initialPKI.Status.Conditions {
-				if condition.Type == tt.conditionType && condition.Reason == tt.reason {
+				if condition.Type == string(tt.conditionType) && condition.Reason == string(tt.reason) {
 					found = true
-					if tt.reason == "ValidationFailed" || tt.reason == "CreationFailed" || tt.reason == "UpdateFailed" || tt.reason == "DeletionFailed" || tt.reason == "DeletionSkipped" {
-						assert.Equal(t, "False", string(condition.Status))
-					} else {
-						assert.Equal(t, "True", string(condition.Status))
-					}
+					assert.Equal(t, string(tt.conditionStatus), string(condition.Status))
 					break
 				}
 			}

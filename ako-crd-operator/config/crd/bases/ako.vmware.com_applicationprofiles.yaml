@@ -213,8 +213,13 @@ spec:
                 description: BackendObjectName is the name of the backend object
                 type: string
               conditions:
-                description: Conditions is the list of conditions for the application
-                  profile
+                description: |-
+                  Conditions is the list of conditions for the application profile
+                  Supported condition types:
+                  - "Programmed": Indicates whether the ApplicationProfile has been successfully
+                    processed and programmed on the Avi Controller
+                    Possible reasons for True: "Created", "Updated"
+                    Possible reasons for False: "CreationFailed", "UpdateFailed", "UUIDExtractionFailed", "DeletionFailed", "DeletionSkipped"
                 items:
                   description: Condition contains details for one aspect of the current
                     state of this API Resource.
@@ -270,6 +275,9 @@ spec:
                   - type
                   type: object
                 type: array
+              controller:
+                description: Field is populated by AKO CRD operator as ako-crd-operator
+                type: string
               lastUpdated:
                 description: LastUpdated is the timestamp the object was last updated
                 format: date-time
