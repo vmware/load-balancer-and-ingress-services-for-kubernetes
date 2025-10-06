@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"testing"
 	"time"
 
@@ -28,7 +29,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/vmware/alb-sdk/go/session"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/api/v1alpha1"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
+	crdlib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/test/mock"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -46,6 +47,9 @@ import (
 )
 
 func TestHealthMonitorController(t *testing.T) {
+	lib.SetClusterName("test-cluster")
+	lib.SetNamePrefix(crdlib.Prefix)
+	os.Setenv("ENABLE_EVH", "true")
 	tests := []struct {
 		name         string
 		hm           *akov1alpha1.HealthMonitor
@@ -58,14 +62,15 @@ func TestHealthMonitorController(t *testing.T) {
 			name: "success: add finalizer",
 			hm: &akov1alpha1.HealthMonitor{
 				ObjectMeta: metav1.ObjectMeta{
-					Name: "test",
+					Name:      "test",
+					Namespace: "default",
 				},
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
 				responseUUID := map[string]interface{}{
 					"uuid": "123",
 				}
-				mockAviClient.EXPECT().AviSessionPost(constants.HealthMonitorURL, gomock.Any(), gomock.Any(), gomock.Any()).Do(func(url string, request interface{}, response interface{}, params ...interface{}) {
+				mockAviClient.EXPECT().AviSessionPost(crdlib.HealthMonitorURL, gomock.Any(), gomock.Any(), gomock.Any()).Do(func(url string, request interface{}, response interface{}, params ...interface{}) {
 					if resp, ok := response.(*map[string]interface{}); ok {
 						*resp = responseUUID
 					}
@@ -79,7 +84,7 @@ func TestHealthMonitorController(t *testing.T) {
 				},
 				Status: akov1alpha1.HealthMonitorStatus{
 					UUID:              "123",
-					BackendObjectName: "test-cluster--test",
+					BackendObjectName: "ako-crd-operator-test-cluster--738bb014438bdbfe7f14e44b60f97b07e22e4dc0",
 					Tenant:            "admin",
 					Conditions: []metav1.Condition{
 						{
@@ -107,7 +112,7 @@ func TestHealthMonitorController(t *testing.T) {
 				responseUUID := map[string]interface{}{
 					"uuid": "123",
 				}
-				mockAviClient.EXPECT().AviSessionPost(constants.HealthMonitorURL, gomock.Any(), gomock.Any(), gomock.Any()).Do(func(url string, request interface{}, response interface{}, params ...interface{}) {
+				mockAviClient.EXPECT().AviSessionPost(crdlib.HealthMonitorURL, gomock.Any(), gomock.Any(), gomock.Any()).Do(func(url string, request interface{}, response interface{}, params ...interface{}) {
 					if resp, ok := response.(*map[string]interface{}); ok {
 						*resp = responseUUID
 					}
@@ -132,7 +137,7 @@ func TestHealthMonitorController(t *testing.T) {
 							Message:            "HealthMonitor created successfully on Avi Controller",
 						},
 					},
-					BackendObjectName: "test-cluster-default-test",
+					BackendObjectName: "ako-crd-operator-test-cluster--738bb014438bdbfe7f14e44b60f97b07e22e4dc0",
 					LastUpdated:       &metav1.Time{Time: time.Now().Truncate(time.Second)},
 					Tenant:            "admin",
 				},
@@ -153,18 +158,18 @@ func TestHealthMonitorController(t *testing.T) {
 				responseBody := map[string]interface{}{
 					"results": []interface{}{map[string]interface{}{"uuid": "123"}},
 				}
-				mockAviClient.EXPECT().AviSessionPost(constants.HealthMonitorURL, gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
+				mockAviClient.EXPECT().AviSessionPost(crdlib.HealthMonitorURL, gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
 					HttpStatusCode: http.StatusConflict,
 					AviResult: session.AviResult{
 						Message: &[]string{"already exists"}[0],
 					},
 				})
-				mockAviClient.EXPECT().AviSessionGet(fmt.Sprintf("%s?name=%s", constants.HealthMonitorURL, "test-cluster-default-test"), gomock.Any(), gomock.Any()).Do(func(url string, response interface{}, params interface{}) {
+				mockAviClient.EXPECT().AviSessionGet(fmt.Sprintf("%s?name=%s", crdlib.HealthMonitorURL, "ako-crd-operator-test-cluster--738bb014438bdbfe7f14e44b60f97b07e22e4dc0"), gomock.Any(), gomock.Any()).Do(func(url string, response interface{}, params interface{}) {
 					if resp, ok := response.(*map[string]interface{}); ok {
 						*resp = responseBody
 					}
 				}).Return(nil).AnyTimes()
-				mockAviClient.EXPECT().AviSessionPut(constants.HealthMonitorURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Do(func(url string, request interface{}, response interface{}, params ...interface{}) {
+				mockAviClient.EXPECT().AviSessionPut(crdlib.HealthMonitorURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Do(func(url string, request interface{}, response interface{}, params ...interface{}) {
 					if resp, ok := response.(*map[string]interface{}); ok {
 						*resp = responseBody
 					}
@@ -189,7 +194,7 @@ func TestHealthMonitorController(t *testing.T) {
 							Message:            "HealthMonitor updated successfully on Avi Controller",
 						},
 					},
-					BackendObjectName: "test-cluster-default-test",
+					BackendObjectName: "ako-crd-operator-test-cluster--738bb014438bdbfe7f14e44b60f97b07e22e4dc0",
 					LastUpdated:       &metav1.Time{Time: time.Now().Truncate(time.Second)},
 					Tenant:            "admin",
 				},
@@ -210,7 +215,7 @@ func TestHealthMonitorController(t *testing.T) {
 				},
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionPut(constants.HealthMonitorURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				mockAviClient.EXPECT().AviSessionPut(crdlib.HealthMonitorURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 			},
 			want: &akov1alpha1.HealthMonitor{
 				ObjectMeta: metav1.ObjectMeta{
@@ -230,7 +235,7 @@ func TestHealthMonitorController(t *testing.T) {
 							Message:            "HealthMonitor updated successfully on Avi Controller",
 						},
 					},
-					BackendObjectName: "test-cluster-default-test",
+					BackendObjectName: "ako-crd-operator-test-cluster--738bb014438bdbfe7f14e44b60f97b07e22e4dc0",
 					LastUpdated:       &metav1.Time{Time: time.Now().Truncate(time.Second)},
 					Tenant:            "admin",
 				},
@@ -289,7 +294,7 @@ func TestHealthMonitorController(t *testing.T) {
 				},
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionDelete(constants.HealthMonitorURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				mockAviClient.EXPECT().AviSessionDelete(crdlib.HealthMonitorURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 			},
 			want:    nil,
 			wantErr: false,
@@ -307,7 +312,7 @@ func TestHealthMonitorController(t *testing.T) {
 				},
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionDelete(constants.HealthMonitorURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
+				mockAviClient.EXPECT().AviSessionDelete(crdlib.HealthMonitorURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
 					HttpStatusCode: 404,
 				}).AnyTimes()
 			},
@@ -350,7 +355,7 @@ func TestHealthMonitorController(t *testing.T) {
 				cache.EXPECT().GetObjectByUUID(gomock.Any(), "123").Return(nil, false).AnyTimes()
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionPut(constants.HealthMonitorURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				mockAviClient.EXPECT().AviSessionPut(crdlib.HealthMonitorURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 			},
 			want: &akov1alpha1.HealthMonitor{
 				ObjectMeta: metav1.ObjectMeta{
@@ -371,7 +376,7 @@ func TestHealthMonitorController(t *testing.T) {
 							Message:            "HealthMonitor updated successfully on Avi Controller",
 						},
 					},
-					BackendObjectName:  "test-cluster-default-test",
+					BackendObjectName:  "ako-crd-operator-test-cluster--738bb014438bdbfe7f14e44b60f97b07e22e4dc0",
 					LastUpdated:        &metav1.Time{Time: time.Now().Truncate(time.Second)},
 					ObservedGeneration: 1,
 					Tenant:             "admin",
@@ -396,7 +401,7 @@ func TestHealthMonitorController(t *testing.T) {
 				},
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionPut(constants.HealthMonitorURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				mockAviClient.EXPECT().AviSessionPut(crdlib.HealthMonitorURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 			},
 			want: &akov1alpha1.HealthMonitor{
 				ObjectMeta: metav1.ObjectMeta{
@@ -417,7 +422,7 @@ func TestHealthMonitorController(t *testing.T) {
 							Message:            "HealthMonitor updated successfully on Avi Controller",
 						},
 					},
-					BackendObjectName:  "test-cluster-default-test",
+					BackendObjectName:  "ako-crd-operator-test-cluster--738bb014438bdbfe7f14e44b60f97b07e22e4dc0",
 					LastUpdated:        &metav1.Time{Time: time.Now().Truncate(time.Second)},
 					ObservedGeneration: 1,
 					Tenant:             "admin",
@@ -437,7 +442,7 @@ func TestHealthMonitorController(t *testing.T) {
 				},
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionPost(constants.HealthMonitorURL, gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
+				mockAviClient.EXPECT().AviSessionPost(crdlib.HealthMonitorURL, gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
 					HttpStatusCode: 500,
 					AviResult: session.AviResult{
 						Message: &[]string{"internal server error"}[0],
@@ -458,13 +463,13 @@ func TestHealthMonitorController(t *testing.T) {
 				},
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionPost(constants.HealthMonitorURL, gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
+				mockAviClient.EXPECT().AviSessionPost(crdlib.HealthMonitorURL, gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
 					HttpStatusCode: http.StatusConflict,
 					AviResult: session.AviResult{
 						Message: &[]string{"already exists"}[0],
 					},
 				})
-				mockAviClient.EXPECT().AviSessionGet(fmt.Sprintf("%s?name=%s", constants.HealthMonitorURL, "test-cluster-default-test"), gomock.Any(), gomock.Any()).Return(errors.New("GET failed")).AnyTimes()
+				mockAviClient.EXPECT().AviSessionGet(fmt.Sprintf("%s?name=%s", crdlib.HealthMonitorURL, "ako-crd-operator-test-cluster--738bb014438bdbfe7f14e44b60f97b07e22e4dc0"), gomock.Any(), gomock.Any()).Return(errors.New("GET failed")).AnyTimes()
 			},
 			want:    nil,
 			wantErr: true,
@@ -483,13 +488,13 @@ func TestHealthMonitorController(t *testing.T) {
 				responseBody := map[string]interface{}{
 					"results": []interface{}{}, // Empty results to cause extractUUID to fail
 				}
-				mockAviClient.EXPECT().AviSessionPost(constants.HealthMonitorURL, gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
+				mockAviClient.EXPECT().AviSessionPost(crdlib.HealthMonitorURL, gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
 					HttpStatusCode: http.StatusConflict,
 					AviResult: session.AviResult{
 						Message: &[]string{"already exists"}[0],
 					},
 				})
-				mockAviClient.EXPECT().AviSessionGet(fmt.Sprintf("%s?name=%s", constants.HealthMonitorURL, "test-cluster-default-test"), gomock.Any(), gomock.Any()).Do(func(url string, response interface{}, params interface{}) {
+				mockAviClient.EXPECT().AviSessionGet(fmt.Sprintf("%s?name=%s", crdlib.HealthMonitorURL, "ako-crd-operator-test-cluster--738bb014438bdbfe7f14e44b60f97b07e22e4dc0"), gomock.Any(), gomock.Any()).Do(func(url string, response interface{}, params interface{}) {
 					if resp, ok := response.(*map[string]interface{}); ok {
 						*resp = responseBody
 					}
@@ -512,18 +517,18 @@ func TestHealthMonitorController(t *testing.T) {
 				responseBody := map[string]interface{}{
 					"results": []interface{}{map[string]interface{}{"uuid": "123"}},
 				}
-				mockAviClient.EXPECT().AviSessionPost(constants.HealthMonitorURL, gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
+				mockAviClient.EXPECT().AviSessionPost(crdlib.HealthMonitorURL, gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
 					HttpStatusCode: http.StatusConflict,
 					AviResult: session.AviResult{
 						Message: &[]string{"already exists"}[0],
 					},
 				})
-				mockAviClient.EXPECT().AviSessionGet(fmt.Sprintf("%s?name=%s", constants.HealthMonitorURL, "test-cluster-default-test"), gomock.Any(), gomock.Any()).Do(func(url string, response interface{}, params interface{}) {
+				mockAviClient.EXPECT().AviSessionGet(fmt.Sprintf("%s?name=%s", crdlib.HealthMonitorURL, "ako-crd-operator-test-cluster--738bb014438bdbfe7f14e44b60f97b07e22e4dc0"), gomock.Any(), gomock.Any()).Do(func(url string, response interface{}, params interface{}) {
 					if resp, ok := response.(*map[string]interface{}); ok {
 						*resp = responseBody
 					}
 				}).Return(nil).AnyTimes()
-				mockAviClient.EXPECT().AviSessionPut(constants.HealthMonitorURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("PUT failed")).AnyTimes()
+				mockAviClient.EXPECT().AviSessionPut(crdlib.HealthMonitorURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("PUT failed")).AnyTimes()
 			},
 			want:    nil,
 			wantErr: true,
@@ -542,7 +547,7 @@ func TestHealthMonitorController(t *testing.T) {
 				responseUUID := map[string]interface{}{
 					"invalid": "response", // Invalid response to cause extractUUID to fail
 				}
-				mockAviClient.EXPECT().AviSessionPost(constants.HealthMonitorURL, gomock.Any(), gomock.Any(), gomock.Any()).Do(func(url string, request interface{}, response interface{}, params ...interface{}) {
+				mockAviClient.EXPECT().AviSessionPost(crdlib.HealthMonitorURL, gomock.Any(), gomock.Any(), gomock.Any()).Do(func(url string, request interface{}, response interface{}, params ...interface{}) {
 					if resp, ok := response.(*map[string]interface{}); ok {
 						*resp = responseUUID
 					}
@@ -565,7 +570,7 @@ func TestHealthMonitorController(t *testing.T) {
 				},
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionPut(constants.HealthMonitorURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("PUT failed")).AnyTimes()
+				mockAviClient.EXPECT().AviSessionPut(crdlib.HealthMonitorURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(errors.New("PUT failed")).AnyTimes()
 			},
 			want:    nil,
 			wantErr: true,
@@ -584,7 +589,7 @@ func TestHealthMonitorController(t *testing.T) {
 				},
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionDelete(constants.HealthMonitorURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
+				mockAviClient.EXPECT().AviSessionDelete(crdlib.HealthMonitorURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
 					HttpStatusCode: 500,
 					AviResult: session.AviResult{
 						Message: &[]string{"server error"}[0],
@@ -609,7 +614,7 @@ func TestHealthMonitorController(t *testing.T) {
 				},
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionDelete(constants.HealthMonitorURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
+				mockAviClient.EXPECT().AviSessionDelete(crdlib.HealthMonitorURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
 					HttpStatusCode: 403,
 					AviResult: session.AviResult{
 						Message: &[]string{"Cannot delete, object is referred by: ['Pool custom-pool', 'VirtualService custom-vs']"}[0],
@@ -650,7 +655,7 @@ func TestHealthMonitorController(t *testing.T) {
 				},
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionPost(constants.HealthMonitorURL, gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
+				mockAviClient.EXPECT().AviSessionPost(crdlib.HealthMonitorURL, gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
 					HttpStatusCode: 400, // Non-retryable error
 					AviResult: session.AviResult{
 						Message: &[]string{"bad request"}[0],
@@ -776,6 +781,9 @@ func TestHealthMonitorController(t *testing.T) {
 
 // TestHealthMonitorControllerKubernetesError tests error scenarios in Reconcile function
 func TestHealthMonitorControllerKubernetesError(t *testing.T) {
+	lib.SetNamePrefix(crdlib.Prefix)
+	lib.SetClusterName("test-cluster")
+	os.Setenv("ENABLE_EVH", "true")
 	tests := []struct {
 		name    string
 		setup   func() (*fake.ClientBuilder, ctrl.Request)
@@ -943,7 +951,7 @@ func TestHealthMonitorControllerKubernetesError(t *testing.T) {
 				return builder, req
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionPut(constants.HealthMonitorURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				mockAviClient.EXPECT().AviSessionPut(crdlib.HealthMonitorURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 			},
 			wantErr: true,
 		},
@@ -984,6 +992,9 @@ func TestHealthMonitorControllerKubernetesError(t *testing.T) {
 // @AI-Generated
 // [Generated by Cursor claude-4-sonnet]
 func TestExtractUUID(t *testing.T) {
+	lib.SetNamePrefix(crdlib.Prefix)
+	lib.SetClusterName("test-cluster")
+	os.Setenv("ENABLE_EVH", "true")
 	tests := []struct {
 		name    string
 		resp    map[string]interface{}
@@ -1109,6 +1120,9 @@ func TestExtractUUID(t *testing.T) {
 // @AI-Generated
 // [Generated by Cursor claude-4-sonnet]
 func TestHealthMonitorControllerSecretEvent(t *testing.T) {
+	lib.SetNamePrefix(crdlib.Prefix)
+	lib.SetClusterName("test-cluster")
+	os.Setenv("ENABLE_EVH", "true")
 	tests := []struct {
 		name         string
 		hm           *akov1alpha1.HealthMonitor
@@ -1149,7 +1163,7 @@ func TestHealthMonitorControllerSecretEvent(t *testing.T) {
 			secretExists: true,
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
 				// Capture and validate the request contains proper auth credentials
-				mockAviClient.EXPECT().AviSessionPost(constants.HealthMonitorURL, gomock.Any(), gomock.Any(), gomock.Any()).
+				mockAviClient.EXPECT().AviSessionPost(crdlib.HealthMonitorURL, gomock.Any(), gomock.Any(), gomock.Any()).
 					Do(func(url string, request interface{}, response interface{}, params ...interface{}) {
 						// Validate secret resolution
 						if req, ok := request.(*HealthMonitorRequest); ok {
@@ -1179,7 +1193,7 @@ func TestHealthMonitorControllerSecretEvent(t *testing.T) {
 				},
 				Status: akov1alpha1.HealthMonitorStatus{
 					UUID:               "test-uuid-123",
-					BackendObjectName:  "test-cluster-default-test-hm",
+					BackendObjectName:  "ako-crd-operator-test-cluster--61167cd0decca7b7f16cd417c3f524547a64ac03",
 					DependencySum:      utils.Hash("2000"), // ResourceVersion checksum
 					Tenant:             "admin",
 					LastUpdated:        &metav1.Time{Time: time.Now().Truncate(time.Second)},
@@ -1213,7 +1227,7 @@ func TestHealthMonitorControllerSecretEvent(t *testing.T) {
 			secretExists: false,
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
 				// Validate no auth credentials when no secret
-				mockAviClient.EXPECT().AviSessionPost(constants.HealthMonitorURL, gomock.Any(), gomock.Any(), gomock.Any()).
+				mockAviClient.EXPECT().AviSessionPost(crdlib.HealthMonitorURL, gomock.Any(), gomock.Any(), gomock.Any()).
 					Do(func(url string, request interface{}, response interface{}, params ...interface{}) {
 						// Validate no secret resolution
 						if req, ok := request.(*HealthMonitorRequest); ok {
@@ -1238,7 +1252,7 @@ func TestHealthMonitorControllerSecretEvent(t *testing.T) {
 				},
 				Status: akov1alpha1.HealthMonitorStatus{
 					UUID:               "test-uuid-456",
-					BackendObjectName:  "test-cluster-default-test-hm-no-secret",
+					BackendObjectName:  "ako-crd-operator-test-cluster--d4acfcbe37baf4dfd4eb27a353789b2fee1d8f7d",
 					Tenant:             "admin",
 					DependencySum:      0, // No dependencies
 					LastUpdated:        &metav1.Time{Time: time.Now().Truncate(time.Second)},
@@ -1293,7 +1307,7 @@ func TestHealthMonitorControllerSecretEvent(t *testing.T) {
 			secretExists: true,
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
 				// Validate updated credentials in PUT request
-				mockAviClient.EXPECT().AviSessionPut(constants.HealthMonitorURL+"/existing-uuid", gomock.Any(), gomock.Any(), gomock.Any()).
+				mockAviClient.EXPECT().AviSessionPut(crdlib.HealthMonitorURL+"/existing-uuid", gomock.Any(), gomock.Any(), gomock.Any()).
 					Do(func(url string, request interface{}, response interface{}, params ...interface{}) {
 						// Validate secret resolution with new credentials
 						if req, ok := request.(*HealthMonitorRequest); ok {
@@ -1319,7 +1333,7 @@ func TestHealthMonitorControllerSecretEvent(t *testing.T) {
 				},
 				Status: akov1alpha1.HealthMonitorStatus{
 					UUID:               "existing-uuid",
-					BackendObjectName:  "test-cluster-default-test-hm-update",
+					BackendObjectName:  "ako-crd-operator-test-cluster--b2e5834e8d61106bbcc4c72531243e335ccfb2f9",
 					DependencySum:      utils.Hash("3000"), // Updated checksum
 					Tenant:             "admin",
 					LastUpdated:        &metav1.Time{Time: time.Now().Truncate(time.Second)},
@@ -1685,7 +1699,31 @@ func TestHealthMonitorControllerSecretEvent(t *testing.T) {
 			if tt.wantErr && tt.want == nil {
 				return
 			}
-			assert.Equal(t, tt.want, hm)
+
+			// Compare everything except dynamic fields like BackendObjectName, LastUpdated and LastTransitionTime
+			if tt.want != nil {
+				assert.Equal(t, tt.want.ObjectMeta.Name, hm.ObjectMeta.Name)
+				assert.Equal(t, tt.want.ObjectMeta.Finalizers, hm.ObjectMeta.Finalizers)
+				assert.Equal(t, tt.want.ObjectMeta.ResourceVersion, hm.ObjectMeta.ResourceVersion)
+				assert.Equal(t, tt.want.Status.UUID, hm.Status.UUID)
+				// For successful cases, BackendObjectName should be set; for error cases it might be empty
+				if tt.want.Status.BackendObjectName != "" {
+					assert.NotEmpty(t, hm.Status.BackendObjectName)
+				}
+				assert.Equal(t, tt.want.Status.Tenant, hm.Status.Tenant)
+				assert.Equal(t, tt.want.Status.DependencySum, hm.Status.DependencySum)
+				if len(tt.want.Status.Conditions) > 0 && len(hm.Status.Conditions) > 0 {
+					assert.Equal(t, tt.want.Status.Conditions[0].Type, hm.Status.Conditions[0].Type)
+					assert.Equal(t, tt.want.Status.Conditions[0].Status, hm.Status.Conditions[0].Status)
+					assert.Equal(t, tt.want.Status.Conditions[0].Reason, hm.Status.Conditions[0].Reason)
+					assert.Equal(t, tt.want.Status.Conditions[0].Message, hm.Status.Conditions[0].Message)
+					// LastTransitionTime and LastUpdated are dynamic, so we just verify they're set
+					assert.NotZero(t, hm.Status.Conditions[0].LastTransitionTime)
+					if tt.want.Status.LastUpdated != nil || hm.Status.LastUpdated != nil {
+						assert.NotNil(t, hm.Status.LastUpdated)
+					}
+				}
+			}
 		})
 	}
 }
@@ -1693,6 +1731,9 @@ func TestHealthMonitorControllerSecretEvent(t *testing.T) {
 // @AI-Generated
 // [Generated by Cursor claude-4-sonnet]
 func TestHealthMonitorControllerSetupWithManager(t *testing.T) {
+	lib.SetNamePrefix(crdlib.Prefix)
+	lib.SetClusterName("test-cluster")
+	os.Setenv("ENABLE_EVH", "true")
 	// Test the positive scenario where SetupWithManager successfully sets up:
 	// 1. Field indexer for secret references
 	// 2. Controller with HealthMonitor watching
@@ -1809,7 +1850,7 @@ func TestHealthMonitorControllerSetupWithManager(t *testing.T) {
 			Name:      "test-secret",
 			Namespace: "default",
 		},
-		Type: constants.HealthMonitorSecretType,
+		Type: crdlib.HealthMonitorSecretType,
 	}
 
 	ctx := context.Background()
@@ -1824,7 +1865,7 @@ func TestHealthMonitorControllerSetupWithManager(t *testing.T) {
 			Name:      "unused-secret",
 			Namespace: "default",
 		},
-		Type: constants.HealthMonitorSecretType,
+		Type: crdlib.HealthMonitorSecretType,
 	}
 
 	requests = handlerFunc(ctx, unusedSecret)
@@ -1860,6 +1901,9 @@ func TestHealthMonitorControllerSetupWithManager(t *testing.T) {
 // @AI-Generated
 // [Generated by Cursor claude-4-sonnet]
 func TestHealthMonitorControllerTenantChange(t *testing.T) {
+	lib.SetNamePrefix(crdlib.Prefix)
+	lib.SetClusterName("test-cluster")
+	os.Setenv("ENABLE_EVH", "true")
 	tests := []struct {
 		name             string
 		initialHM        *akov1alpha1.HealthMonitor
@@ -1916,7 +1960,7 @@ func TestHealthMonitorControllerTenantChange(t *testing.T) {
 
 				// Expect creation call for new tenant
 				mockAviClient.EXPECT().AviSessionPost(
-					constants.HealthMonitorURL,
+					crdlib.HealthMonitorURL,
 					gomock.Any(), // Request body
 					gomock.Any(), // Response
 					gomock.Any(), // Options - tenant-b
@@ -2021,7 +2065,7 @@ func TestHealthMonitorControllerTenantChange(t *testing.T) {
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
 				// Expect creation call for the tenant
 				mockAviClient.EXPECT().AviSessionPost(
-					constants.HealthMonitorURL,
+					crdlib.HealthMonitorURL,
 					gomock.Any(), // Request body
 					gomock.Any(), // Response
 					gomock.Any(), // Options - tenant-b

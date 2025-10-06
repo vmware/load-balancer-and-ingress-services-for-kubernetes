@@ -25,10 +25,11 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/event"
+	crdlib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/lib"
 	session2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/session"
 	utils2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
@@ -95,6 +96,8 @@ func main() {
 		}
 	}
 
+	os.Setenv(lib.ENABLE_EVH, "true")
+
 	// Initialize singleton session
 	sessionManager := session2.InitializeSessionInstance(kubeClient, eventManager)
 	if err := sessionManager.PopulateControllerProperties(ctx); err != nil {
@@ -104,13 +107,14 @@ func main() {
 	sessionManager.CreateAviClients(ctx, 4)
 	aviClients := sessionManager.GetAviClients()
 	clusterName := os.Getenv("CLUSTER_NAME")
+	lib.SetNamePrefix(crdlib.Prefix)
 
 	cacheManager := cache.NewCache(
 		session2.NewAviSessionClient(aviClients.AviClient[0]),
 		clusterName)
 
-	if err := cacheManager.PopulateCache(ctx, constants.HealthMonitorURL,
-		constants.ApplicationProfileURL, constants.PKIProfileURL); err != nil {
+	if err := cacheManager.PopulateCache(ctx, crdlib.HealthMonitorURL,
+		crdlib.ApplicationProfileURL, crdlib.PKIProfileURL); err != nil {
 		setupLog.Fatalf("unable to populate cacheManager. error: %s", err.Error())
 	}
 	utils.AviLog.SetLevel(GetEnvOrDefault("LOG_LEVEL", "INFO"))

@@ -29,7 +29,7 @@ import (
 	"github.com/vmware/alb-sdk/go/session"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/api/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/cache"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/constants"
+	crdlib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/lib"
 	avisession "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/session"
 	controllerutils "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/utils"
 
@@ -108,8 +108,8 @@ func (r *PKIProfileReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	}
 	patch := client.MergeFrom(pki.DeepCopy())
 	if pki.ObjectMeta.DeletionTimestamp.IsZero() {
-		if !controllerutil.ContainsFinalizer(pki, constants.PKIProfileFinalizer) {
-			controllerutil.AddFinalizer(pki, constants.PKIProfileFinalizer)
+		if !controllerutil.ContainsFinalizer(pki, crdlib.PKIProfileFinalizer) {
+			controllerutil.AddFinalizer(pki, crdlib.PKIProfileFinalizer)
 			if err := r.Patch(ctx, pki, patch); err != nil {
 				log.Error("Failed to add finalizer to PKIProfile")
 				return ctrl.Result{}, err
@@ -122,7 +122,7 @@ func (r *PKIProfileReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			return ctrl.Result{}, err
 		}
 		if removeFinalizer {
-			controllerutil.RemoveFinalizer(pki, constants.PKIProfileFinalizer)
+			controllerutil.RemoveFinalizer(pki, crdlib.PKIProfileFinalizer)
 			if err := r.Patch(ctx, pki, patch); err != nil {
 				return ctrl.Result{}, err
 			}
@@ -130,7 +130,7 @@ func (r *PKIProfileReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			if err := r.Status().Update(ctx, pki); err != nil {
 				return ctrl.Result{}, err
 			}
-			return ctrl.Result{RequeueAfter: constants.RequeueInterval}, nil
+			return ctrl.Result{RequeueAfter: crdlib.RequeueInterval}, nil
 		}
 		r.EventRecorder.Event(pki, corev1.EventTypeNormal, "Deleted", "PKIProfile deleted successfully from Avi Controller")
 		log.Info("successfully deleted PKIProfile")
@@ -186,7 +186,7 @@ func (r *PKIProfileReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *PKIProfileReconciler) DeleteObject(ctx context.Context, pki *akov1alpha1.PKIProfile) (error, bool) {
 	log := utils.LoggerFromContext(ctx)
 	if pki.Status.UUID != "" && pki.Status.Tenant != "" {
-		if err := r.AviClient.AviSessionDelete(utils.GetUriEncoded(fmt.Sprintf("%s/%s", constants.PKIProfileURL, pki.Status.UUID)), nil, nil, session.SetOptTenant(pki.Status.Tenant)); err != nil {
+		if err := r.AviClient.AviSessionDelete(utils.GetUriEncoded(fmt.Sprintf("%s/%s", crdlib.PKIProfileURL, pki.Status.UUID)), nil, nil, session.SetOptTenant(pki.Status.Tenant)); err != nil {
 			// Handle 404 as success case - object doesn't exist, which is the desired state for delete
 			if aviError, ok := err.(session.AviError); ok {
 				switch aviError.HttpStatusCode {
@@ -249,7 +249,7 @@ func (r *PKIProfileReconciler) ReconcileIfRequired(ctx context.Context, pki *ako
 	}
 
 	// Create PKI profile using AVI SDK model directly
-	name := fmt.Sprintf("%s-%s-%s", r.ClusterName, pki.Namespace, pki.Name)
+	name := crdlib.GetObjectName(pki.Namespace, pki.Name)
 	tenantRef := fmt.Sprintf("/api/tenant/?name=%s", namespaceTenant)
 	createdBy := fmt.Sprintf("ako-crd-operator-%s", r.ClusterName)
 
@@ -296,7 +296,7 @@ func (r *PKIProfileReconciler) ReconcileIfRequired(ctx context.Context, pki *ako
 		}
 		log.Debugf("overwriting pki profile")
 		resp := map[string]interface{}{}
-		if err := r.AviClient.AviSessionPut(utils.GetUriEncoded(fmt.Sprintf("%s/%s", constants.PKIProfileURL, pki.Status.UUID)), pkiReq, &resp, session.SetOptTenant(namespaceTenant)); err != nil {
+		if err := r.AviClient.AviSessionPut(utils.GetUriEncoded(fmt.Sprintf("%s/%s", crdlib.PKIProfileURL, pki.Status.UUID)), pkiReq, &resp, session.SetOptTenant(namespaceTenant)); err != nil {
 			log.Errorf("error updating pki profile %s", err.Error())
 			r.SetStatus(ctx, pki, "Ready", "UpdateFailed", fmt.Sprintf("Failed to update PKIProfile on Avi Controller: %v", err))
 			return err
@@ -312,12 +312,12 @@ func (r *PKIProfileReconciler) ReconcileIfRequired(ctx context.Context, pki *ako
 func (r *PKIProfileReconciler) createPKIProfile(ctx context.Context, pkiReq *models.PKIprofile, pki *akov1alpha1.PKIProfile, tenant string) (map[string]interface{}, error) {
 	log := utils.LoggerFromContext(ctx)
 	resp := map[string]interface{}{}
-	if err := r.AviClient.AviSessionPost(utils.GetUriEncoded(constants.PKIProfileURL), pkiReq, &resp, session.SetOptTenant(tenant)); err != nil {
+	if err := r.AviClient.AviSessionPost(utils.GetUriEncoded(crdlib.PKIProfileURL), pkiReq, &resp, session.SetOptTenant(tenant)); err != nil {
 		log.Errorf("error posting pki profile: %s", err.Error())
 		if aviError, ok := err.(session.AviError); ok {
 			if aviError.HttpStatusCode == http.StatusConflict && strings.Contains(aviError.Error(), "already exists") {
 				log.Info("pki profile already exists. trying to get uuid")
-				err := r.AviClient.AviSessionGet(utils.GetUriEncoded(fmt.Sprintf("%s?name=%s", constants.PKIProfileURL, *pkiReq.Name)), &resp, session.SetOptTenant(tenant))
+				err := r.AviClient.AviSessionGet(utils.GetUriEncoded(fmt.Sprintf("%s?name=%s", crdlib.PKIProfileURL, *pkiReq.Name)), &resp, session.SetOptTenant(tenant))
 				if err != nil {
 					log.Errorf("error getting pki profile %s", err.Error())
 					return nil, err
@@ -328,7 +328,7 @@ func (r *PKIProfileReconciler) createPKIProfile(ctx context.Context, pkiReq *mod
 					return nil, err
 				}
 				log.Info("updating pki profile")
-				if err := r.AviClient.AviSessionPut(utils.GetUriEncoded(fmt.Sprintf("%s/%s", constants.PKIProfileURL, uuid)), pkiReq, &resp, session.SetOptTenant(tenant)); err != nil {
+				if err := r.AviClient.AviSessionPut(utils.GetUriEncoded(fmt.Sprintf("%s/%s", crdlib.PKIProfileURL, uuid)), pkiReq, &resp, session.SetOptTenant(tenant)); err != nil {
 					log.Errorf("error updating pki profile", err.Error())
 					return nil, err
 				}
