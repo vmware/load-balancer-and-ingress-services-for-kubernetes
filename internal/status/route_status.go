@@ -450,8 +450,11 @@ func updateRouteAnnotations(mRoute *routev1.Route, updateOption UpdateOptions, o
 	}
 	// compare the VirtualService annotations for this Route object
 	if req := isAnnotationsUpdateRequired(mRoute.Annotations, vsAnnotations, updateOption.Tenant, false); req {
-		if err := patchRouteAnnotations(mRoute, vsAnnotations, updateOption.Tenant); err != nil && k8serrors.IsNotFound(err) {
+		if err := patchRouteAnnotations(mRoute, vsAnnotations, updateOption.Tenant); err != nil {
 			utils.AviLog.Errorf("key: %s, msg: error in updating the route annotations: %v", key, err)
+			if k8serrors.IsNotFound(err) {
+				return err
+			}
 			// fetch updated route and retry for updating annotations
 			mRoutes := getRoutes([]string{mRoute.Namespace + "/" + mRoute.Name}, false)
 			if len(mRoutes) > 0 {
