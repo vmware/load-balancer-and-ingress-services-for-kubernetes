@@ -81,19 +81,13 @@ func (rest *RestOperations) AviVrfBuild(key string, vrfNode *nodes.AviVrfNode, u
 	vrf.StaticRoutes = []*avimodels.StaticRoute{}
 	vrf.StaticRoutes = append(vrf.StaticRoutes, mergedStaticRoutes...)
 
-	opTenant := lib.GetAdminTenant()
-	if lib.GetCloudType() == lib.CLOUD_OPENSTACK || lib.GetTenant() != "" {
-		//In case of Openstack cloud, use tenant vrf
-		opTenant = lib.GetTenant()
-	}
-
 	utils.AviLog.Infof("key: %s, VRF object to be sent for update to controller %s", key, vrf.StaticRoutes)
 
 	rest_op := utils.RestOp{
 		Path:    path,
 		Method:  utils.RestPut,
 		Obj:     vrf,
-		Tenant:  opTenant,
+		Tenant:  lib.GetTenant(),
 		Model:   "VrfContext",
 		ObjName: vrfCacheObj.Name,
 	}
