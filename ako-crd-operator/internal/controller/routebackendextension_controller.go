@@ -135,7 +135,7 @@ func (r *RouteBackendExtensionReconciler) SetupWithManager(mgr ctrl.Manager) err
 	// Add indexer for RouteBackendExtension by PKIProfile reference
 	if err := mgr.GetFieldIndexer().IndexField(context.Background(), &akov1alpha1.RouteBackendExtension{}, PKIProfileIndexKey, func(rawObj client.Object) []string {
 		rbe := rawObj.(*akov1alpha1.RouteBackendExtension)
-		if rbe.Spec.BackendTLS.PKIProfile != nil && rbe.Spec.BackendTLS.PKIProfile.Kind == akov1alpha1.ObjectKindCRD {
+		if rbe.Spec.BackendTLS != nil && rbe.Spec.BackendTLS.PKIProfile != nil && rbe.Spec.BackendTLS.PKIProfile.Kind == akov1alpha1.ObjectKindCRD {
 			return []string{rbe.Spec.BackendTLS.PKIProfile.Name}
 		}
 		return nil

@@ -104,6 +104,7 @@ const (
 	ControllerAPIHeader           = "userHeader"
 	ControllerAPIScheme           = "scheme"
 	XAviUserAgentHeader           = "X-Avi-UserAgent"
+	HelmSecretType                = "helm.sh/release.v1"
 
 	RefreshAuthTokenInterval = 12  //hours
 	AuthTokenExpiry          = 240 //hours
@@ -123,4 +124,8 @@ const (
 	// Constants used in Gateway context
 	WILDCARD         = "*"
 	FQDN_LABEL_REGEX = "([a-z0-9-]{1,})"
+
+	// Constants used for VKS Managed Mode
+	VKS_MANAGED      = "MANAGED"
+	ENV_CTRL_ADDRESS = "CTRL_ADDRESS"
 )

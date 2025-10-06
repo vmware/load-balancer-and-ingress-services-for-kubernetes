@@ -45,6 +45,11 @@ spec:
                 configMapKeyRef:
                   name: avi-k8s-config
                   key: controllerIP
+            - name: DEDICATED_TENANT_MODE
+              valueFrom:
+                configMapKeyRef:
+                  name: avi-k8s-config
+                  key: dedicatedTenantMode
             - name: CTRL_VERSION
               valueFrom:
                 configMapKeyRef:

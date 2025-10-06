@@ -8,6 +8,7 @@ import (
 	avisession "github.com/vmware/alb-sdk/go/session"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/session"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/types"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
@@ -44,7 +45,7 @@ func (c *cache) PopulateCache(ctx context.Context, urls ...string) error {
 		for url != "" {
 			dataList := []map[string]interface{}{}
 			// TODO: use ako-crd-operator session object interface instead directly accessing
-			result, err := c.session.AviSessionGetCollectionRaw(url, params, avisession.SetOptTenant("*"))
+			result, err := c.session.AviSessionGetCollectionRaw(url, params, avisession.SetOptTenant(lib.GetQueryTenant()))
 			url = result.Next
 			if err != nil {
 				return err
