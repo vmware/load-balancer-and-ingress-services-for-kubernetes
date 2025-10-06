@@ -159,30 +159,7 @@ spec:
 
 **Note**: Ensure the Gateway API CRDs are installed in your cluster. The `avi-lb` GatewayClass is automatically created by AKO installation.
 
-### 5. Create a LoadBalancer Service with Local Traffic Policy (NodePort Mode)
-
-When using NodePort mode (`serviceType: NodePort`), LoadBalancer services also support `externalTrafficPolicy: Local`:
-
-```yaml
-apiVersion: v1
-kind: Service
-metadata:
-  name: my-svc
-  namespace: hostrule-ns
-spec:
-  type: LoadBalancer
-  externalTrafficPolicy: Local
-  selector:
-    name: ew-app
-  ports:
-  - protocol: TCP
-    port: 80
-    targetPort: 8080
-```
-
-AKO will create an L4 Virtual Service and populate the pool with only those nodes that have running pods matching the selector `name: ew-app`.
-
-### 6. Create an OpenShift Route (OpenShift-specific alternative)
+### 5. Create an OpenShift Route (OpenShift-specific alternative)
 
 ```yaml
 apiVersion: route.openshift.io/v1
@@ -210,6 +187,29 @@ spec:
       <private-key-content>
       -----END PRIVATE KEY-----
 ```
+
+### 6. Create a LoadBalancer Service with Local Traffic Policy (NodePort Mode)
+
+When using NodePort mode (`serviceType: NodePort`), LoadBalancer services also support `externalTrafficPolicy: Local`:
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-svc
+  namespace: hostrule-ns
+spec:
+  type: LoadBalancer
+  externalTrafficPolicy: Local
+  selector:
+    name: ew-app
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080
+```
+
+**Note**: The NodePort service created in step 1 is not required for LoadBalancer services. Kubernetes automatically allocates a NodePort when a LoadBalancer service is created. AKO will create an L4 Virtual Service and populate the pool with only those nodes that have running pods matching the selector `name: ew-app`.
 
 ## Behavior Comparison
 
