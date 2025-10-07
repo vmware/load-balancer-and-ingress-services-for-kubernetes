@@ -147,8 +147,12 @@ type RouteBackendExtensionStatus struct {
 	// Field is populated by AKO CRD operator as ako-crd-operator
 	// +optional
 	Controller string `json:"controller,omitempty"`
-	Error      string `json:"error,omitempty"`
-	Status     string `json:"status,omitempty"`
+	// Defines the error occurred due to which CRD object is transitioned to Rejected state.
+	// +optional
+	Error string `json:"error,omitempty"`
+	// Defines state of CRD object - Accepted/Rejected.
+	// +optional
+	Status string `json:"status,omitempty"`
 }
 
 // +genclient

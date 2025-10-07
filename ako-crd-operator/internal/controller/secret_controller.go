@@ -150,7 +150,6 @@ func (r *SecretReconciler) GetRegisteredReconcilers() []string {
 }
 
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
-// +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // Reconcile handles secret update events
 func (r *SecretReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {

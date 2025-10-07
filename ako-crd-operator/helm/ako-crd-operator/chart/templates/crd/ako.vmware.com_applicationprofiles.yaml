@@ -46,7 +46,7 @@ spec:
                 properties:
                   client_body_timeout:
                     description: |-
-                      The maximum length of time allowed between consecutive read operations for a client request body. The value '0' specifies no timeout. This setting generally impacts the length of time allowed for a client to send a POST.
+                      The maximum time - in milliseconds - the server will wait between 2 consecutive read operations of a client request's body chunk. The value '0' specifies no timeout. This setting generally impacts the time allowed for a client to send a POST request with a body, it does not limit the time for the entire request body to be sent.
                       (units) = MILLISECONDS,
                     format: int32
                     maximum: 100000000
@@ -54,7 +54,7 @@ spec:
                     type: integer
                   client_max_body_size:
                     description: |-
-                      Maximum size for the client request body.  This limits the size of the client data that can be uploaded/posted as part of a single HTTP Request.  Default 0 => Unlimited."
+                      Maximum size for the client request body.  This limits the size of the client data that can be uploaded/posted as part of a single HTTP Request. The default value is 0 and means there is no size limit.
                       (units) = KB,
                     format: int32
                     type: integer
@@ -66,9 +66,11 @@ spec:
                     description: Allows HTTP requests, not just TCP connections, to
                       be load balanced across servers. Proxied TCP connections to
                       servers may be reused by multiple clients to improve performance.
-                      Not compatible with Preserve Client IP.
+                      This feature can not be enabled if the 'Preserve Client IP'
+                      feature is enabled.
                     type: boolean
                   enable_chunk_merge:
+                    default: true
                     description: Enable chunk body merge for chunked transfer encoding
                       response.
                     type: boolean
@@ -76,14 +78,14 @@ spec:
                     description: |-
                       Size of HTTP buffer in kB.
                       (units) = KB,
-                      (special_values) =  "{\"0\": \"Auto compute the size of buffer\"}",
+                      (special_values) =  {'0': 'Auto compute the size of buffer'},
                     format: int32
                     maximum: 256
                     minimum: 0
                     type: integer
                   keepalive_header:
                     description: Send HTTP 'Keep-Alive' header to the client. By default,
-                      the timeout specified in the 'Keep-Alive Timeout' field will
+                      the timeout specified in the 'keepalive_timeout' field will
                       be used unless the 'Use App Keepalive Timeout' flag is set,
                       in which case the timeout sent by the application will be honored.
                     type: boolean
@@ -96,6 +98,7 @@ spec:
                     minimum: 10
                     type: integer
                   max_header_count:
+                    default: 256
                     description: |-
                       Maximum number of headers allowed in HTTP request and response.
                       (special_values) =  "{\"0\": \"unlimited headers in request and response\"}",

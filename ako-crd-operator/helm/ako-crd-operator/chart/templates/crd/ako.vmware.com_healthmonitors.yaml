@@ -70,8 +70,9 @@ spec:
                     - AUTH_NTLM
                     type: string
                   exact_http_request:
-                    description: ExactHttpRequest checks if the whole http request
-                      should match.
+                    default: false
+                    description: Use the exact http_request string as specified by
+                      user without any automatic insert of headers like Host header.
                     type: boolean
                   http_request:
                     default: GET / HTTP/1.0
@@ -115,7 +116,8 @@ spec:
                       for maintenance response.
                     type: string
                   response_size:
-                    description: ResponseSize is the expected size of the response.
+                    description: ResponseSize is the expected size in Bytes of the
+                      response.
                     format: int32
                     maximum: 16384
                     minimum: 2048
@@ -128,11 +130,11 @@ spec:
                     !self.exact_http_request))|| !(has(self.auth_type))
               is_federated:
                 description: |-
-                  IsFederated describes the object's replication scope. If the
-                  field is set to false, then the object is visible within
-                  the controller-cluster and its associated service-engines.
-                  If the field is set to true, then the object is replicated
-                  across the federation
+                  IsFederated is an immutable field that describes the object's
+                  replication scope. If the field is set to false, then the
+                  object is visible within the controller-cluster and its
+                  associated service-engines. If the field is set to true
+                  then the object is replicated across the federation.
                 type: boolean
                 x-kubernetes-validations:
                 - message: is_federated is immutable

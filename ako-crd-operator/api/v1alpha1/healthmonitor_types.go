@@ -83,11 +83,11 @@ type HealthMonitorSpec struct {
 	// +optional
 	Authentication *HealthMonitorInfo `json:"authentication,omitempty"`
 
-	// IsFederated describes the object's replication scope. If the
-	// field is set to false, then the object is visible within
-	// the controller-cluster and its associated service-engines.
-	// If the field is set to true, then the object is replicated
-	// across the federation
+	// IsFederated is an immutable field that describes the object's
+	// replication scope. If the field is set to false, then the
+	// object is visible within the controller-cluster and its
+	// associated service-engines. If the field is set to true
+	// then the object is replicated across the federation.
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="is_federated is immutable"
 	IsFederated bool `json:"is_federated,omitempty"`
 
@@ -165,15 +165,16 @@ type HTTPMonitor struct {
 	// +optional
 	// +kubebuilder:validation: MaxLength=512
 	MaintenanceResponse string `json:"maintenance_response,omitempty"`
-	// ExactHttpRequest checks if the whole http request should match.
+	// Use the exact http_request string as specified by user without any automatic insert of headers like Host header.
 	// +optional
+	// +kubebuilder:default=false
 	ExactHttpRequest bool `json:"exact_http_request,omitempty"`
 	// AuthType is the type of authentication to use.
 	AuthType HealthMonitorAuth `json:"auth_type,omitempty"` // Handle enum conversion
 	// HTTPRequestBody is the request body to send.
 	// +optional
 	HTTPRequestBody string `json:"http_request_body,omitempty"`
-	// ResponseSize is the expected size of the response.
+	// ResponseSize is the expected size in Bytes of the response.
 	// +optional
 	// +kubebuilder:validation:Minimum=2048
 	// +kubebuilder:validation:Maximum=16384

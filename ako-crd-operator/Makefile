@@ -96,7 +96,7 @@ build: manifests generate fmt vet ## Build manager binary.
 
 .PHONY: build-local-crd-operator
 build-local-crd-operator:
-	go build -o bin/manager -mod=vendor cmd/main.go
+	go build -o bin/manager -mod=vendor ./cmd
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
