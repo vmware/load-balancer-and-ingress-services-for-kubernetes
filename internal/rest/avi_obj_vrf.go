@@ -67,8 +67,8 @@ func (rest *RestOperations) AviVrfBuild(key string, vrfNode *nodes.AviVrfNode, u
 	aviStaticRoutes := vrf.StaticRoutes
 	mergedStaticRoutes := []*avimodels.StaticRoute{}
 	clusterName := lib.GetClusterName()
-	utils.AviLog.Infof("key: %s, VRF object in controller %s", key, aviStaticRoutes)
-	utils.AviLog.Infof("key: %s, VRF object in ako cache %s", key, nodeStaticRoutes)
+	utils.AviLog.Infof("key: %s, VRF object in controller %s", key, utils.Stringify(aviStaticRoutes))
+	utils.AviLog.Infof("key: %s, VRF object in ako cache %s", key, utils.Stringify(nodeStaticRoutes))
 	for _, aviStaticRoute := range aviStaticRoutes {
 		if len(aviStaticRoute.Labels) == 0 || (*aviStaticRoute.Labels[0].Key == "clustername" && *aviStaticRoute.Labels[0].Value != clusterName) {
 			mergedStaticRoutes = append(mergedStaticRoutes, aviStaticRoute)
@@ -87,7 +87,7 @@ func (rest *RestOperations) AviVrfBuild(key string, vrfNode *nodes.AviVrfNode, u
 		opTenant = lib.GetTenant()
 	}
 
-	utils.AviLog.Infof("key: %s, VRF object to be sent for update to controller %s", key, vrf.StaticRoutes)
+	utils.AviLog.Infof("key: %s, VRF object to be sent for update to controller %s", key, utils.Stringify(vrf.StaticRoutes))
 
 	rest_op := utils.RestOp{
 		Path:    path,
