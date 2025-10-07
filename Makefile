@@ -68,16 +68,9 @@ endif
 .PHONY: all
 all: build docker
 
-.PHONY: sync-crd-files
-sync-crd-files:
-		cp ./helm/ako/crds/* ./ako-operator/helm/ako-operator/crds/
-
-.PHONY: pre-build
-pre-build: sync-crd-files
-
 # builds
 .PHONY: build
-build: pre-build glob-vars
+build: glob-vars
 		sudo docker run \
 		-w=/go/src/$(PACKAGE_PATH_AKO) \
 		-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
@@ -88,7 +81,7 @@ build: pre-build glob-vars
 		/go/src/$(REL_PATH_AKO)
 
 .PHONY: build-infra
-build-infra: pre-build glob-vars
+build-infra: glob-vars
 		sudo docker run \
 		-w=/go/src/$(PACKAGE_PATH_AKO) \
 		-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
@@ -110,7 +103,7 @@ build-gateway-api: glob-vars
 		/go/src/$(REL_PATH_AKO_GATEWAY_API)
 
 .PHONY: build-local
-build-local: pre-build
+build-local:
 		$(GOBUILD) \
 		-o bin/$(BINARY_NAME_AKO) \
 		-ldflags $(AKO_LDFLAGS) \
@@ -118,7 +111,7 @@ build-local: pre-build
 		./cmd/ako-main
 
 .PHONY: build-local-infra
-build-local-infra: pre-build
+build-local-infra:
 		$(GOBUILD) \
 		-o bin/$(BINARY_NAME_AKO_INFRA) \
 		-ldflags $(AKO_LDFLAGS) \
@@ -168,7 +161,7 @@ ako-operator-docker: glob-vars
 	--label "BUILD_TAG=$(BUILD_TAG)" \
 	--label "BUILD_TIME=$(BUILD_TIME)" \
 	$(BUILD_ARG_GOLANG) $(BUILD_ARG_UBI) \
-	-f Dockerfile.ako-operator .
+	-f ako-operator/Dockerfile .
 
 .PHONY: ako-crd-operator-build-all
 ako-crd-operator-build:
