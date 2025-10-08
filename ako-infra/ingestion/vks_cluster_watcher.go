@@ -99,6 +99,7 @@ type VKSClusterWatcher struct {
 	testMode            bool
 	mockCredentialsFunc func(string, string) (*lib.ClusterCredentials, error)
 	mockRBACFunc        func(string) error
+	mockCleanupFunc     func(string, string) error // func(clusterNameWithUID, tenant) error
 }
 
 // getUniqueClusterName generates a unique cluster identifier in format: clustername[:15]-hash
@@ -339,7 +340,7 @@ func (w *VKSClusterWatcher) HandleProvisionedCluster(cluster *unstructured.Unstr
 
 	case !shouldManage && secretExists:
 		utils.AviLog.Infof("Cluster opted out of VKS management, cleaning up all VKS dependencies for cluster: %s/%s (UID: %s)", clusterNamespace, cluster.GetName(), cluster.GetUID())
-		if err := w.cleanupClusterDependencies(ctx, cluster.GetName(), clusterNamespace, clusterNameWithUID); err != nil {
+		if err := w.cleanupClusterDependencies(cluster.GetName(), clusterNamespace, clusterNameWithUID); err != nil {
 			return fmt.Errorf("failed to cleanup dependencies for cluster %s/%s (UID: %s): %v", clusterNamespace, cluster.GetName(), cluster.GetUID(), err)
 		}
 		utils.AviLog.Infof("Initiated async cleanup for opted-out cluster: %s/%s (UID: %s)", clusterNamespace, cluster.GetName(), cluster.GetUID())
@@ -356,10 +357,7 @@ func (w *VKSClusterWatcher) HandleProvisionedCluster(cluster *unstructured.Unstr
 func (w *VKSClusterWatcher) handleClusterDeletion(namespace, name, clusterNameWithUID string) error {
 	utils.AviLog.Infof("Cleaning up dependencies for deleted cluster: %s/%s", namespace, name)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-
-	if err := w.cleanupClusterDependencies(ctx, name, namespace, clusterNameWithUID); err != nil {
+	if err := w.cleanupClusterDependencies(name, namespace, clusterNameWithUID); err != nil {
 		utils.AviLog.Errorf("Failed to cleanup dependencies for cluster %s/%s: %v", namespace, name, err)
 		return err
 	}
@@ -378,7 +376,7 @@ func (w *VKSClusterWatcher) GetClusterPhase(cluster *unstructured.Unstructured) 
 }
 
 // cleanupClusterDependencies removes all dependency resources for a deleted cluster
-func (w *VKSClusterWatcher) cleanupClusterDependencies(ctx context.Context, clusterName, clusterNamespace, clusterNameWithUID string) error {
+func (w *VKSClusterWatcher) cleanupClusterDependencies(clusterName, clusterNamespace, clusterNameWithUID string) error {
 	utils.AviLog.Infof("Cleaning up VKS dependencies for cluster %s/%s", clusterNamespace, clusterName)
 
 	if clusterNameWithUID == "" {
@@ -392,7 +390,6 @@ func (w *VKSClusterWatcher) cleanupClusterDependencies(ctx context.Context, clus
 		utils.AviLog.Infof("Could not determine cluster identifier for %s/%s - likely already cleaned up", clusterNamespace, clusterName)
 	}
 
-	utils.AviLog.Infof("Initiated cleanup of VKS dependencies for cluster %s/%s", clusterNamespace, clusterName)
 	return nil
 }
 
@@ -476,6 +473,11 @@ func (w *VKSClusterWatcher) cleanupAviObjects(ctx context.Context, clusterName, 
 	tenant, exists := secret.Data["tenantName"]
 	if !exists {
 		return fmt.Errorf("secret %s/%s missing tenantName field", clusterNamespace, secretName)
+	}
+
+	// Use mock cleanup in test mode
+	if w.testMode && w.mockCleanupFunc != nil {
+		return w.mockCleanupFunc(clusterNameWithUID, string(tenant))
 	}
 
 	utils.AviLog.Infof("Cleaning up objects for cluster %s in tenant '%s' using cluster-specific credentials", clusterNameWithUID, string(tenant))
@@ -592,13 +594,19 @@ func (w *VKSClusterWatcher) deleteAviObjects(aviClient *clients.AviClient, creat
 		"/api/stringgroup",
 	}
 
+	var errors []string
 	for _, apiPath := range objectTypes {
 		utils.AviLog.Infof("Cleaning up %s for %s", apiPath, createdBy)
 		if err := w.deleteObjectsOfType(aviClient, apiPath, createdBy); err != nil {
-			utils.AviLog.Warnf("Failed to cleanup %s: %v", apiPath, err)
+			errorMsg := fmt.Sprintf("failed to cleanup %s: %v", apiPath, err)
+			utils.AviLog.Warnf("%s", errorMsg)
+			errors = append(errors, errorMsg)
 		}
 	}
 
+	if len(errors) > 0 {
+		return fmt.Errorf("object cleanup failures: %s", strings.Join(errors, "; "))
+	}
 	return nil
 }
 
@@ -1220,6 +1228,12 @@ func (w *VKSClusterWatcher) SetTestMode(mockFunc func(string, string) (*lib.Clus
 	w.mockCredentialsFunc = mockFunc
 	w.mockRBACFunc = func(clusterName string) error {
 		utils.AviLog.Infof("Mock RBAC cleanup for cluster: %s", clusterName)
+		return nil
+	}
+	w.mockCleanupFunc = func(clusterNameWithUID, tenant string) error {
+		utils.AviLog.Infof("Mock: Successfully cleaned up Avi objects for cluster %s in tenant %s", clusterNameWithUID, tenant)
+		// Simulate some processing time
+		time.Sleep(50 * time.Millisecond)
 		return nil
 	}
 }
