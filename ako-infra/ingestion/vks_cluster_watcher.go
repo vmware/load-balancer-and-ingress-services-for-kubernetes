@@ -1241,10 +1241,10 @@ func (w *VKSClusterWatcher) SetTestMode(mockFunc func(string, string) (*lib.Clus
 func (w *VKSClusterWatcher) startPeriodicReconciler() {
 	utils.AviLog.Infof("Starting VKS periodic reconciler with interval %v", VKSReconcileInterval)
 
-	w.reconcileTicker = time.NewTicker(VKSReconcileInterval)
+	ticker := time.NewTicker(VKSReconcileInterval)
+	w.reconcileTicker = ticker
 
 	go func() {
-		ticker := w.reconcileTicker
 		for {
 			select {
 			case <-ticker.C:
