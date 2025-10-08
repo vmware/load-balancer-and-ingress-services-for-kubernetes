@@ -164,8 +164,11 @@ spec:
                 description: Field is populated by AKO CRD operator as ako-crd-operator
                 type: string
               error:
+                description: Defines the error occurred due to which CRD object is
+                  transitioned to Rejected state.
                 type: string
               status:
+                description: Defines state of CRD object - Accepted/Rejected.
                 type: string
             type: object
         type: object

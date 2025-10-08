@@ -44,6 +44,10 @@ import (
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=gatewayclasses;gatewayclasses/status,verbs=get;list;watch;create;update;patch
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=gateways;gateways/status,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=httproutes;httproutes/status,verbs=get;list;watch;update;patch
+// +kubebuilder:rbac:groups=ako.vmware.com,resources=applicationprofiles;applicationprofiles/status,verbs=get;list;watch
+// +kubebuilder:rbac:groups=ako.vmware.com,resources=healthmonitors;healthmonitors/status,verbs=get;list;watch
+// +kubebuilder:rbac:groups=ako.vmware.com,resources=routebackendextensions;routebackendextensions/status,verbs=get;list;watch
+// +kubebuilder:rbac:groups=ako.vmware.com,resources=pkiprofiles;pkiprofiles/status,verbs=get;list;watch
 
 var controllerInstance *GatewayController
 var ctrlonce sync.Once

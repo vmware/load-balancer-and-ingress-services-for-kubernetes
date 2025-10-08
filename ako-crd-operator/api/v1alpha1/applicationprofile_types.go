@@ -77,7 +77,7 @@ type TrueClientIPConfig struct {
 // +kubebuilder:validation:XValidation:rule="self.xff_enabled || (!has(self.xff_alternate_name) && !has(self.xff_update))",message="xff_alternate_name and xff_update can only be configured if xff_enabled is true"
 // +kubebuilder:validation:XValidation:rule="!(has(self.xff_update) && self.xff_update == 'APPEND_TO_THE_XFF_HEADER' && has(self.xff_alternate_name))",message="if xff_update is APPEND_TO_THE_XFF_HEADER, xff_alternate_name must be an empty string."
 type HTTPApplicationProfile struct {
-	// Allows HTTP requests, not just TCP connections, to be load balanced across servers. Proxied TCP connections to servers may be reused by multiple clients to improve performance. Not compatible with Preserve Client IP.
+	// Allows HTTP requests, not just TCP connections, to be load balanced across servers. Proxied TCP connections to servers may be reused by multiple clients to improve performance. This feature can not be enabled if the 'Preserve Client IP' feature is enabled.
 	// +optional
 	ConnectionMultiplexingEnabled bool `json:"connection_multiplexing_enabled,omitempty"`
 	// The client's original IP address is inserted into an HTTP request header sent to the server. Servers may use this address for logging or other purposes, rather than Avi's source NAT address used in the Avi to server IP connection.
@@ -92,7 +92,7 @@ type HTTPApplicationProfile struct {
 	// Insert an X-Forwarded-Proto header in the request sent to the server. When the client connects via SSL, Avi terminates the SSL, and then forwards the requests to the servers via HTTP, so the servers can determine the original protocol via this header. In this example, the value will be 'https'.
 	// +optional
 	XForwardedProtoEnabled bool `json:"x_forwarded_proto_enabled,omitempty"`
-	// The maximum length of time allowed between consecutive read operations for a client request body. The value '0' specifies no timeout. This setting generally impacts the length of time allowed for a client to send a POST.
+	// The maximum time - in milliseconds - the server will wait between 2 consecutive read operations of a client request's body chunk. The value '0' specifies no timeout. This setting generally impacts the time allowed for a client to send a POST request with a body, it does not limit the time for the entire request body to be sent.
 	// +optional
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=100000000
@@ -107,11 +107,11 @@ type HTTPApplicationProfile struct {
 	// Use 'Keep-Alive' header timeout sent by application instead of sending the HTTP Keep-Alive Timeout.
 	// +optional
 	UseAppKeepaliveTimeout bool `json:"use_app_keepalive_timeout,omitempty"`
-	// Maximum size for the client request body.  This limits the size of the client data that can be uploaded/posted as part of a single HTTP Request.  Default 0 => Unlimited."
+	// Maximum size for the client request body.  This limits the size of the client data that can be uploaded/posted as part of a single HTTP Request. The default value is 0 and means there is no size limit.
 	// +optional
 	// (units) = KB,
 	ClientMaxBodySize uint32 `json:"client_max_body_size,omitempty"`
-	// Send HTTP 'Keep-Alive' header to the client. By default, the timeout specified in the 'Keep-Alive Timeout' field will be used unless the 'Use App Keepalive Timeout' flag is set, in which case the timeout sent by the application will be honored.
+	// Send HTTP 'Keep-Alive' header to the client. By default, the timeout specified in the 'keepalive_timeout' field will be used unless the 'Use App Keepalive Timeout' flag is set, in which case the timeout sent by the application will be honored.
 	// +optional
 	KeepaliveHeader bool `json:"keepalive_header,omitempty"`
 	// The max number of HTTP requests that can be sent over a Keep-Alive connection. '0' means unlimited.
@@ -128,10 +128,11 @@ type HTTPApplicationProfile struct {
 	// (units) = KB,
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=256
-	//(special_values) =  "{\"0\": \"Auto compute the size of buffer\"}",
+	//(special_values) =  {'0': 'Auto compute the size of buffer'},
 	HttpUpstreamBufferSize uint32 `json:"http_upstream_buffer_size,omitempty"`
 	// Enable chunk body merge for chunked transfer encoding response.
 	// +optional
+	// +kubebuilder:default=true
 	EnableChunkMerge bool `json:"enable_chunk_merge,omitempty"`
 	// Detect client IP from user specified header.
 	// +optional
@@ -141,6 +142,7 @@ type HTTPApplicationProfile struct {
 	TrueClientIP *TrueClientIPConfig `json:"true_client_ip,omitempty"`
 	// Maximum number of headers allowed in HTTP request and response.
 	// +optional
+	// +kubebuilder:default=256
 	// +kubebuilder:validation:Minimum=0
 	// +kubebuilder:validation:Maximum=4096
 	// (special_values) =  "{\"0\": \"unlimited headers in request and response\"}",
