@@ -119,7 +119,7 @@ build-local-infra:
 		./cmd/infra-main
 
 .PHONY: build-local-gateway-api
-build-local-gateway-api: pre-build
+build-local-gateway-api:
 		$(GOBUILD) \
 		-o bin/$(BINARY_NAME_AKO_GATEWAY_API) \
 		-ldflags $(AKO_LDFLAGS) \
