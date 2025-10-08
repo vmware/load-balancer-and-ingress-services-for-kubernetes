@@ -342,7 +342,7 @@ func (w *VKSClusterWatcher) HandleProvisionedCluster(cluster *unstructured.Unstr
 		if err := w.cleanupClusterDependencies(ctx, cluster.GetName(), clusterNamespace, clusterNameWithUID); err != nil {
 			return fmt.Errorf("failed to cleanup dependencies for cluster %s/%s (UID: %s): %v", clusterNamespace, cluster.GetName(), cluster.GetUID(), err)
 		}
-		utils.AviLog.Infof("Successfully cleaned up all VKS dependencies for opted-out cluster: %s/%s (UID: %s)", clusterNamespace, cluster.GetName(), cluster.GetUID())
+		utils.AviLog.Infof("Initiated async cleanup for opted-out cluster: %s/%s (UID: %s)", clusterNamespace, cluster.GetName(), cluster.GetUID())
 
 	case !shouldManage && !secretExists:
 		// Should not manage and no secret exists - already in desired state
@@ -381,41 +381,18 @@ func (w *VKSClusterWatcher) GetClusterPhase(cluster *unstructured.Unstructured) 
 func (w *VKSClusterWatcher) cleanupClusterDependencies(ctx context.Context, clusterName, clusterNamespace, clusterNameWithUID string) error {
 	utils.AviLog.Infof("Cleaning up VKS dependencies for cluster %s/%s", clusterNamespace, clusterName)
 
-	secretName := fmt.Sprintf("%s-avi-secret", clusterName)
 	if clusterNameWithUID == "" {
 		clusterNameWithUID = w.getClusterNameWithUIDFromSecret(clusterName, clusterNamespace)
 	}
 
 	if clusterNameWithUID != "" {
-		utils.AviLog.Infof("Cleaning up Avi objects for cluster: %s", clusterNameWithUID)
-		if err := w.cleanupClusterAviObjects(clusterNameWithUID); err != nil {
-			utils.AviLog.Errorf("Avi objects cleanup failed for cluster %s: %v", clusterNameWithUID, err)
-		} else {
-			utils.AviLog.Infof("Successfully cleaned up Avi objects for cluster: %s", clusterNameWithUID)
-		}
-
-		utils.AviLog.Infof("Cleaning up RBAC for cluster: %s", clusterNameWithUID)
-		if err := w.cleanupClusterSpecificRBAC(clusterNameWithUID); err != nil {
-			utils.AviLog.Errorf("RBAC cleanup failed for cluster %s: %v", clusterNameWithUID, err)
-			return fmt.Errorf("RBAC cleanup failed for cluster %s: %v", clusterNameWithUID, err)
-		}
-		utils.AviLog.Infof("Successfully cleaned up RBAC for cluster: %s", clusterNameWithUID)
+		utils.AviLog.Infof("Starting async cleanup for cluster: %s", clusterNameWithUID)
+		w.cleanupClusterAviObjects(clusterName, clusterNameWithUID, clusterNamespace)
 	} else {
 		utils.AviLog.Infof("Could not determine cluster identifier for %s/%s - likely already cleaned up", clusterNamespace, clusterName)
 	}
 
-	err := w.kubeClient.CoreV1().Secrets(clusterNamespace).Delete(ctx, secretName, metav1.DeleteOptions{})
-	if err != nil {
-		if errors.IsNotFound(err) {
-			utils.AviLog.Infof("Avi credentials secret %s/%s already deleted", clusterNamespace, secretName)
-		} else {
-			utils.AviLog.Warnf("Failed to delete Avi credentials secret %s/%s: %v", clusterNamespace, secretName, err)
-		}
-	} else {
-		utils.AviLog.Infof("Deleted Avi credentials secret %s/%s after successful cleanup", clusterNamespace, secretName)
-	}
-
-	utils.AviLog.Infof("Completed cleanup of VKS dependencies for cluster %s/%s", clusterNamespace, clusterName)
+	utils.AviLog.Infof("Initiated cleanup of VKS dependencies for cluster %s/%s", clusterNamespace, clusterName)
 	return nil
 }
 
@@ -437,31 +414,88 @@ func (w *VKSClusterWatcher) getClusterNameWithUIDFromSecret(clusterName, cluster
 	return ""
 }
 
-// cleanupClusterAviObjects removes all Avi objects (VS, pools, etc.) for a VKS cluster
-func (w *VKSClusterWatcher) cleanupClusterAviObjects(clusterNameWithUID string) error {
-	utils.AviLog.Infof("VKS cleanup: Starting Avi objects cleanup for cluster %s", clusterNameWithUID)
+// cleanupClusterAviObjects removes all Avi objects, RBAC, and secret for a VKS cluster
+func (w *VKSClusterWatcher) cleanupClusterAviObjects(clusterName, clusterNameWithUID, clusterNamespace string) {
+	utils.AviLog.Infof("VKS cleanup: Starting async cleanup for cluster %s in namespace %s", clusterNameWithUID, clusterNamespace)
 
 	go func() {
 		cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
 
 		utils.AviLog.Infof("VKS cleanup: Executing Avi objects cleanup for cluster %s", clusterNameWithUID)
-
-		if err := w.cleanupAviObjects(cleanupCtx, clusterNameWithUID); err != nil {
-			utils.AviLog.Errorf("VKS cleanup: Avi objects cleanup failed for cluster %s: %v", clusterNameWithUID, err)
-		} else {
-			utils.AviLog.Infof("VKS cleanup: Successfully completed Avi objects cleanup for cluster %s", clusterNameWithUID)
+		if err := w.cleanupAviObjects(cleanupCtx, clusterName, clusterNameWithUID, clusterNamespace); err != nil {
+			utils.AviLog.Errorf("VKS cleanup: Avi objects cleanup failed for cluster %s: %v - keeping credentials for retry", clusterNameWithUID, err)
+			// Don't delete RBAC or secret if Avi objects cleanup failed
+			return
 		}
-	}()
+		utils.AviLog.Infof("VKS cleanup: Successfully completed Avi objects cleanup for cluster %s", clusterNameWithUID)
 
-	return nil
+		utils.AviLog.Infof("VKS cleanup: Cleaning up RBAC for cluster %s", clusterNameWithUID)
+		if err := w.cleanupClusterSpecificRBAC(clusterNameWithUID); err != nil {
+			utils.AviLog.Errorf("VKS cleanup: RBAC cleanup failed for cluster %s: %v - keeping secret for retry", clusterNameWithUID, err)
+			// Don't delete secret if RBAC cleanup failed
+			return
+		}
+		utils.AviLog.Infof("VKS cleanup: Successfully cleaned up RBAC for cluster %s", clusterNameWithUID)
+
+		secretName := fmt.Sprintf("%s-avi-secret", clusterName)
+		utils.AviLog.Infof("VKS cleanup: Deleting secret %s/%s", clusterNamespace, secretName)
+		err := w.kubeClient.CoreV1().Secrets(clusterNamespace).Delete(context.Background(), secretName, metav1.DeleteOptions{})
+		if err != nil {
+			if errors.IsNotFound(err) {
+				utils.AviLog.Infof("VKS cleanup: Secret %s/%s already deleted", clusterNamespace, secretName)
+			} else {
+				utils.AviLog.Warnf("VKS cleanup: Failed to delete secret %s/%s: %v - will retry in next cycle", clusterNamespace, secretName, err)
+				return
+			}
+		}
+		utils.AviLog.Infof("VKS cleanup: Successfully deleted secret %s/%s", clusterNamespace, secretName)
+
+		utils.AviLog.Infof("VKS cleanup: Completed all cleanup tasks for cluster %s", clusterNameWithUID)
+	}()
 }
 
-func (w *VKSClusterWatcher) cleanupAviObjects(ctx context.Context, clusterNameWithUID string) error {
-	aviClient := avirest.InfraAviClientInstance()
-	if aviClient == nil {
-		return fmt.Errorf("avi client not available")
+func (w *VKSClusterWatcher) cleanupAviObjects(ctx context.Context, clusterName, clusterNameWithUID, clusterNamespace string) error {
+	// Get cluster-specific credentials and tenant from secret
+	secretName := fmt.Sprintf("%s-avi-secret", clusterName)
+	secret, err := utils.GetInformers().SecretInformer.Lister().Secrets(clusterNamespace).Get(secretName)
+	if err != nil {
+		return fmt.Errorf("failed to get secret %s/%s: %v", clusterNamespace, secretName, err)
 	}
+
+	username, exists := secret.Data["username"]
+	if !exists {
+		return fmt.Errorf("secret %s/%s missing username field", clusterNamespace, secretName)
+	}
+
+	password, exists := secret.Data["password"]
+	if !exists {
+		return fmt.Errorf("secret %s/%s missing password field", clusterNamespace, secretName)
+	}
+
+	tenant, exists := secret.Data["tenantName"]
+	if !exists {
+		return fmt.Errorf("secret %s/%s missing tenantName field", clusterNamespace, secretName)
+	}
+
+	utils.AviLog.Infof("Cleaning up objects for cluster %s in tenant '%s' using cluster-specific credentials", clusterNameWithUID, string(tenant))
+
+	controllerIP := lib.GetControllerIP()
+	ctrlProp := utils.SharedCtrlProp().GetAllCtrlProp()
+	caData := ctrlProp[utils.ENV_CTRL_CADATA]
+
+	clusterAviClient, err := w.createCleanupAviClient(controllerIP, string(username), string(password), caData, string(tenant))
+	if err != nil {
+		return fmt.Errorf("failed to create cleanup AVI client: %v", err)
+	}
+	defer func() {
+		if clusterAviClient != nil && clusterAviClient.AviSession != nil {
+			if err := clusterAviClient.AviSession.Logout(); err != nil {
+				utils.AviLog.Warnf("VKS cleanup: Failed to logout cleanup Avi client: %v", err)
+			}
+		}
+		clusterAviClient = nil
+	}()
 
 	prefixes := []string{lib.AKOPrefix, lib.AKOGWPrefix}
 	var errors []string
@@ -474,7 +508,7 @@ func (w *VKSClusterWatcher) cleanupAviObjects(ctx context.Context, clusterNameWi
 		case <-ctx.Done():
 			return ctx.Err()
 		default:
-			if err := w.deleteAviObjects(aviClient, createdBy); err != nil {
+			if err := w.deleteAviObjects(clusterAviClient, createdBy); err != nil {
 				errorMsg := fmt.Sprintf("cleanup failed for %s: %v", createdBy, err)
 				utils.AviLog.Errorf("%s", errorMsg)
 				errors = append(errors, errorMsg)
@@ -491,17 +525,71 @@ func (w *VKSClusterWatcher) cleanupAviObjects(ctx context.Context, clusterNameWi
 	return nil
 }
 
+func (w *VKSClusterWatcher) createCleanupAviClient(controllerIP, username, password, caData, tenant string) (*clients.AviClient, error) {
+	if controllerIP == "" || username == "" || password == "" {
+		return nil, fmt.Errorf("missing required AVI controller connection parameters")
+	}
+
+	ctrlVersion := lib.GetControllerVersion()
+	if ctrlVersion == "" {
+		infraClient := avirest.InfraAviClientInstance()
+		if infraClient != nil && infraClient.AviSession != nil {
+			version, err := infraClient.AviSession.GetControllerVersion()
+			if err != nil {
+				return nil, fmt.Errorf("failed to get controller version: %v", err)
+			}
+
+			maxVersion, err := utils.NewVersion(utils.MaxAviVersion)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse max version: %v", err)
+			}
+			curVersion, err := utils.NewVersion(version)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse controller version: %v", err)
+			}
+			if curVersion.Compare(maxVersion) > 0 {
+				utils.AviLog.Infof("VKS cleanup: Capping controller version %s to max version %s", version, utils.MaxAviVersion)
+				version = utils.MaxAviVersion
+			}
+			ctrlVersion = version
+		} else {
+			return nil, fmt.Errorf("controller version not available")
+		}
+	}
+
+	transport, isSecure := utils.GetHTTPTransportWithCert(caData)
+	options := []func(*session.AviSession) error{
+		session.SetPassword(password),
+		session.DisableControllerStatusCheckOnFailure(true),
+		session.SetTransport(transport),
+		session.SetTimeout(120 * time.Second),
+		session.SetVersion(ctrlVersion),
+		session.SetTenant(tenant),
+	}
+
+	if !isSecure {
+		options = append(options, session.SetInsecure)
+	}
+
+	aviClient, err := clients.NewAviClient(controllerIP, username, options...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create AVI client: %v", err)
+	}
+
+	return aviClient, nil
+}
+
 func (w *VKSClusterWatcher) deleteAviObjects(aviClient *clients.AviClient, createdBy string) error {
 	objectTypes := []string{
+		"/api/virtualservice",
+		"/api/vsvip",
 		"/api/vsdatascriptset",
-		"/api/sslkeyandcertificate",
 		"/api/httppolicyset",
-		"/api/stringgroup",
 		"/api/l4policyset",
 		"/api/poolgroup",
 		"/api/pool",
-		"/api/vsvip",
-		"/api/virtualservice",
+		"/api/sslkeyandcertificate",
+		"/api/stringgroup",
 	}
 
 	for _, apiPath := range objectTypes {
@@ -1225,30 +1313,13 @@ func (w *VKSClusterWatcher) cleanupOrphanedAviObjects(activeVKSClusters map[stri
 	totalOrphanedCount := 0
 	for _, secretInfo := range orphanedSecrets {
 		clusterNameWithUID := secretInfo.ClusterNameWithUID
+		clusterName := strings.TrimSuffix(secretInfo.Name, "-avi-secret")
+
 		utils.AviLog.Infof("VKS reconciler: processing orphaned cluster %s from secret %s/%s",
 			clusterNameWithUID, secretInfo.Namespace, secretInfo.Name)
 
-		utils.AviLog.Infof("VKS reconciler: cleaning up orphaned Avi objects for deleted cluster %s", clusterNameWithUID)
-		if err := w.cleanupClusterAviObjects(clusterNameWithUID); err != nil {
-			utils.AviLog.Errorf("VKS reconciler: Avi objects cleanup failed for cluster %s: %v - continuing with RBAC cleanup", clusterNameWithUID, err)
-		}
-
-		utils.AviLog.Infof("VKS reconciler: cleaning up orphaned RBAC for deleted cluster %s", clusterNameWithUID)
-
-		if err := w.cleanupClusterSpecificRBAC(clusterNameWithUID); err != nil {
-			utils.AviLog.Errorf("VKS reconciler: RBAC cleanup failed for cluster %s: %v - will retry in next cycle", clusterNameWithUID, err)
-			// Continue to next orphaned cluster - don't delete secret if RBAC cleanup failed
-			continue
-		}
-
-		err := w.kubeClient.CoreV1().Secrets(secretInfo.Namespace).Delete(context.Background(), secretInfo.Name, metav1.DeleteOptions{})
-		if err != nil && !errors.IsNotFound(err) {
-			utils.AviLog.Warnf("VKS reconciler: failed to delete orphaned secret %s/%s: %v",
-				secretInfo.Namespace, secretInfo.Name, err)
-		} else {
-			utils.AviLog.Infof("VKS reconciler: deleted orphaned secret %s/%s for cluster %s",
-				secretInfo.Namespace, secretInfo.Name, clusterNameWithUID)
-		}
+		utils.AviLog.Infof("VKS reconciler: starting async cleanup for orphaned cluster %s", clusterNameWithUID)
+		w.cleanupClusterAviObjects(clusterName, clusterNameWithUID, secretInfo.Namespace)
 
 		totalOrphanedCount++
 	}
