@@ -116,13 +116,13 @@ func (cfg *AKOCleanupConfig) Cleanup(ctx context.Context) error {
 			if VPCMode {
 				return nil
 			}
-			return avirest.DeleteServiceEngines()
+			return deleteServiceEngines()
 		},
 		func() error {
 			if VPCMode {
 				return nil
 			}
-			return avirest.DeleteServiceEngineGroup()
+			return deleteServiceEngineGroup()
 		},
 		cleanupVIPNetwork,
 	}
@@ -607,4 +607,82 @@ func convertPemToDer(cert string) string {
 	cert = strings.TrimPrefix(cert, "-----BEGIN CERTIFICATE-----")
 	cert = strings.TrimSuffix(cert, "-----END CERTIFICATE-----")
 	return strings.ReplaceAll(cert, "\n", "")
+}
+
+func deleteServiceEngines(nextURI ...string) error {
+	client := avicache.SharedAVIClients(lib.GetAdminTenant()).AviClient[0]
+	segName := lib.GetClusterID()
+	cloudName := utils.CloudName
+
+	seListUri := "/api/serviceengine/?page_size=100&include_name&se_group_ref.name=" + segName + "&cloud_ref.name=" + cloudName
+	if len(nextURI) > 0 {
+		seListUri = nextURI[0]
+	}
+
+	response := models.ServiceEngineAPIResponse{}
+	err := lib.AviGet(client, seListUri, &response)
+	if err != nil {
+		utils.AviLog.Warnf("Error during Get call for the SEs: %v", err.Error())
+		return err
+	}
+
+	if len(response.Results) == 0 {
+		utils.AviLog.Infof("No service engines found for service engine group %s in cloud %s", segName, cloudName)
+		return nil
+	}
+
+	seUUIDs := []string{}
+	for _, se := range response.Results {
+		seUUIDs = append(seUUIDs, *se.UUID)
+	}
+
+	for _, seUUID := range seUUIDs {
+		deleteUri := "/api/serviceengine/" + seUUID
+		utils.AviLog.Infof("Deleting Service Engine %s", seUUID)
+		if err := lib.AviDelete(client, deleteUri); err != nil {
+			utils.AviLog.Errorf("Error during Delete call for the SE: %s, %s", seUUID, err.Error())
+			return err
+		}
+	}
+
+	if response.Next != nil {
+		// The GET call response had a next page, let's recursively call the same method.
+		nextUri := strings.Split(*response.Next, "/api/serviceengine")
+		if len(nextUri) > 1 {
+			overrideUri := "/api/serviceengine" + nextUri[1]
+			if err := deleteServiceEngines(overrideUri); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func deleteServiceEngineGroup() error {
+	client := avicache.SharedAVIClients(lib.GetAdminTenant()).AviClient[0]
+	segName := lib.GetClusterID()
+	cloudName := utils.CloudName
+
+	segListUri := "/api/serviceenginegroup/?name=" + segName + "&cloud_ref.name=" + cloudName
+	response := models.ServiceEngineGroupAPIResponse{}
+	err := lib.AviGet(client, segListUri, &response)
+	if err != nil {
+		utils.AviLog.Warnf("Error during Get call for the SE group :%v", err.Error())
+		return err
+	}
+
+	if len(response.Results) == 0 {
+		utils.AviLog.Infof("No service engine groups found in cloud %s", cloudName)
+		return nil
+	}
+
+	segUuid := *response.Results[0].UUID
+	deleteSEGUri := "/api/serviceenginegroup/" + segUuid
+	utils.AviLog.Infof("Deleting Service Engine Group %s", segUuid)
+	if err := lib.AviDelete(client, deleteSEGUri); err != nil {
+		utils.AviLog.Errorf("Error during Delete call for the SE: %s, %s", segUuid, err.Error())
+		return err
+	}
+
+	return nil
 }
