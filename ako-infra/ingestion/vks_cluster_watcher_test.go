@@ -35,6 +35,7 @@ import (
 	v1beta1crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned/fake"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -49,6 +50,29 @@ var (
 	informerStartOnce sync.Once
 	stopChInformers   chan struct{}
 )
+
+// waitForSecretDeletion waits for a secret to be deleted (max timeout)
+func waitForSecretDeletion(t *testing.T, kubeClient *k8sfake.Clientset, namespace, secretName string, timeout time.Duration) bool {
+	t.Helper()
+	ctx := context.Background()
+	deadline := time.After(timeout)
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-deadline:
+			t.Logf("Timeout: Secret %s/%s still exists after %v", namespace, secretName, timeout)
+			return false
+		case <-ticker.C:
+			_, err := kubeClient.CoreV1().Secrets(namespace).Get(ctx, secretName, metav1.GetOptions{})
+			if err != nil && errors.IsNotFound(err) {
+				t.Logf("✅ Secret %s/%s successfully deleted", namespace, secretName)
+				return true
+			}
+		}
+	}
+}
 
 // startInformersOnce starts informers only once using sync.Once
 func startInformersOnce() {
@@ -186,6 +210,14 @@ func setupVKSTest(t *testing.T, clusterName, namespaceName, cniRefName string) *
 		utils.NSInformer,
 	}
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, nil)
+
+	// Clear any stale secrets from the informer cache to prevent test pollution
+	if utils.GetInformers().SecretInformer != nil {
+		store := utils.GetInformers().SecretInformer.Informer().GetStore()
+		for _, obj := range store.List() {
+			store.Delete(obj)
+		}
+	}
 
 	// Initialize dynamic informers for cluster operations
 	lib.SetDynamicClientSet(dynamicClient)
@@ -361,18 +393,38 @@ func TestVKSClusterWatcher_ClusterDeletionAndCleanup(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      secretName,
 						Namespace: tt.clusterNamespace,
+						Labels: map[string]string{
+							"cluster-uid": "test-uid-123",
+						},
+					},
+					Data: map[string][]byte{
+						"username":    []byte("admin"),
+						"password":    []byte("password"),
+						"tenantName":  []byte("admin"),
+						"clusterName": []byte("test-cluster-test-uid-123"),
 					},
 				}
 				_, err := setup.KubeClient.CoreV1().Secrets(tt.clusterNamespace).Create(context.Background(), secret, metav1.CreateOptions{})
 				if err != nil {
 					t.Fatalf("Failed to create test secret: %v", err)
 				}
+				// Add secret to informer cache for lookup
+				err = utils.GetInformers().SecretInformer.Informer().GetStore().Add(secret)
+				if err != nil {
+					t.Logf("Warning: Failed to add secret to informer cache: %v", err)
+				}
 			}
 
 			watcher := NewVKSClusterWatcher(setup.KubeClient, setup.DynamicClient)
+			// Set up mock cleanup and credentials for testing
+			watcher.SetTestMode(func(clusterNameWithUID, operationalTenant string) (*lib.ClusterCredentials, error) {
+				return &lib.ClusterCredentials{
+					Username: fmt.Sprintf("vks-cluster-%s-user", clusterNameWithUID),
+					Password: "mock-password",
+				}, nil
+			})
 
-			ctx := context.Background()
-			err := watcher.cleanupClusterDependencies(ctx, tt.clusterName, tt.clusterNamespace, "")
+			err := watcher.cleanupClusterDependencies(tt.clusterName, tt.clusterNamespace, "")
 
 			if tt.expectError && err == nil {
 				t.Error("Expected error but got none")
@@ -383,11 +435,11 @@ func TestVKSClusterWatcher_ClusterDeletionAndCleanup(t *testing.T) {
 			}
 
 			// Verify secret was deleted if it existed
+			// Wait for async cleanup to complete if secret existed
 			if tt.secretExists {
 				secretName := fmt.Sprintf("%s-avi-secret", tt.clusterName)
-				_, err := setup.KubeClient.CoreV1().Secrets(tt.clusterNamespace).Get(ctx, secretName, metav1.GetOptions{})
-				if err == nil {
-					t.Error("Expected secret to be deleted but it still exists")
+				if !waitForSecretDeletion(t, setup.KubeClient, tt.clusterNamespace, secretName, 3*time.Second) {
+					t.Error("Expected secret to be deleted but timeout occurred")
 				}
 			}
 		})
@@ -471,12 +523,16 @@ func TestVKSClusterWatcher_HandleProvisionedCluster(t *testing.T) {
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      secretName,
 						Namespace: tt.clusterNamespace,
+						Labels: map[string]string{
+							"cluster-uid": "test-uid-123",
+						},
 					},
 					Data: map[string][]byte{
 						"username":     []byte("existing-user"),
 						"password":     []byte("existing-password"),
+						"tenantName":   []byte("admin"),
 						"controllerIP": []byte("127.0.0.1"),
-						"clusterName":  []byte(tt.clusterName),
+						"clusterName":  []byte(tt.clusterName + "-test-uid-123"),
 					},
 				}
 				_, err := setup.KubeClient.CoreV1().Secrets(tt.clusterNamespace).Create(context.Background(), secret, metav1.CreateOptions{})
@@ -597,7 +653,7 @@ func TestVKSClusterWatcher_HandleProvisionedCluster(t *testing.T) {
 
 			watcher := NewVKSClusterWatcher(setup.KubeClient, setup.DynamicClient)
 
-			// Set up mock credentials and RBAC function for tests that need secret operations or cleanup
+			// Set up mock credentials, RBAC, and cleanup for tests that need secret operations or cleanup
 			if tt.expectedAction == "create" || tt.expectedAction == "delete" || (tt.expectedAction == "none" && tt.vksLabel == webhook.VKSManagedLabelValueTrue) {
 				watcher.SetTestMode(func(clusterNameWithUID, operationalTenant string) (*lib.ClusterCredentials, error) {
 					return &lib.ClusterCredentials{
@@ -652,8 +708,11 @@ func TestVKSClusterWatcher_HandleProvisionedCluster(t *testing.T) {
 					}
 				}
 			case "delete":
+				// Wait for async cleanup to complete and secret to be deleted
 				if secretExistsAfter {
-					t.Error("Expected secret to be deleted but it still exists")
+					if !waitForSecretDeletion(t, setup.KubeClient, tt.clusterNamespace, secretName, 3*time.Second) {
+						t.Error("Expected secret to be deleted but timeout occurred")
+					}
 				}
 			case "retry":
 				// Secret should remain due to RBAC cleanup failure (correct behavior)
@@ -1456,8 +1515,7 @@ func TestVKSClusterWatcher_CleanupOnDeletion(t *testing.T) {
 	defer setup.Cleanup()
 
 	watcher := NewVKSClusterWatcher(setup.KubeClient, setup.DynamicClient)
-
-	// Set up mock credentials function
+	// Set up mock credentials, RBAC, and cleanup for testing
 	watcher.SetTestMode(func(clusterNameWithUID, operationalTenant string) (*lib.ClusterCredentials, error) {
 		return &lib.ClusterCredentials{
 			Username: fmt.Sprintf("vks-cluster-%s-user", clusterNameWithUID),
@@ -1504,19 +1562,25 @@ func TestVKSClusterWatcher_CleanupOnDeletion(t *testing.T) {
 		t.Errorf("Expected secret name %s, got %s", secretName, secret.Name)
 	}
 
-	// Now test cluster deletion (VKS always does comprehensive cleanup)
-	err = watcher.cleanupClusterDependencies(ctx, "cleanup-test-cluster", "vks-cleanup-test-ns", "")
+	// Now test cluster deletion and wait for async cleanup to complete
+
+	// Add secret to informer cache for cleanup lookup
+	err = utils.GetInformers().SecretInformer.Informer().GetStore().Add(secret)
+	if err != nil {
+		t.Logf("Warning: Failed to add secret to informer cache: %v", err)
+	}
+	err = watcher.cleanupClusterDependencies("cleanup-test-cluster", "vks-cleanup-test-ns", "")
 	if err != nil {
 		t.Errorf("Cleanup should not fail: %v", err)
 	}
 
-	// Verify secret was cleaned up
-	_, err = setup.KubeClient.CoreV1().Secrets("vks-cleanup-test-ns").Get(ctx, secretName, metav1.GetOptions{})
-	if err == nil {
-		t.Error("Expected secret to be deleted but it still exists")
+	// Wait for async cleanup to complete and secret to be deleted
+	if !waitForSecretDeletion(t, setup.KubeClient, "vks-cleanup-test-ns", secretName, 3*time.Second) {
+		t.Error("Secret was not deleted within timeout")
 	}
 
 	t.Log("✅ VKS cluster cleanup on deletion test completed successfully")
+
 }
 
 // TestVKSClusterWatcher_CleanupOnOptOut tests VKS cleanup when cluster opts out
@@ -1529,8 +1593,7 @@ func TestVKSClusterWatcher_CleanupOnOptOut(t *testing.T) {
 	defer setup.Cleanup()
 
 	watcher := NewVKSClusterWatcher(setup.KubeClient, setup.DynamicClient)
-
-	// Set up mock credentials function
+	// Set up mock credentials, RBAC, and cleanup for testing
 	watcher.SetTestMode(func(clusterNameWithUID, operationalTenant string) (*lib.ClusterCredentials, error) {
 		return &lib.ClusterCredentials{
 			Username: fmt.Sprintf("vks-cluster-%s-user", clusterNameWithUID),
@@ -1597,16 +1660,13 @@ func TestVKSClusterWatcher_CleanupOnOptOut(t *testing.T) {
 		t.Errorf("HandleProvisionedCluster should not fail on opt-out with mock RBAC: %v", err)
 	}
 
-	// Verify secret was cleaned up (opt-out should trigger comprehensive cleanup)
-	_, err = setup.KubeClient.CoreV1().Secrets("vks-optout-test-ns").Get(ctx, secretName, metav1.GetOptions{})
-	if err == nil {
-		t.Error("Expected secret to be deleted after opt-out but it still exists")
+	// Wait for async cleanup to complete and verify secret was deleted
+	if !waitForSecretDeletion(t, setup.KubeClient, "vks-optout-test-ns", secretName, 3*time.Second) {
+		t.Error("Expected secret to be deleted after opt-out but timeout occurred")
 	}
 
 	t.Log("✅ VKS cluster opt-out cleanup test completed successfully")
 }
-
-// TestVKSClusterWatcher_PeriodicReconciler tests the periodic reconciliation functionality
 func TestVKSClusterWatcher_PeriodicReconciler(t *testing.T) {
 	setup := setupVKSTest(t, "reconcile-test-cluster", "vks-reconcile-test-ns", "antrea.tanzu.vmware.com.2.3.0+vmware.1-tkg.1")
 	defer setup.Cleanup()

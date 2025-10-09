@@ -16,7 +16,8 @@ package webhook
 
 // +kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=mutatingwebhookconfigurations,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=clusters,verbs=get;list;watch;update;patch
-// +kubebuilder:rbac:groups=cert-manager.io,resources=certificates;issuers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=cert-manager.io,resources=certificates,verbs=get;list;watch;create;update;patch;delete,resourceNames=ako-vks-webhook-serving-cert
+// +kubebuilder:rbac:groups=cert-manager.io,resources=issuers,verbs=get;list;watch;create;update;patch;delete,resourceNames=ako-vks-webhook-selfsigned-issuer
 // +kubebuilder:rbac:groups=addons.kubernetes.vmware.com,resources=addoninstalls,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=iaas.vmware.com,resources=capabilities,verbs=get;list;watch
 // +kubebuilder:rbac:groups=run.tanzu.vmware.com,resources=clusterbootstraps,verbs=get;list;watch
