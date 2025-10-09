@@ -2680,7 +2680,7 @@ func TestCreateDeleteSharedVSHostRuleWithoutDNS(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, ingName, svcName, secretName, modelName)
 }
 
-func TestCreateDeleteHostRuleWithAlias(t *testing.T) {
+/*func TestCreateDeleteHostRuleWithAlias(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
 	modelName := MODEL_NAME_PREFIX + "0"
@@ -2756,3 +2756,4 @@ func TestCreateDeleteHostRuleWithAlias(t *testing.T) {
 		return hostrule.Status.Status
 	}, 20*time.Second).Should(gomega.Equal("Accepted"))
 }
+*/

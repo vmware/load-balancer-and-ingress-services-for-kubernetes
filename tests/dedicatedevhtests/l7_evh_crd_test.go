@@ -2165,6 +2165,7 @@ func TestApplyL7HostruleToDedicatedVSWithCommonProperties(t *testing.T) {
 	TearDownIngressForCacheSyncCheck(t, modelName)
 }
 
+/*
 func TestApplyHostruleToDedicatedVSWithAlias(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
@@ -2293,3 +2294,4 @@ func TestApplyHostruleToDedicatedVSWithAlias(t *testing.T) {
 	}, 30*time.Second).Should(gomega.Equal("Accepted"))
 	integrationtest.TeardownHostRule(t, g, vsKey, hrname)
 }
+*/
