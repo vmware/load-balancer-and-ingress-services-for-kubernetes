@@ -151,6 +151,19 @@ func (w *VKSClusterWatcher) EnqueueClusterFromSecret(secretName, secretNamespace
 	w.workqueue.Add(key)
 }
 
+func (w *VKSClusterWatcher) isVKSManagedSecret(secret *corev1.Secret) bool {
+	// Only process VKS cluster secrets (pattern: *-avi-secret)
+	if !strings.HasSuffix(secret.Name, "-avi-secret") {
+		return false
+	}
+
+	if secret.Labels == nil {
+		return false
+	}
+	managedBy, exists := secret.Labels["ako.kubernetes.vmware.com/managed-by"]
+	return exists && managedBy == "ako-infra"
+}
+
 func (w *VKSClusterWatcher) AddVKSSecretEventHandler(stopCh <-chan struct{}) {
 	utils.AviLog.Infof("VKS secret watcher: starting secret event handler for VKS cluster secrets")
 
@@ -163,24 +176,47 @@ func (w *VKSClusterWatcher) AddVKSSecretEventHandler(stopCh <-chan struct{}) {
 				return
 			}
 
-			// Only process VKS cluster secrets (pattern: *-avi-secret)
-			if !strings.HasSuffix(newSecret.Name, "-avi-secret") {
+			if !w.isVKSManagedSecret(oldSecret) {
 				return
 			}
 
-			// Check if this is a VKS-managed secret
-			if newSecret.Labels == nil {
-				return
-			}
-			managedBy, exists := newSecret.Labels["ako.kubernetes.vmware.com/managed-by"]
-			if !exists || managedBy != "ako-infra" {
-				return
-			}
+			// Detect out-of-band changes:
+			// 1. Data changed
+			// 2. Labels removed (secret no longer VKS-managed)
+			dataChanged := !reflect.DeepEqual(newSecret.Data, oldSecret.Data)
+			labelsRemoved := !w.isVKSManagedSecret(newSecret)
 
-			if oldSecret.ResourceVersion != newSecret.ResourceVersion && !reflect.DeepEqual(newSecret.Data, oldSecret.Data) {
-				utils.AviLog.Infof("VKS secret watcher: detected out-of-band change to secret %s/%s", newSecret.Namespace, newSecret.Name)
+			if oldSecret.ResourceVersion != newSecret.ResourceVersion && (dataChanged || labelsRemoved) {
+				if labelsRemoved {
+					utils.AviLog.Warnf("VKS secret watcher: detected label removal from secret %s/%s", newSecret.Namespace, newSecret.Name)
+				}
+				if dataChanged {
+					utils.AviLog.Infof("VKS secret watcher: detected data change to secret %s/%s", newSecret.Namespace, newSecret.Name)
+				}
 				w.EnqueueClusterFromSecret(newSecret.Name, newSecret.Namespace)
 			}
+		},
+		DeleteFunc: func(obj interface{}) {
+			secret, ok := obj.(*corev1.Secret)
+			if !ok {
+				cacheObj, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					utils.AviLog.Errorf("VKS secret watcher: couldn't get object from cache %#v", obj)
+					return
+				}
+				secret, ok = cacheObj.Obj.(*corev1.Secret)
+				if !ok {
+					utils.AviLog.Errorf("VKS secret watcher: cache contained object that is not a Secret: %#v", obj)
+					return
+				}
+			}
+
+			if !w.isVKSManagedSecret(secret) {
+				return
+			}
+
+			utils.AviLog.Infof("VKS secret watcher: detected out-of-band deletion of secret %s/%s", secret.Namespace, secret.Name)
+			w.EnqueueClusterFromSecret(secret.Name, secret.Namespace)
 		},
 	}
 
@@ -384,7 +420,6 @@ func (w *VKSClusterWatcher) cleanupClusterDependencies(clusterName, clusterNames
 	}
 
 	if clusterNameWithUID != "" {
-		utils.AviLog.Infof("Starting async cleanup for cluster: %s", clusterNameWithUID)
 		w.cleanupClusterAviObjects(clusterName, clusterNameWithUID, clusterNamespace)
 	} else {
 		utils.AviLog.Infof("Could not determine cluster identifier for %s/%s - likely already cleaned up", clusterNamespace, clusterName)
@@ -457,6 +492,10 @@ func (w *VKSClusterWatcher) cleanupAviObjects(ctx context.Context, clusterName, 
 	secretName := fmt.Sprintf("%s-avi-secret", clusterName)
 	secret, err := utils.GetInformers().SecretInformer.Lister().Secrets(clusterNamespace).Get(secretName)
 	if err != nil {
+		if errors.IsNotFound(err) {
+			utils.AviLog.Infof("VKS cleanup: Secret %s/%s not found, skipping Avi object cleanup", clusterNamespace, secretName)
+			return nil
+		}
 		return fmt.Errorf("failed to get secret %s/%s: %v", clusterNamespace, secretName, err)
 	}
 
@@ -582,8 +621,12 @@ func (w *VKSClusterWatcher) createCleanupAviClient(controllerIP, username, passw
 }
 
 func (w *VKSClusterWatcher) deleteAviObjects(aviClient *clients.AviClient, createdBy string) error {
+	utils.AviLog.Infof("Cleaning up VirtualServices for %s", createdBy)
+	if err := w.deleteVirtualServices(aviClient, createdBy); err != nil {
+		return fmt.Errorf("failed to cleanup virtualservices: %v", err)
+	}
+
 	objectTypes := []string{
-		"/api/virtualservice",
 		"/api/vsvip",
 		"/api/vsdatascriptset",
 		"/api/httppolicyset",
@@ -610,9 +653,80 @@ func (w *VKSClusterWatcher) deleteAviObjects(aviClient *clients.AviClient, creat
 	return nil
 }
 
+// deleteVirtualServices deletes child VS first, then parent VS
+func (w *VKSClusterWatcher) deleteVirtualServices(aviClient *clients.AviClient, createdBy string) error {
+	apiPath := "/api/virtualservice"
+	objects, err := w.fetchAviObjects(aviClient, apiPath, createdBy, "uuid,name,type")
+	if err != nil {
+		return err
+	}
+
+	if len(objects) == 0 {
+		utils.AviLog.Infof("No %s found for %s", apiPath, createdBy)
+		return nil
+	}
+
+	var parentVS []map[string]interface{}
+	var childVS []map[string]interface{}
+	for _, obj := range objects {
+		vsType, _ := obj["type"].(string)
+		if vsType == "VS_TYPE_VH_PARENT" {
+			parentVS = append(parentVS, obj)
+		} else {
+			// Child VS or normal VS - delete these first
+			childVS = append(childVS, obj)
+		}
+	}
+
+	utils.AviLog.Infof("Found %d VirtualServices to delete for %s (%d child/normal, %d parent)",
+		len(objects), createdBy, len(childVS), len(parentVS))
+
+	var errors []string
+	for _, obj := range childVS {
+		if err := w.deleteAviObject(aviClient, apiPath, obj); err != nil {
+			errors = append(errors, err.Error())
+		}
+	}
+	for _, obj := range parentVS {
+		if err := w.deleteAviObject(aviClient, apiPath, obj); err != nil {
+			errors = append(errors, err.Error())
+		}
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("VS deletion failures: %s", strings.Join(errors, "; "))
+	}
+
+	utils.AviLog.Infof("Successfully deleted all VirtualServices for %s", createdBy)
+	return nil
+}
+
 func (w *VKSClusterWatcher) deleteObjectsOfType(aviClient *clients.AviClient, apiPath, createdBy string) error {
-	var nextURI string
-	baseURI := fmt.Sprintf("%s?created_by=%s&fields=uuid,name&page_size=100", apiPath, createdBy)
+	objects, err := w.fetchAviObjects(aviClient, apiPath, createdBy, "uuid,name")
+	if err != nil {
+		return err
+	}
+
+	if len(objects) == 0 {
+		utils.AviLog.Infof("No %s found for %s", apiPath, createdBy)
+		return nil
+	}
+
+	utils.AviLog.Infof("Found %d %s to delete for %s", len(objects), apiPath, createdBy)
+
+	for _, obj := range objects {
+		if err := w.deleteAviObject(aviClient, apiPath, obj); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (w *VKSClusterWatcher) fetchAviObjects(aviClient *clients.AviClient, apiPath, createdBy, fields string) ([]map[string]interface{}, error) {
+	var allObjects []map[string]interface{}
+	baseURI := fmt.Sprintf("%s?created_by=%s&fields=%s&page_size=100", apiPath, createdBy, fields)
+	nextURI := ""
 
 	for {
 		uri := baseURI
@@ -624,43 +738,17 @@ func (w *VKSClusterWatcher) deleteObjectsOfType(aviClient *clients.AviClient, ap
 		err := aviClient.AviSession.Get(uri, &response)
 		if err != nil {
 			utils.AviLog.Warnf("Get uri %v returned err %v", uri, err)
-			return err
+			return nil, err
 		}
 
 		results, ok := response["results"].([]interface{})
 		if !ok {
-			return fmt.Errorf("unexpected response format for %s", apiPath)
+			return nil, fmt.Errorf("unexpected response format for %s", apiPath)
 		}
 
-		if len(results) == 0 && nextURI == "" {
-			utils.AviLog.Infof("No %s found for %s", apiPath, createdBy)
-			return nil
-		}
-
-		if len(results) > 0 {
-			utils.AviLog.Infof("Found %d %s to delete for %s", len(results), apiPath, createdBy)
-
-			for _, result := range results {
-				obj, ok := result.(map[string]interface{})
-				if !ok {
-					continue
-				}
-
-				uuid, ok := obj["uuid"].(string)
-				if !ok {
-					continue
-				}
-
-				name, _ := obj["name"].(string)
-				deleteURI := fmt.Sprintf("%s/%s", apiPath, uuid)
-
-				utils.AviLog.Infof("Deleting %s: %s (UUID: %s)", apiPath, name, uuid)
-
-				if err := aviClient.AviSession.Delete(deleteURI); err != nil {
-					utils.AviLog.Warnf("Failed to delete %s %s: %v", apiPath, name, err)
-				} else {
-					w.waitForDeletion(aviClient, deleteURI, 10)
-				}
+		for _, result := range results {
+			if obj, ok := result.(map[string]interface{}); ok {
+				allObjects = append(allObjects, obj)
 			}
 		}
 
@@ -672,6 +760,26 @@ func (w *VKSClusterWatcher) deleteObjectsOfType(aviClient *clients.AviClient, ap
 		}
 	}
 
+	return allObjects, nil
+}
+
+func (w *VKSClusterWatcher) deleteAviObject(aviClient *clients.AviClient, apiPath string, obj map[string]interface{}) error {
+	uuid, ok := obj["uuid"].(string)
+	if !ok {
+		return fmt.Errorf("object missing uuid")
+	}
+
+	name, _ := obj["name"].(string)
+	deleteURI := fmt.Sprintf("%s/%s", apiPath, uuid)
+
+	utils.AviLog.Infof("Deleting %s: %s (UUID: %s)", apiPath, name, uuid)
+
+	if err := aviClient.AviSession.Delete(deleteURI); err != nil {
+		utils.AviLog.Warnf("Failed to delete %s %s: %v", apiPath, name, err)
+		return fmt.Errorf("failed to delete %s %s: %v", apiPath, name, err)
+	}
+
+	w.waitForDeletion(aviClient, deleteURI, 10)
 	return nil
 }
 
@@ -944,6 +1052,7 @@ func (w *VKSClusterWatcher) UpsertAviCredentialsSecret(ctx context.Context, clus
 		utils.AviLog.Infof("VKS cluster watcher: secret %s/%s exists, checking if update needed", clusterNamespace, secretName)
 		needsUpdate := false
 
+		// Check if data fields changed
 		for key, desiredValue := range secretData {
 			if existingValue, exists := existingSecret.Data[key]; !exists || string(existingValue) != string(desiredValue) {
 				utils.AviLog.Infof("VKS cluster watcher: Secret field %s changed for cluster %s: existing='%s', desired='%s'",
@@ -960,6 +1069,26 @@ func (w *VKSClusterWatcher) UpsertAviCredentialsSecret(ctx context.Context, clus
 					utils.AviLog.Infof("VKS cluster watcher: Secret field %s should be removed for cluster %s", key, clusterName)
 					needsUpdate = true
 					break
+				}
+			}
+		}
+
+		if !needsUpdate {
+			requiredLabels := map[string]string{
+				"ako.kubernetes.vmware.com/cluster":    clusterName,
+				"ako.kubernetes.vmware.com/managed-by": "ako-infra",
+			}
+			if existingSecret.Labels == nil {
+				utils.AviLog.Infof("VKS cluster watcher: Secret %s/%s is missing labels", clusterNamespace, secretName)
+				needsUpdate = true
+			} else {
+				for key, expectedValue := range requiredLabels {
+					if actualValue, exists := existingSecret.Labels[key]; !exists || actualValue != expectedValue {
+						utils.AviLog.Infof("VKS cluster watcher: Secret label %s changed for cluster %s: existing='%s', expected='%s'",
+							key, clusterName, actualValue, expectedValue)
+						needsUpdate = true
+						break
+					}
 				}
 			}
 		}
@@ -1201,8 +1330,21 @@ func StartVKSClusterWatcher(stopCh <-chan struct{}, dynamicInformers *lib.Dynami
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
-			utils.AviLog.Infof("Cluster DELETE event")
-			clusterWatcher.EnqueueCluster(obj, "DELETE")
+			cluster, ok := obj.(*unstructured.Unstructured)
+			if !ok {
+				cacheObj, ok := obj.(cache.DeletedFinalStateUnknown)
+				if !ok {
+					utils.AviLog.Errorf("VKS cluster watcher: couldn't get object from cache %#v", obj)
+					return
+				}
+				cluster, ok = cacheObj.Obj.(*unstructured.Unstructured)
+				if !ok {
+					utils.AviLog.Errorf("VKS cluster watcher: cache contained object that is not an Unstructured: %#v", obj)
+					return
+				}
+			}
+			utils.AviLog.Infof("Cluster DELETE event for %s/%s", cluster.GetNamespace(), cluster.GetName())
+			clusterWatcher.EnqueueCluster(cluster, "DELETE")
 		},
 	}
 
