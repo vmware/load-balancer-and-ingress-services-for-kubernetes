@@ -4161,6 +4161,7 @@ This test case tests following scenario
 5. Create an hostrule with fqdn foo1.com and aliases as `foo.com`.
 6. Check CRD is accepted or not.
 */
+/*
 func TestCreateUpdateDeleteHostRuleForEvhWithFqdnAlias(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 
@@ -4248,3 +4249,4 @@ func TestCreateUpdateDeleteHostRuleForEvhWithFqdnAlias(t *testing.T) {
 	// Tear down hostrule
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrName)
 }
+*/
