@@ -310,6 +310,71 @@ A sample httproute with ResponseHeaderModifier filter is shown below:
 
 For the above yaml, an HTTPPolicySet with a `HTTP Response Rule ` with action as `Modify Header` having `Add Header -> Header Name` as `response-header` and `Header Value` as `test-response-header` will be added to the childVS corresponding to the rule. When the request comes for host and path `products.avi.internal/foo` , a header with name as `request-header` and value as `test-request-header` will be added to the response before it is being sent back to the client.
 
+
+### ExtensionRef Usage
+
+AKO supports ExtensionRef filters in HTTPRoute to attach custom resource definitions (CRDs) for additional configuration. ExtensionRefs can be attached at two different levels:
+
+#### Rule-Level Filters
+
+ExtensionRefs at the rule level (`rules[].filters[]`) apply configuration to the entire rule:
+
+- **L7Rule** - Modifies Virtual Service properties. See [L7Rule CRD documentation](../crds/l7rule.md)
+- **ApplicationProfile** - Configures custom application profiles (TODO: Add link to ApplicationProfile documentation)
+
+Example:
+```yaml
+rules:
+  - filters:
+      - type: ExtensionRef
+        extensionRef:
+          group: ako.vmware.com
+          kind: L7Rule
+          name: my-l7-rule
+      - type: ExtensionRef
+        extensionRef:
+          group: ako.vmware.com
+          kind: ApplicationProfile
+          name: my-application-profile
+    backendRefs:
+      - name: my-service
+        port: 8080
+```
+
+
+#### BackendRef-Level Filters
+
+ExtensionRefs at the backendRefs level (`rules[].backendRefs[].filters[]`) apply configuration to specific backends:
+
+- **HealthMonitor** - Configures custom health monitoring. See [HealthMonitor CRD documentation](../crds/healthmonitor.md)
+- **RouteBackendExtension** - Configures backend properties including load balancing, persistence, and health monitoring. See [RouteBackendExtension CRD documentation](../crds/routebackendextension.md)
+
+Example:
+```yaml
+rules:
+  - backendRefs:
+      - name: my-service
+        port: 8080
+        filters:
+          - type: ExtensionRef
+            extensionRef:
+              group: ako.vmware.com
+              kind: HealthMonitor
+              name: my-health-monitor
+          - type: ExtensionRef
+            extensionRef:
+              group: ako.vmware.com
+              kind: RouteBackendExtension
+              name: my-route-backend-extension
+```
+
+
+**Note**: 
+* Multiple HealthMonitor ExtensionRefs can be attached to a single backendRef. For other CRD kinds, only one instance per kind is allowed.
+* HealthMonitor reffered through ExtensionRefs take higher priority than HealthMonitor defined in RouteBackendExtension
+* If any ExtensionRef becomes invalid, all the default values will be applied. 
+
+
 ### Naming Conventions:
 
 AKO Gateway Implementation follows following naming convention:
