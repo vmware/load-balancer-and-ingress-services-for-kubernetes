@@ -7,12 +7,20 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - configmaps
   - namespaces
   - secrets
   verbs:
   - get
   - list
   - watch
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
 - apiGroups:
   - ako.vmware.com
   resources:
