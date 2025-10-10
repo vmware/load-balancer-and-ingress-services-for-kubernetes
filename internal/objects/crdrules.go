@@ -96,6 +96,8 @@ type CRDLister struct {
 
 // FqdnHostRuleCache
 func (c *CRDLister) GetFQDNToHostruleMapping(fqdn string) (bool, string) {
+	c.NSLock.RLock()
+	defer c.NSLock.RUnlock()
 	found, hostrule := c.FqdnHostRuleCache.Get(fqdn)
 	if !found {
 		return false, ""
@@ -104,6 +106,8 @@ func (c *CRDLister) GetFQDNToHostruleMapping(fqdn string) (bool, string) {
 }
 
 func (c *CRDLister) GetFQDNToHostruleMappingWithType(fqdn string) (bool, string) {
+	c.NSLock.RLock()
+	defer c.NSLock.RUnlock()
 	// not exact fqdns
 	allFqdns := c.FqdnHostRuleCache.GetAllKeys()
 	returnHostrules := []string{}
@@ -141,6 +145,8 @@ func (c *CRDLister) GetFQDNToHostruleMappingWithType(fqdn string) (bool, string)
 }
 
 func (c *CRDLister) GetHostruleToFQDNMapping(hostrule string) (bool, string) {
+	c.NSLock.RLock()
+	defer c.NSLock.RUnlock()
 	found, fqdn := c.HostRuleFQDNCache.Get(hostrule)
 	if !found {
 		return false, ""
@@ -149,6 +155,8 @@ func (c *CRDLister) GetHostruleToFQDNMapping(hostrule string) (bool, string) {
 }
 
 func (c *CRDLister) GetLocalFqdnToGSFQDNMapping(fqdn string) (bool, string) {
+	c.NSLock.RLock()
+	defer c.NSLock.RUnlock()
 	found, gsfqdn := c.FqdnToGSFQDNCache.Get(fqdn)
 	if !found {
 		return false, ""
@@ -193,6 +201,8 @@ func (c *CRDLister) UpdateFQDNHostruleMapping(fqdn string, hostrule string) {
 }
 
 func (c *CRDLister) GetFQDNFQDNTypeMapping(fqdn string) string {
+	c.NSLock.RLock()
+	defer c.NSLock.RUnlock()
 	found, fqdnType := c.FqdnFqdnTypeCache.Get(fqdn)
 	if !found {
 		return string(akov1beta1.Exact)
@@ -201,16 +211,22 @@ func (c *CRDLister) GetFQDNFQDNTypeMapping(fqdn string) string {
 }
 
 func (c *CRDLister) DeleteFQDNFQDNTypeMapping(fqdn string) bool {
+	c.NSLock.Lock()
+	defer c.NSLock.Unlock()
 	return c.FqdnFqdnTypeCache.Delete(fqdn)
 }
 
 func (c *CRDLister) UpdateFQDNFQDNTypeMapping(fqdn, fqdnType string) {
+	c.NSLock.Lock()
+	defer c.NSLock.Unlock()
 	c.FqdnFqdnTypeCache.AddOrUpdate(fqdn, fqdnType)
 }
 
 // FqdnHTTPRulesCache
 
 func (c *CRDLister) GetFqdnHTTPRulesMapping(fqdn string) (bool, map[string]string) {
+	c.NSLock.RLock()
+	defer c.NSLock.RUnlock()
 	found, pathRules := c.FqdnHTTPRulesCache.Get(fqdn)
 	if !found {
 		return false, make(map[string]string)
@@ -219,6 +235,8 @@ func (c *CRDLister) GetFqdnHTTPRulesMapping(fqdn string) (bool, map[string]strin
 }
 
 func (c *CRDLister) GetHTTPRuleFqdnMapping(httprule string) (bool, string) {
+	c.NSLock.RLock()
+	defer c.NSLock.RUnlock()
 	found, fqdn := c.HTTPRuleFqdnCache.Get(httprule)
 	if !found {
 		return false, ""
@@ -229,13 +247,23 @@ func (c *CRDLister) GetHTTPRuleFqdnMapping(httprule string) (bool, string) {
 func (c *CRDLister) RemoveFqdnHTTPRulesMappings(httprule string) bool {
 	c.NSLock.Lock()
 	defer c.NSLock.Unlock()
-	_, fqdn := c.GetHTTPRuleFqdnMapping(httprule)
+	// Call cache Get directly to avoid nested locking
+	found, fqdnVal := c.HTTPRuleFqdnCache.Get(httprule)
+	if !found {
+		return true
+	}
+	fqdn := fqdnVal.(string)
 	success := c.HTTPRuleFqdnCache.Delete(httprule)
 	if !success {
 		return false
 	}
 
-	_, pathRules := c.GetFqdnHTTPRulesMapping(fqdn)
+	// Call cache Get directly to avoid nested locking
+	found, pathRulesVal := c.FqdnHTTPRulesCache.Get(fqdn)
+	if !found {
+		return true
+	}
+	pathRules := pathRulesVal.(map[string]string)
 	for path, rule := range pathRules {
 		if rule == httprule {
 			delete(pathRules, path)
@@ -252,13 +280,22 @@ func (c *CRDLister) UpdateFqdnHTTPRulesMappings(fqdn, path, httprule string) {
 	c.NSLock.Lock()
 	defer c.NSLock.Unlock()
 	c.HTTPRuleFqdnCache.AddOrUpdate(httprule, fqdn)
-	_, pathRules := c.GetFqdnHTTPRulesMapping(fqdn)
+	// Call cache Get directly to avoid nested locking
+	found, pathRulesVal := c.FqdnHTTPRulesCache.Get(fqdn)
+	var pathRules map[string]string
+	if !found {
+		pathRules = make(map[string]string)
+	} else {
+		pathRules = pathRulesVal.(map[string]string)
+	}
 	pathRules[path] = httprule
 	c.FqdnHTTPRulesCache.AddOrUpdate(fqdn, pathRules)
 }
 
 // FqdnSharedVSModelCache/SharedVSModelFqdnCache
 func (c *CRDLister) GetFQDNToSharedVSModelMapping(fqdn, fqdnType string) (bool, []string) {
+	c.NSLock.RLock()
+	defer c.NSLock.RUnlock()
 	allFqdns := c.FqdnSharedVSModelCache.GetAllKeys()
 	returnModelNames := []string{}
 	for _, mFqdn := range allFqdns {
@@ -288,6 +325,8 @@ func (c *CRDLister) GetFQDNToSharedVSModelMapping(fqdn, fqdnType string) (bool, 
 }
 
 func (c *CRDLister) GetSharedVSModelFQDNMapping(modelName string) (bool, string) {
+	c.NSLock.RLock()
+	defer c.NSLock.RUnlock()
 	found, fqdn := c.SharedVSModelFqdnCache.Get(modelName)
 	if !found {
 		return false, ""
@@ -303,16 +342,22 @@ func (c *CRDLister) UpdateFQDNSharedVSModelMappings(fqdn, modelName string) {
 }
 
 func (c *CRDLister) DeleteFQDNSharedVSModelMapping(fqdn string) bool {
+	c.NSLock.Lock()
+	defer c.NSLock.Unlock()
 	return c.FqdnSharedVSModelCache.Delete(fqdn)
 }
 
 func (c *CRDLister) DeleteSharedVSModelFQDNMapping(modelName string) bool {
+	c.NSLock.Lock()
+	defer c.NSLock.Unlock()
 	return c.SharedVSModelFqdnCache.Delete(modelName)
 }
 
 // FQDNToAliasesCache
 
 func (c *CRDLister) GetFQDNToAliasesMapping(fqdn string) (bool, []string) {
+	c.NSLock.RLock()
+	defer c.NSLock.RUnlock()
 	found, aliases := c.FQDNToAliasesCache.Get(fqdn)
 	if !found {
 		return false, nil
@@ -321,6 +366,8 @@ func (c *CRDLister) GetFQDNToAliasesMapping(fqdn string) (bool, []string) {
 }
 
 func (c *CRDLister) GetAllFQDNToAliasesMapping() map[string]interface{} {
+	c.NSLock.RLock()
+	defer c.NSLock.RUnlock()
 	return c.FQDNToAliasesCache.GetAllObjectNames()
 }
 
@@ -331,11 +378,15 @@ func (c *CRDLister) UpdateFQDNToAliasesMappings(fqdn string, aliases []string) {
 }
 
 func (c *CRDLister) DeleteFQDNToAliasesMapping(fqdn string) bool {
+	c.NSLock.Lock()
+	defer c.NSLock.Unlock()
 	return c.FQDNToAliasesCache.Delete(fqdn)
 }
 
 // FqdnSSORuleCache
 func (c *CRDLister) GetFQDNToSSORuleMapping(fqdn string) (bool, string) {
+	c.NSLock.RLock()
+	defer c.NSLock.RUnlock()
 	found, ssoRule := c.FqdnSSORuleCache.Get(fqdn)
 	if !found {
 		return false, ""
@@ -344,6 +395,8 @@ func (c *CRDLister) GetFQDNToSSORuleMapping(fqdn string) (bool, string) {
 }
 
 func (c *CRDLister) GetSSORuleToFQDNMapping(ssoRule string) (bool, string) {
+	c.NSLock.RLock()
+	defer c.NSLock.RUnlock()
 	found, fqdn := c.SSORuleFQDNCache.Get(ssoRule)
 	if !found {
 		return false, ""
@@ -371,6 +424,8 @@ func (c *CRDLister) UpdateFQDNSSORuleMapping(fqdn string, ssoRule string) {
 }
 
 func (c *CRDLister) GetL7RuleToHostRuleMapping(l7Rule string) (bool, map[string]bool) {
+	c.NSLock.RLock()
+	defer c.NSLock.RUnlock()
 	found, hostRules := c.L7RuleHostRuleCache.Get(l7Rule)
 	if !found {
 		return false, make(map[string]bool)
@@ -381,8 +436,10 @@ func (c *CRDLister) GetL7RuleToHostRuleMapping(l7Rule string) (bool, map[string]
 func (c *CRDLister) DeleteL7RuleToHostRuleMapping(l7Rule string, hostRule string) {
 	c.NSLock.Lock()
 	defer c.NSLock.Unlock()
-	found, hostRules := c.GetL7RuleToHostRuleMapping(l7Rule)
+	// Call cache Get directly to avoid nested locking
+	found, hostRulesVal := c.L7RuleHostRuleCache.Get(l7Rule)
 	if found {
+		hostRules := hostRulesVal.(map[string]bool)
 		delete(hostRules, hostRule)
 		c.L7RuleHostRuleCache.AddOrUpdate(l7Rule, hostRules)
 	}
@@ -391,7 +448,14 @@ func (c *CRDLister) DeleteL7RuleToHostRuleMapping(l7Rule string, hostRule string
 func (c *CRDLister) UpdateL7RuleToHostRuleMapping(l7Rule string, hostRule string) {
 	c.NSLock.Lock()
 	defer c.NSLock.Unlock()
-	_, hostRules := c.GetL7RuleToHostRuleMapping(l7Rule)
+	// Call cache Get directly to avoid nested locking
+	found, hostRulesVal := c.L7RuleHostRuleCache.Get(l7Rule)
+	var hostRules map[string]bool
+	if !found {
+		hostRules = make(map[string]bool)
+	} else {
+		hostRules = hostRulesVal.(map[string]bool)
+	}
 	hostRules[hostRule] = true
 	c.L7RuleHostRuleCache.AddOrUpdate(l7Rule, hostRules)
 }
