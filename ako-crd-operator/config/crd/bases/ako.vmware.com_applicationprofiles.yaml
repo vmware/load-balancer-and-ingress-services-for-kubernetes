@@ -188,8 +188,7 @@ spec:
                 x-kubernetes-validations:
                 - message: true_client_ip can only be configured if use_true_client_ip
                     is true
-                  rule: ((!self.use_true_client_ip) && !has(self.true_client_ip))||
-                    (self.use_true_client_ip && has(self.true_client_ip))
+                  rule: '!has(self.true_client_ip) || self.use_true_client_ip'
                 - message: xff_alternate_name and xff_update can only be configured
                     if xff_enabled is true
                   rule: self.xff_enabled || (!has(self.xff_alternate_name) && !has(self.xff_update))
