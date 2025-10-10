@@ -39,6 +39,8 @@ A sample L4Rule CRD looks like this:
       healthMonitorRefs:
       - Custom-HM-01
       - Custom-HM-02
+      healthMonitorCrdRefs:
+      - my-health-monitor
       lbAlgorithm: LB_ALGORITHM_CONSISTENT_HASH
       lbAlgorithmHash: LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER
       lbAlgorithmConsistentHashHdr: "custom-string"
@@ -246,6 +248,8 @@ A sample `backendProperties` looks like this:
       healthMonitorRefs:
       - Custom-HM-01
       - Custom-HM-02
+      healthMonitorCrdRefs:
+      - my-health-monitor
       lbAlgorithm: LB_ALGORITHM_CONSISTENT_HASH
       lbAlgorithmHash: LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER
       lbAlgorithmConsistentHashHdr: "custom-string"
@@ -288,6 +292,18 @@ L4Rule CRD can be used to express custom health monitor references. The health m
 ```
 
 The health monitors can be used to verify server health. A server (Kubernetes pods in this case) will be marked UP only when all the health monitors return successful responses. Health monitors provided here overwrite the default health monitor configuration set by AKO i.e. `System-TCP` for TCP traffic and `System-UDP` for UDP traffic based on the service configuration.
+
+Alternatively, you can use the HealthMonitor CRD to define custom health monitoring configurations directly in Kubernetes:
+
+```yaml
+      healthMonitorCrdRefs:
+      - my-health-monitor
+      - my-backup-health-monitor
+```
+
+The `healthMonitorCrdRefs` field references HealthMonitor CRD objects that must be created in the same namespace as the L4Rule. The HealthMonitor CRD is managed by the AKO CRD Operator and supports TCP, HTTP, and PING health check types with fine-grained control over health check parameters. For more details on creating HealthMonitor CRDs, see the [HealthMonitor documentation](./healthmonitor.md).
+
+**NOTE**: `healthMonitorRefs` (references to monitors on the Avi Controller) has higher priority than `healthMonitorCrdRefs` (references to HealthMonitor CRDs).
 
 #### Configure LB Algorithm
 

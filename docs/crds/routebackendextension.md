@@ -56,7 +56,31 @@ The RouteBackendExtension CRD supports the following configuration options:
 
 ##### Health Monitoring Configuration
 
+**healthMonitor** (optional)
+- **Type**: array of BackendHealthMonitor objects
+- **Description**: Defines health monitors for backend server health checks. Multiple health monitors can be specified, and a backend server is marked UP only when all health monitors return successful responses.
 
+Each BackendHealthMonitor object has the following fields:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `kind` | string | Yes | Type of HealthMonitor object. Must be `AVIREF` (reference to health monitor on Avi Controller). CRD references are not supported. |
+| `name` | string | Yes | Name of the HealthMonitor object. The health monitor must exist in the Avi Controller in the same tenant as the RouteBackendExtension namespace. |
+
+**Example:**
+```yaml
+healthMonitor:
+  - kind: "AVIREF"
+    name: "http-health-check"
+  - kind: "AVIREF"
+    name: "tcp-health-check"
+```
+
+**Important Notes:**
+- Only `AVIREF` kind is supported for health monitors in RouteBackendExtension
+- Health monitors must be pre-created in the Avi Controller
+- Multiple health monitors can be specified; servers must pass all checks to be marked UP
+- Health monitors referenced must exist in the same tenant as the RouteBackendExtension namespace
 
 ##### Backend TLS/SSL Configuration
 
