@@ -93,7 +93,7 @@ The `blockedNamespaceList` lists the Kubernetes/Openshift namespaces blocked by 
       - kube-system
       - kube-public
 
-### AKOSetttings.istioEnabled (Tech Preview)
+### AKOSetttings.istioEnabled
 
 AKO can be deployed in Istio environment. Setting this to `true` indicates to AKO that the environment is Istio. Default value is `false`.
 

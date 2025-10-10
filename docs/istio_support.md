@@ -1,4 +1,4 @@
-# AKO on Istio (Tech Preview)
+# AKO on Istio
 
 This feature allows AKO to be deployed on an Istio environment. Strict mTLS is supported in both ClusterIP and NodePort modes.
 
