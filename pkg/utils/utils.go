@@ -68,6 +68,10 @@ func IsV4(addr string) bool {
 	return v4 != nil
 }
 
+func BoolToPtr(b bool) *bool {
+	return &b
+}
+
 /*
  * Port name is either "http" or "http-suffix"
  * Following Istio named port convention
