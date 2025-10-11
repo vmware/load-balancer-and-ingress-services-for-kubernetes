@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 
@@ -139,8 +140,6 @@ func (o *gateway) Delete(key string, option status.StatusOptions) {
 
 	o.UpdateStatus(key, gw, &status.Status{GatewayStatus: gatewayStatus})
 	utils.AviLog.Infof("key: %s, msg: Successfully reset the address status of gateway: %s", key, gw.Name)
-
-	// TODO: Add annotation delete code here
 }
 
 func (o *gateway) Update(key string, option status.StatusOptions) {
@@ -181,6 +180,10 @@ func (o *gateway) Update(key string, option status.StatusOptions) {
 		conditionType = string(gatewayv1.GatewayConditionProgrammed)
 		reason = string(gatewayv1.GatewayReasonProgrammed)
 		message = "Virtual service configured/updated"
+		// Add VS UUID to the message if available
+		if option.Options.VirtualServiceUUID != "" {
+			message = fmt.Sprintf("VSUUID:%s", option.Options.VirtualServiceUUID)
+		}
 	}
 	condition.
 		Type(conditionType).
@@ -211,8 +214,6 @@ func (o *gateway) Update(key string, option status.StatusOptions) {
 		}
 	}
 	o.Patch(key, gw, &status.Status{GatewayStatus: gatewaystatus})
-
-	// TODO: Annotation update code here
 }
 
 func (o *gateway) BulkUpdate(key string, options []status.StatusOptions) {

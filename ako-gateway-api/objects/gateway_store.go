@@ -19,6 +19,7 @@ import (
 
 	"sync"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -302,9 +303,64 @@ func (g *GWLister) GetGatewayToGatewayStatusMapping(gwName string) *gatewayv1.Ga
 	return gatewayList.(*gatewayv1.GatewayStatus)
 }
 
+// Given UpdateRouteToRouteStatusMapping function is called from both Graph and Status Layer,
+// we need to make sure that the Accepted condition's message set by Status Layer is not incorrectly overwritten
+func checkAndUpdateAcceptedConditionMessage(existingRouteStatus *gatewayv1.HTTPRouteStatus, routeStatus *gatewayv1.HTTPRouteStatus) {
+	if existingRouteStatus == nil {
+		return
+	}
+
+	parentRefToAcceptedMessageMap := make(map[string]string)
+	for index := range existingRouteStatus.Parents {
+		for conditionIndex := range existingRouteStatus.Parents[index].Conditions {
+			if existingRouteStatus.Parents[index].Conditions[conditionIndex].Type == string(gatewayv1.RouteConditionAccepted) && existingRouteStatus.Parents[index].Conditions[conditionIndex].Status == metav1.ConditionTrue {
+				namespace := ""
+				if existingRouteStatus.Parents[index].ParentRef.Namespace != nil {
+					namespace = string(*existingRouteStatus.Parents[index].ParentRef.Namespace)
+				}
+				sectionName := ""
+				if existingRouteStatus.Parents[index].ParentRef.SectionName != nil {
+					sectionName = string(*existingRouteStatus.Parents[index].ParentRef.SectionName)
+				}
+				parentRefToAcceptedMessageMap[namespace+"/"+string(existingRouteStatus.Parents[index].ParentRef.Name)+"/"+sectionName] = existingRouteStatus.Parents[index].Conditions[conditionIndex].Message
+			}
+		}
+	}
+
+	for index := range routeStatus.Parents {
+		for conditionIndex := range routeStatus.Parents[index].Conditions {
+			// If the Accepted condition's message is "Parent Reference is valid"
+			// It means this call is from Graph Layer and we need to ensure that
+			// it's not overwriting the message with VS UUIDs set after Rest Layer
+			if routeStatus.Parents[index].Conditions[conditionIndex].Type == string(gatewayv1.RouteConditionAccepted) &&
+				routeStatus.Parents[index].Conditions[conditionIndex].Status == metav1.ConditionTrue &&
+				routeStatus.Parents[index].Conditions[conditionIndex].Message == "Parent Reference is valid" {
+				namespace := ""
+				if routeStatus.Parents[index].ParentRef.Namespace != nil {
+					namespace = string(*routeStatus.Parents[index].ParentRef.Namespace)
+				}
+				sectionName := ""
+				if routeStatus.Parents[index].ParentRef.SectionName != nil {
+					sectionName = string(*routeStatus.Parents[index].ParentRef.SectionName)
+				}
+				// We can safely update the message here as it will either be the same message or
+				// this message will have VSUUIDs which we want to preserve
+				routeStatus.Parents[index].Conditions[conditionIndex].Message = parentRefToAcceptedMessageMap[namespace+"/"+string(routeStatus.Parents[index].ParentRef.Name)+"/"+sectionName]
+			}
+		}
+	}
+}
+
 func (g *GWLister) UpdateRouteToRouteStatusMapping(routeTypeNamespaceName string, routeStatus *gatewayv1.HTTPRouteStatus) {
 	g.gwLock.Lock()
 	defer g.gwLock.Unlock()
+
+	var existingRouteStatus *gatewayv1.HTTPRouteStatus
+	if found, routeList := g.routeToStatus.Get(routeTypeNamespaceName); found {
+		existingRouteStatus = routeList.(*gatewayv1.HTTPRouteStatus)
+	}
+	checkAndUpdateAcceptedConditionMessage(existingRouteStatus, routeStatus)
+
 	g.routeToStatus.AddOrUpdate(routeTypeNamespaceName, routeStatus)
 }
 
