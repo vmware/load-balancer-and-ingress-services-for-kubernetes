@@ -73,7 +73,7 @@ type TrueClientIPConfig struct {
 	Direction TrueClientIPIndexDirection `json:"direction,omitempty"`
 }
 
-// +kubebuilder:validation:XValidation:rule="((!self.use_true_client_ip) && !has(self.true_client_ip))|| (self.use_true_client_ip && has(self.true_client_ip))",message="true_client_ip can only be configured if use_true_client_ip is true"
+// +kubebuilder:validation:XValidation:rule="!has(self.true_client_ip) || self.use_true_client_ip",message="true_client_ip can only be configured if use_true_client_ip is true"
 // +kubebuilder:validation:XValidation:rule="self.xff_enabled || (!has(self.xff_alternate_name) && !has(self.xff_update))",message="xff_alternate_name and xff_update can only be configured if xff_enabled is true"
 // +kubebuilder:validation:XValidation:rule="!(has(self.xff_update) && self.xff_update == 'APPEND_TO_THE_XFF_HEADER' && has(self.xff_alternate_name))",message="if xff_update is APPEND_TO_THE_XFF_HEADER, xff_alternate_name must be an empty string."
 type HTTPApplicationProfile struct {
