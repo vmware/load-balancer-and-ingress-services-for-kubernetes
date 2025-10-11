@@ -213,8 +213,6 @@ spec:
 
 ## Behavior Comparison
 
-### Before the Feature
-
 In a two-node cluster with a single replica deployment:
 
 ```bash
@@ -230,7 +228,8 @@ NAME                     READY   STATUS    RESTARTS   AGE   IP               NOD
 ew-app-87d56d6fc-tklph   1/1     Running   0          18s   192.168.25.134   k8s-cluster-worker   <none>           <none>
 ```
 
-**Previous Behavior**:
+### Before the Feature
+
 - Both nodes were added as pool servers
 - The node(pool server) without running pods was marked as "down" by health monitors
 
@@ -238,7 +237,6 @@ ew-app-87d56d6fc-tklph   1/1     Running   0          18s   192.168.25.134   k8s
 
 ### After the Feature
 
-**New Behavior**:
 - Only the node with running application pods is added as a pool server
 - The pool is marked as "up" and ready to serve traffic
 
