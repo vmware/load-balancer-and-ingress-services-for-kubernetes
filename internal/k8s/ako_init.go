@@ -569,6 +569,10 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	ctx, cancel := context.WithCancel(context.Background())
 	if utils.IsWCP() {
 		c.OnStartedLeading()
+	} else if utils.IsSingleReplica() {
+		// Skip leader election for single replica deployment - no competition for leadership
+		utils.AviLog.Infof("Single replica deployment detected, skipping leader election and directly becoming leader")
+		c.OnStartedLeading()
 	} else {
 		// Leader election happens after populating controller cache and fullsynck8s.
 		leaderElector, err := utils.NewLeaderElector(informers.Cs, c.OnStartedLeading, c.OnStoppedLeading, c.OnNewLeader)
