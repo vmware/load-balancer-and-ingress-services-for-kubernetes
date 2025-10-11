@@ -41,27 +41,40 @@ func (c *cache) PopulateCache(ctx context.Context, urls ...string) error {
 		"label_value": c.clusterName,
 	},
 	)
-	for _, url := range urls {
-		for url != "" {
+	var result avisession.AviCollectionResult
+	var err error
+	for _, baseURL := range urls {
+		currentURL := baseURL
+		pageCount := 1
+		for currentURL != "" {
 			dataList := []map[string]interface{}{}
 			// TODO: use ako-crd-operator session object interface instead directly accessing
-			result, err := c.session.AviSessionGetCollectionRaw(url, params, avisession.SetOptTenant(lib.GetQueryTenant()))
-			url = result.Next
+			if pageCount == 1 {
+				result, err = c.session.AviSessionGetCollectionRaw(currentURL, params, avisession.SetOptTenant(lib.GetQueryTenant()))
+			} else {
+				// result.Next will have all required params
+				result, err = c.session.AviSessionGetCollectionRaw(currentURL, avisession.SetOptTenant(lib.GetQueryTenant()))
+			}
 			if err != nil {
 				return err
 			}
 			if err := json.Unmarshal(result.Results, &dataList); err != nil {
 				return err
 			}
+			objectCount := 0
 			for _, data := range dataList {
 				UUID, ok := data["uuid"].(string)
 				if !ok {
 					log.Warnf("unable to find uuid in object :[%v]", data)
 					continue
 				}
-				log.Infof("populating cache for url: [%s] with uuid: [%s]", url, UUID)
+				log.Debugf("populating cache for url: [%s] with uuid: [%s]", currentURL, UUID)
 				c.dataStore.Store(UUID, data)
+				objectCount++
 			}
+			log.Infof("cached %v objects for url: %s", objectCount, currentURL)
+			currentURL = result.Next
+			pageCount++
 		}
 	}
 	log.Infof("populated cache successfully for urls: [%v]", urls)
