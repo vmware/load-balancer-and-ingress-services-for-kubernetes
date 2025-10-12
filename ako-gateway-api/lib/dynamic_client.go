@@ -19,6 +19,7 @@ import (
 	"crypto/sha1"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"strings"
 
 	"github.com/vmware/alb-sdk/go/models"
@@ -215,8 +216,11 @@ func ParseL7CRD(key, namespace, name string, vsNode nodes.AviVsEvhSniModel, isFi
 	}
 	specJSON, found, err := unstructured.NestedMap(obj.UnstructuredContent(), "spec")
 	if err != nil || !found {
-		utils.AviLog.Warnf("key:%s/%s, msg:L7Rule CRD spec not found: %+v", namespace, name, err)
-		return err
+		if err != nil {
+			utils.AviLog.Warnf("key:%s/%s, msg:L7Rule CRD spec not found: %+v", namespace, name, err)
+			return err
+		}
+		return fmt.Errorf("key: %s/%s, msg: L7Rule CRD spec not found", namespace, name)
 	}
 	generatedFields := vsNode.GetGeneratedFields()
 
@@ -271,8 +275,14 @@ func ParseL7CRD(key, namespace, name string, vsNode nodes.AviVsEvhSniModel, isFi
 	if err == nil && found {
 		policysetObj, found, err := unstructured.NestedStringSlice(httpPolicyObj, "policySets")
 		if err == nil && found {
-			// avoid duplicates
-			httpPolicySet := sets.NewString(policysetObj...).List()
+			var validPolicySets []string
+			// avoid duplicate and empty strings
+			for _, v := range policysetObj {
+				if trimmed := strings.TrimSpace(v); trimmed != "" {
+					validPolicySets = append(validPolicySets, trimmed)
+				}
+			}
+			httpPolicySet := sets.NewString(validPolicySets...).List()
 			vsHTTPPolicySets := make([]string, len(httpPolicySet))
 			for i, v := range httpPolicySet {
 				vsHTTPPolicySets[i] = fmt.Sprintf("/api/httppolicyset?name=%s", v)
@@ -299,15 +309,16 @@ func ParseL7CRD(key, namespace, name string, vsNode nodes.AviVsEvhSniModel, isFi
 				analyticsPolicy.FullClientLogs = &models.FullClientLogs{
 					Enabled: &enabled,
 				}
+				duration, found, err := unstructured.NestedInt64(fullClientLogObj, "duration")
+				if err == nil && found {
+					analyticsPolicy.FullClientLogs.Duration = proto.Uint32(uint32(duration))
+				}
+				throttle, found, err := unstructured.NestedString(fullClientLogObj, "throttle")
+				if err == nil && found {
+					analyticsPolicy.FullClientLogs.Throttle = lib.GetThrottle(throttle)
+				}
 			}
-			duration, found, err := unstructured.NestedInt64(fullClientLogObj, "duration")
-			if err == nil && found {
-				analyticsPolicy.FullClientLogs.Duration = proto.Uint32(uint32(duration))
-			}
-			throttle, found, err := unstructured.NestedString(fullClientLogObj, "throttle")
-			if err == nil && found {
-				analyticsPolicy.FullClientLogs.Throttle = lib.GetThrottle(throttle)
-			}
+
 		}
 		allHeaders, found, err := unstructured.NestedBool(analyticPolicyObj, "logAllHeaders")
 		if err == nil && found {
@@ -330,7 +341,11 @@ func getFieldValueTypeUint32(specJSON map[string]interface{}, fieldName string) 
 	var value *uint32
 	obj, found, err := unstructured.NestedInt64(specJSON, fieldName)
 	if err == nil && found {
-		return proto.Uint32(uint32(obj))
+		// safe side adding this check. schema validation should prevent this.
+		if obj >= 0 && obj <= math.MaxUint32 {
+			return proto.Uint32(uint32(obj))
+		}
+		utils.AviLog.Warnf("Field %s value %d is out of bounds for uint32", fieldName, obj)
 	}
 	return value
 }
