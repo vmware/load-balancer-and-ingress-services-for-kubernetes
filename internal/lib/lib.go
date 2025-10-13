@@ -279,7 +279,22 @@ func GetNSXTTransportZone() string {
 	return NsxTTzType
 }
 
-var nonDnsLabelRegex = regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
+var nonDnsLabelRegex = regexp.MustCompile(`[^a-zA-Z0-9-]+`)
+
+// sanitizeTenantNameForDNS sanitizes tenant name to be DNS-compliant
+func sanitizeTenantNameForDNS(tenant string) string {
+	// Replace all non-valid DNS label characters with hyphens
+	sanitized := nonDnsLabelRegex.ReplaceAllString(tenant, "-")
+
+	// Remove multiple consecutive hyphens
+	consecutiveHyphens := regexp.MustCompile(`-+`)
+	sanitized = consecutiveHyphens.ReplaceAllString(sanitized, "-")
+
+	// Remove leading and trailing hyphens
+	sanitized = strings.Trim(sanitized, "-")
+
+	return sanitized
+}
 
 func GetFqdns(vsName, key, tenant string, subDomains []string, shardSize uint32) ([]string, string) {
 	var fqdns []string
@@ -297,8 +312,8 @@ func GetFqdns(vsName, key, tenant string, subDomains []string, shardSize uint32)
 	}
 
 	if subDomains != nil && autoFQDN && !VIPPerNamespace() {
-		//Replace all non valid dns label characters with - in tenant name
-		tenantNameWithValidChars := nonDnsLabelRegex.ReplaceAllString(tenant, "-")
+		// Sanitize tenant name to be DNS-compliant
+		tenantNameWithValidChars := sanitizeTenantNameForDNS(tenant)
 		// honour defaultSubDomain from values.yaml if specified
 		defaultSubDomain := GetDomain()
 		if defaultSubDomain != "" && utils.HasElem(subDomains, defaultSubDomain) {
