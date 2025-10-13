@@ -484,11 +484,7 @@ status:
 
 ### Using HealthMonitor with Gateway API
 
-HealthMonitor CRDs can be used with Gateway API HTTPRoute resources in two ways:
-
-#### Direct Attachment to HTTPRoute
-
-HealthMonitor can be directly referenced in HTTPRoute backendRefs filters using ExtensionRef:
+HealthMonitor CRDs can be used with Gateway API HTTPRoute resources by directly referencing them in HTTPRoute backendRefs filters using ExtensionRef:
 
 ```yaml
 apiVersion: gateway.networking.k8s.io/v1
@@ -605,3 +601,27 @@ If a HealthMonitor fails to be programmed:
 3. Ensure all referenced secrets exist and are properly formatted
 
 4. Verify the Avi Controller connectivity and permissions
+
+5. If a HealthMonitor is stuck in a terminating state:
+   
+   This typically occurs when the finalizer `healthmonitor.ako.vmware.com/finalizer` cannot be removed, usually due to:
+   - AKO CRD Operator not running or unable to process the deletion   
+   - The health monitor object on the Avi Controller is in use or cannot be deleted because it is referred by other objects
+   
+   To resolve:
+   
+   a. Check if the AKO CRD Operator is running:
+      ```bash
+      kubectl get pods -n avi-system | grep ako-crd-operator
+      ```  
+   
+   b. Verify the health monitor on the Avi Controller and check if it's being referenced by other objects (Virtual Services, Pools, etc.). If referenced, remove those references first.
+   
+   c. If the operator is stuck and the Avi Controller object has been manually cleaned up, you can force remove the finalizer:
+      ```bash
+      kubectl patch healthmonitor <name> -n <namespace> -p '{"metadata":{"finalizers":[]}}' --type=merge
+      ```
+      
+      **Warning**: Only use this as a last resort when confirmed the backend object is properly cleaned up on the Avi Controller. Removing the finalizer without proper cleanup may leave orphaned objects on the Avi Controller.
+
+

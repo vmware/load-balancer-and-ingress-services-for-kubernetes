@@ -371,7 +371,7 @@ rules:
 
 **Note**: 
 * Multiple HealthMonitor ExtensionRefs can be attached to a single backendRef. For other CRD kinds, only one instance per kind is allowed.
-* HealthMonitor reffered through ExtensionRefs take higher priority than HealthMonitor defined in RouteBackendExtension
+* HealthMonitors referred through ExtensionRefs take higher priority than HealthMonitors defined in RouteBackendExtension.
 * If any ExtensionRef becomes invalid, all the default values will be applied. 
 
 
