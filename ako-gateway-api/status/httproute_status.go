@@ -40,8 +40,7 @@ type httproute struct{}
 
 func (o *httproute) Get(key string, name string, namespace string) *gatewayv1.HTTPRoute {
 
-	// Use GatewayAPI Clientset to get the latest state of the HTTPRoute object
-	obj, err := akogatewayapilib.AKOControlConfig().GatewayAPIClientset().GatewayV1().HTTPRoutes(namespace).Get(context.TODO(), name, metav1.GetOptions{})
+	obj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Lister().HTTPRoutes(namespace).Get(name)
 	if err != nil {
 		utils.AviLog.Warnf("key: %s, msg: unable to get the HTTPRoute object. err: %s", key, err)
 		return nil
@@ -169,6 +168,9 @@ func (o *httproute) isStatusEqual(old, new *gatewayv1.HTTPRouteStatus) bool {
 
 // updateHTTPRouteStatusWithVSUUID updates HTTPRoute status with VS UUID
 func (o *httproute) updateHTTPRouteStatusWithVSUUID(key string, httpRoute *gatewayv1.HTTPRoute, options *status.UpdateOptions) error {
+	if !utils.IsVCFCluster() {
+		return nil
+	}
 	// Loop over route parent status and match with gateway name
 	gatewayNSName := options.ServiceMetadata.Gateway
 	ruleName := options.ServiceMetadata.HTTPRouteRuleName
@@ -225,6 +227,9 @@ func (o *httproute) updateHTTPRouteStatusWithVSUUID(key string, httpRoute *gatew
 
 // removeVSUUIDFromHTTPRouteStatus updates HTTPRoute status to remove VS UUID
 func (o *httproute) removeVSUUIDFromHTTPRouteStatus(key string, httpRoute *gatewayv1.HTTPRoute, options *status.UpdateOptions) error {
+	if !utils.IsVCFCluster() {
+		return nil
+	}
 	// Loop over route parent status and match with gateway name
 	gatewayNSName := options.ServiceMetadata.Gateway
 	ruleName := options.ServiceMetadata.HTTPRouteRuleName

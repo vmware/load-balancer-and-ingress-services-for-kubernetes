@@ -181,7 +181,7 @@ func (o *gateway) Update(key string, option status.StatusOptions) {
 		reason = string(gatewayv1.GatewayReasonProgrammed)
 		message = "Virtual service configured/updated"
 		// Add VS UUID to the message if available
-		if option.Options.VirtualServiceUUID != "" {
+		if option.Options.VirtualServiceUUID != "" && utils.IsVCFCluster() {
 			message = fmt.Sprintf("VSUUID:%s", option.Options.VirtualServiceUUID)
 		}
 	}
@@ -297,6 +297,9 @@ func (o *gateway) Patch(key string, obj runtime.Object, status *status.Status, r
 	}
 
 	gw := obj.(*gatewayv1.Gateway)
+	// Update cache with the latest status after successful Kubernetes update
+	akogatewayapiobjects.GatewayApiLister().UpdateGatewayToGatewayStatusMapping(gw.Namespace+"/"+gw.Name, status.GatewayStatus)
+
 	if o.isStatusEqual(&gw.Status, status.GatewayStatus) {
 		return nil
 	}
@@ -316,9 +319,6 @@ func (o *gateway) Patch(key string, obj runtime.Object, status *status.Status, r
 	}
 
 	utils.AviLog.Infof("key: %s, msg: Successfully updated the gateway %s/%s status %+v", key, gw.Namespace, gw.Name, utils.Stringify(status))
-
-	// Update cache with the latest status after successful Kubernetes update
-	akogatewayapiobjects.GatewayApiLister().UpdateGatewayToGatewayStatusMapping(gw.Namespace+"/"+gw.Name, status.GatewayStatus)
 
 	return nil
 }

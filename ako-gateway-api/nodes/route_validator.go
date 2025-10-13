@@ -681,23 +681,22 @@ func validateParentReference(key string, httpRoute *gatewayv1.HTTPRoute, httpRou
 	akogatewayapistatus.Record(key, gateway, &status.Status{GatewayStatus: gatewayStatus})
 
 	// Do not update the message if httpRouteStatus has Accepted condition with Status True
-	acceptedConditionMessage := "Parent reference is valid"
-	if routeStatusInCache != nil {
+	acceptedConditionMessage := akogatewayapilib.HTTPRouteAcceptedMessage
+	if routeStatusInCache != nil && utils.IsVCFCluster() {
 		for _, parent := range routeStatusInCache.Parents {
 			if string(parent.ParentRef.Name) != name ||
 				parent.ParentRef.Namespace != nil && string(*parent.ParentRef.Namespace) != namespace {
 				continue
 			}
 			for _, condition := range parent.Conditions {
-				// Do not update the message if the Accepted condition is already set
-				if condition.Type == string(gatewayv1.RouteConditionAccepted) && condition.Status == metav1.ConditionTrue &&
-					condition.Message != "Parent reference is valid" {
-					utils.AviLog.Infof("key: %s, msg: Preserving Accepted condition message: %s", key, condition.Message)
+				// We can safely reuse the Accepted condition message from the cache
+				if condition.Type == string(gatewayv1.RouteConditionAccepted) && condition.Status == metav1.ConditionTrue {
+					utils.AviLog.Debugf("key: %s, msg: Preserving Accepted condition message: %s", key, condition.Message)
 					acceptedConditionMessage = condition.Message
 					break
 				}
 			}
-			if acceptedConditionMessage != "Parent reference is valid" {
+			if acceptedConditionMessage != akogatewayapilib.HTTPRouteAcceptedMessage {
 				break
 			}
 		}
