@@ -125,7 +125,6 @@ func (c *GatewayController) InitController(informers k8s.K8sinformers, registere
 			// Something bad sync. We need to return and shutdown the API server
 			utils.AviLog.Fatalf("Couldn't run full sync successfully on bootup, going to shutdown AKO GatewayAPI container")
 		}
-
 		if interval != 0 {
 			worker = utils.NewFullSyncThread(time.Duration(interval) * time.Second)
 			worker.SyncFunction = c.FullSync
@@ -718,6 +717,9 @@ func SetDeleteSyncChannel() {
 }
 
 func syncGatewayAPIObjectStatuses() {
+	if !utils.IsVCFCluster() {
+		return
+	}
 	utils.AviLog.Infof("Starting Gateway API status sync during bootup")
 	aviObjCache := avicache.SharedAviObjCache()
 	vsKeys := aviObjCache.VsCacheMeta.AviGetAllKeys()

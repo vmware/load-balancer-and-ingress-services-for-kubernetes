@@ -305,7 +305,6 @@ func (g *GWLister) GetGatewayToGatewayStatusMapping(gwName string) *gatewayv1.Ga
 func (g *GWLister) UpdateRouteToRouteStatusMapping(routeTypeNamespaceName string, routeStatus *gatewayv1.HTTPRouteStatus) {
 	g.gwLock.Lock()
 	defer g.gwLock.Unlock()
-
 	g.routeToStatus.AddOrUpdate(routeTypeNamespaceName, routeStatus)
 }
 

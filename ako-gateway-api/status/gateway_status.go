@@ -312,6 +312,9 @@ func (o *gateway) Patch(key string, obj runtime.Object, status *status.Status, r
 	}
 
 	gw := obj.(*gatewayv1.Gateway)
+	// Update cache with the latest status after successful Kubernetes update
+	akogatewayapiobjects.GatewayApiLister().UpdateGatewayToGatewayStatusMapping(gw.Namespace+"/"+gw.Name, status.GatewayStatus)
+
 	if o.isStatusEqual(&gw.Status, status.GatewayStatus) {
 		return nil
 	}
@@ -331,9 +334,6 @@ func (o *gateway) Patch(key string, obj runtime.Object, status *status.Status, r
 	}
 
 	utils.AviLog.Infof("key: %s, msg: Successfully updated the gateway %s/%s status %+v", key, gw.Namespace, gw.Name, utils.Stringify(status))
-
-	// Update cache with the latest status after successful Kubernetes update
-	akogatewayapiobjects.GatewayApiLister().UpdateGatewayToGatewayStatusMapping(gw.Namespace+"/"+gw.Name, status.GatewayStatus)
 
 	return nil
 }

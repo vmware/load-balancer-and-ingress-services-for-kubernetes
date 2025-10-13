@@ -115,7 +115,7 @@ const (
 )
 
 func (c ServiceMetadataObj) ServiceMetadataMapping(objType string) ServiceMetadataMappingObjType {
-	if objType == "VS" && c.HTTPRoute != "" && c.HTTPRouteRuleName != "" {
+	if objType == "VS" && c.HTTPRoute != "" && c.HTTPRouteRuleName != "" && utils.IsVCFCluster() {
 		// Check for `HTTPRoute` and `HTTPRouteRuleName` in VS serviceMetadata. Present in case of
 		// 1) HTTPRoute VS
 		// This needs to be above Gateway check
