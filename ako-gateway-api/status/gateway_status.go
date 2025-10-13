@@ -180,7 +180,7 @@ func (o *gateway) Update(key string, option status.StatusOptions) {
 		reason = string(gatewayv1.GatewayReasonProgrammed)
 		message = "Virtual service configured/updated"
 		// Add VS UUID to the message if available
-		if option.Options.VirtualServiceUUID != "" {
+		if option.Options.VirtualServiceUUID != "" && utils.IsVCFCluster() {
 			messageMap := map[string]string{
 				"VSUUID": option.Options.VirtualServiceUUID,
 			}
