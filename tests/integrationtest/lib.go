@@ -2722,7 +2722,7 @@ func CreateTCPHealthMonitorCRDWithStatus(t *testing.T, name, namespace, uuid str
 			"status": map[string]interface{}{
 				"conditions": []interface{}{
 					map[string]interface{}{
-						"type":    "Ready",
+						"type":    "Programmed",
 						"status":  status,
 						"reason":  reason,
 						"message": message,
@@ -2778,7 +2778,7 @@ func UpdateHealthMonitorStatus(t *testing.T, name, namespace string, uuid string
 
 	conditions := []interface{}{
 		map[string]interface{}{
-			"type":    "Ready",
+			"type":    "Programmed",
 			"status":  status,
 			"reason":  reason,
 			"message": message,

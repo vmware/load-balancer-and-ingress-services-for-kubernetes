@@ -330,7 +330,7 @@ func buildPoolWithBackendExtensionRefs(key string, poolNode *nodes.AviPoolNode, 
 				unstructuredObj := obj.(*unstructured.Unstructured)
 				_, ready, _ := lib.IsHealthMonitorProcessedWithOptions(key, namespace, filter.ExtensionRef.Name, akogatewayapilib.GetDynamicClientSet(), true, unstructuredObj)
 				if !ready {
-					utils.AviLog.Warnf("key: %s, msg: error: HealthMonitor %s/%s not ready. err: %s", key, namespace, filter.ExtensionRef.Name, err)
+					utils.AviLog.Warnf("key: %s, msg: error: HealthMonitor %s/%s not ready", key, namespace, filter.ExtensionRef.Name)
 					continue
 				}
 				status, found, err := unstructured.NestedMap(unstructuredObj.UnstructuredContent(), "status")

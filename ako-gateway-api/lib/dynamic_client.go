@@ -450,7 +450,7 @@ func IsApplicationProfileValid(namespace, name string) (bool, bool) {
 }
 
 // IsApplicationProfileProcessed checks if the ApplicationProfile CRD is processed by AKO CRD operator.
-// It returns true if the ApplicationProfile's backendname is updated and status is "Ready", false otherwise.
+// It returns true if the ApplicationProfile's backendname is updated and status is "Programmed", false otherwise.
 // It also returns the status of the ApplicationProfile.
 func IsApplicationProfileProcessed(obj interface{}, namespace, name string) bool {
 	oldObj := obj.(*unstructured.Unstructured)
@@ -487,7 +487,7 @@ func IsApplicationProfileProcessed(obj interface{}, namespace, name string) bool
 	for _, c := range conditions {
 		condition := c.(map[string]interface{})
 		statusReady := condition["status"].(string) == string(metav1.ConditionTrue)
-		conditionReady := condition["type"].(string) == "Ready"
+		conditionReady := condition["type"].(string) == "Programmed"
 
 		if statusReady && conditionReady {
 			return true

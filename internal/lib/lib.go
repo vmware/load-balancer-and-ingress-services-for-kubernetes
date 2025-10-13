@@ -2470,7 +2470,7 @@ func IsHealthMonitorProcessedWithOptions(key, namespace, name string, clientSet 
 		}
 
 		switch conditionMap["type"] {
-		case "Ready":
+		case "Programmed":
 			processed = true
 			if conditionMap["status"] == "True" {
 				ready = true
