@@ -18,7 +18,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"reflect"
 	"strings"
 
@@ -182,7 +181,15 @@ func (o *gateway) Update(key string, option status.StatusOptions) {
 		message = "Virtual service configured/updated"
 		// Add VS UUID to the message if available
 		if option.Options.VirtualServiceUUID != "" && utils.IsVCFCluster() {
-			message = fmt.Sprintf("VSUUID:%s", option.Options.VirtualServiceUUID)
+			messageMap := map[string]string{
+				"VSUUID": option.Options.VirtualServiceUUID,
+			}
+			messageBytes, err := json.Marshal(messageMap)
+			if err != nil {
+				utils.AviLog.Warnf("key: %s, msg: failed to marshal the message: %v", key, err)
+				return
+			}
+			message = string(messageBytes)
 		}
 	}
 	condition.
@@ -238,7 +245,15 @@ func (o *gateway) BulkUpdate(key string, options []status.StatusOptions) {
 			// Add VS UUID to the message if available
 			message := "Virtual service configured/updated"
 			if option.Options.VirtualServiceUUID != "" {
-				message = fmt.Sprintf("VSUUID:%s", option.Options.VirtualServiceUUID)
+				messageMap := map[string]string{
+					"VSUUID": option.Options.VirtualServiceUUID,
+				}
+				messageBytes, err := json.Marshal(messageMap)
+				if err != nil {
+					utils.AviLog.Warnf("key: %s, msg: failed to marshal the message: %v", key, err)
+					return
+				}
+				message = string(messageBytes)
 			}
 			apimeta.SetStatusCondition(&gatewaystatus.Conditions, metav1.Condition{
 				Type:               string(gatewayv1.GatewayConditionProgrammed),
