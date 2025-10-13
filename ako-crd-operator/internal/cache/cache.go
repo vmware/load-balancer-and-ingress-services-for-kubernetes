@@ -3,6 +3,8 @@ package cache
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"strings"
 	"sync"
 
 	avisession "github.com/vmware/alb-sdk/go/session"
@@ -53,6 +55,16 @@ func (c *cache) PopulateCache(ctx context.Context, urls ...string) error {
 				result, err = c.session.AviSessionGetCollectionRaw(currentURL, params, avisession.SetOptTenant(lib.GetQueryTenant()))
 			} else {
 				// result.Next will have all required params
+				// parse the result.Next
+				// base uri: /api/healthmonitor, /api/applicationprofile
+				next_uri := strings.Split(currentURL, baseURL)
+				utils.AviLog.Debugf("Found next page,  uri: %s", next_uri)
+				if len(next_uri) == 1 {
+					return fmt.Errorf("error while parsing next uri: [%s]", currentURL)
+				}
+				// next_uri[1] should contain query parameters
+				// so now url should e.g. /api/healthmonitor?page=2&pag_size=100
+				currentURL = baseURL + next_uri[1]
 				result, err = c.session.AviSessionGetCollectionRaw(currentURL, avisession.SetOptTenant(lib.GetQueryTenant()))
 			}
 			if err != nil {
