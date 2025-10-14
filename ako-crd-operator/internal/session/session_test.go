@@ -133,11 +133,11 @@ func TestCreateAviClients(t *testing.T) {
 			prepareMock: func(mockFactory *mock.MockAviRestClientPoolFactory) {
 				mockClientPool := &utils.AviRestClientPool{}
 				mockFactory.EXPECT().NewAviRestClientPool(
-					1, "10.1.1.1", "admin", "password123", "", "", "ca-data", "admin", "", nil,
-				).Return(mockClientPool, "20.1.1", nil)
+					1, "10.1.1.1", "admin", "password123", "", "", "ca-data", "admin", "", gomock.Any(),
+				).Return(mockClientPool, utils.MaxAviVersion, nil)
 			},
 			wantStatus:     utils.AVIAPI_CONNECTED,
-			wantVersion:    "20.1.1",
+			wantVersion:    utils.MaxAviVersion,
 			wantClientPool: true,
 		},
 		{
@@ -152,11 +152,11 @@ func TestCreateAviClients(t *testing.T) {
 			prepareMock: func(mockFactory *mock.MockAviRestClientPoolFactory) {
 				mockClientPool := &utils.AviRestClientPool{}
 				mockFactory.EXPECT().NewAviRestClientPool(
-					1, "10.1.1.1", "admin", "", "token123", "", "ca-data", "admin", "", nil,
-				).Return(mockClientPool, "20.1.1", nil)
+					1, "10.1.1.1", "admin", "", "token123", "", "ca-data", "admin", "", gomock.Any(),
+				).Return(mockClientPool, utils.MaxAviVersion, nil)
 			},
 			wantStatus:     utils.AVIAPI_CONNECTED,
-			wantVersion:    "20.1.1",
+			wantVersion:    utils.MaxAviVersion,
 			wantClientPool: true,
 		},
 		{
@@ -175,11 +175,11 @@ func TestCreateAviClients(t *testing.T) {
 			prepareMock: func(mockFactory *mock.MockAviRestClientPoolFactory) {
 				mockClientPool := &utils.AviRestClientPool{}
 				mockFactory.EXPECT().NewAviRestClientPool(
-					1, "192.168.1.100", "admin", "password123", "", "", "ca-data", "admin", "", nil,
-				).Return(mockClientPool, "20.1.1", nil)
+					1, "192.168.1.100", "admin", "password123", "", "", "ca-data", "admin", "", gomock.Any(),
+				).Return(mockClientPool, utils.MaxAviVersion, nil)
 			},
 			wantStatus:     utils.AVIAPI_CONNECTED,
-			wantVersion:    "20.1.1",
+			wantVersion:    utils.MaxAviVersion,
 			wantClientPool: true,
 		},
 		{
@@ -193,7 +193,7 @@ func TestCreateAviClients(t *testing.T) {
 			setupControllerIP: func() { lib.SetControllerIP("10.1.1.1") },
 			prepareMock: func(mockFactory *mock.MockAviRestClientPoolFactory) {
 				mockFactory.EXPECT().NewAviRestClientPool(
-					1, "10.1.1.1", "admin", "password123", "", "", "ca-data", "admin", "", nil,
+					1, "10.1.1.1", "admin", "password123", "", "", "ca-data", "admin", "", gomock.Any(),
 				).Return(nil, "", errors.New("connection failed"))
 			},
 			wantStatus:     utils.AVIAPI_DISCONNECTED,
@@ -374,7 +374,7 @@ func TestCreateAviClients_VersionFormats(t *testing.T) {
 			// Mock the factory to return success with specific version
 			mockClientPool := &utils.AviRestClientPool{}
 			mockFactory.EXPECT().NewAviRestClientPool(
-				1, "10.1.1.1", "admin", "password123", "", "", "ca-data", "admin", "", nil,
+				1, "10.1.1.1", "admin", "password123", "", "", "ca-data", "admin", "", gomock.Any(),
 			).Return(mockClientPool, tc.returnedVersion, nil)
 
 			session.CreateAviClients(context.Background(), 1)
@@ -414,12 +414,12 @@ func TestUpdateAviClients(t *testing.T) {
 			prepareMock: func(mockFactory *mock.MockAviRestClientPoolFactory) {
 				mockClientPool := &utils.AviRestClientPool{}
 				mockFactory.EXPECT().NewAviRestClientPool(
-					2, "10.1.1.1", "admin", "password123", "", "", "ca-data", "admin", "", nil,
-				).Return(mockClientPool, "20.1.1", nil)
+					2, "10.1.1.1", "admin", "password123", "", "", "ca-data", "admin", "", gomock.Any(),
+				).Return(mockClientPool, utils.MaxAviVersion, nil)
 			},
 			wantErr:     false,
 			wantStatus:  utils.AVIAPI_CONNECTED,
-			wantVersion: "20.1.1",
+			wantVersion: utils.MaxAviVersion,
 		},
 		{
 			name: "error: populate properties fails",
@@ -545,8 +545,8 @@ func TestCreateAviClients_ConcurrentAccess(t *testing.T) {
 	mockClientPool1 := &utils.AviRestClientPool{}
 	mockClientPool2 := &utils.AviRestClientPool{}
 
-	mockFactory.EXPECT().NewAviRestClientPool(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(mockClientPool1, "20.1.1", nil)
-	mockFactory.EXPECT().NewAviRestClientPool(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(mockClientPool2, "20.1.1", nil)
+	mockFactory.EXPECT().NewAviRestClientPool(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(mockClientPool1, utils.MaxAviVersion, nil)
+	mockFactory.EXPECT().NewAviRestClientPool(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(mockClientPool2, utils.MaxAviVersion, nil)
 
 	// Test concurrent access
 	var wg sync.WaitGroup
@@ -631,7 +631,7 @@ func TestCreateAviClients_VersionHandling(t *testing.T) {
 			}
 
 			mockFactory.EXPECT().NewAviRestClientPool(
-				1, "10.1.1.1", "admin", "password123", "", "", "ca-data", "admin", "", nil,
+				1, "10.1.1.1", "admin", "password123", "", "", "ca-data", "admin", "", gomock.Any(),
 			).Return(mockClientPool, tt.factoryReturnVersion, tt.factoryReturnError)
 
 			session.CreateAviClients(context.Background(), 1)
@@ -781,4 +781,138 @@ func TestSessionInstance_ThreadSafety(t *testing.T) {
 
 	// Cleanup
 	ResetSessionInstance()
+}
+
+// @AI-Generated
+// [Generated by Cursor claude-4.5-sonnet]
+func TestCreateAviClients_UserHeaders(t *testing.T) {
+	tests := []struct {
+		name                string
+		ctrlProperties      map[string]string
+		setupControllerIP   func()
+		prepareMock         func(*mock.MockAviRestClientPoolFactory)
+		expectedUserHeaders map[string]string
+		wantStatus          string
+		wantVersion         string
+	}{
+		{
+			name: "success: userHeaders with default AKO user agent",
+			ctrlProperties: map[string]string{
+				utils.ENV_CTRL_USERNAME:  "admin",
+				utils.ENV_CTRL_PASSWORD:  "password123",
+				utils.ENV_CTRL_AUTHTOKEN: "",
+				utils.ENV_CTRL_CADATA:    "ca-data",
+			},
+			setupControllerIP: func() { lib.SetControllerIP("10.1.1.1") },
+			prepareMock: func(mockFactory *mock.MockAviRestClientPoolFactory) {
+				mockClientPool := &utils.AviRestClientPool{}
+				// Verify that userHeaders contains the expected X-Avi-UserAgent header
+				mockFactory.EXPECT().NewAviRestClientPool(
+					1, "10.1.1.1", "admin", "password123", "", "", "ca-data", "admin", "",
+					gomock.Any(),
+				).DoAndReturn(func(numClients int, ctrlIpAddress, ctrlUsername, ctrlPassword, ctrlAuthToken, controllerVersion, ctrlCAData string, tenant string, protocol string, userHeaders map[string]string) (*utils.AviRestClientPool, string, error) {
+					// Verify the userHeaders contain the expected AKO user agent
+					assert.Equal(t, "AKO", userHeaders[utils.XAviUserAgentHeader])
+					return mockClientPool, utils.MaxAviVersion, nil
+				})
+			},
+			expectedUserHeaders: map[string]string{
+				utils.XAviUserAgentHeader: "AKO",
+			},
+			wantStatus:  utils.AVIAPI_CONNECTED,
+			wantVersion: utils.MaxAviVersion,
+		},
+		{
+			name: "success: userHeaders with auth token",
+			ctrlProperties: map[string]string{
+				utils.ENV_CTRL_USERNAME:  "admin",
+				utils.ENV_CTRL_PASSWORD:  "",
+				utils.ENV_CTRL_AUTHTOKEN: "token123",
+				utils.ENV_CTRL_CADATA:    "ca-data",
+			},
+			setupControllerIP: func() { lib.SetControllerIP("10.1.1.1") },
+			prepareMock: func(mockFactory *mock.MockAviRestClientPoolFactory) {
+				mockClientPool := &utils.AviRestClientPool{}
+				mockFactory.EXPECT().NewAviRestClientPool(
+					1, "10.1.1.1", "admin", "", "token123", "", "ca-data", "admin", "",
+					gomock.Any(),
+				).DoAndReturn(func(numClients int, ctrlIpAddress, ctrlUsername, ctrlPassword, ctrlAuthToken, controllerVersion, ctrlCAData string, tenant string, protocol string, userHeaders map[string]string) (*utils.AviRestClientPool, string, error) {
+					// Verify the userHeaders contain the expected AKO user agent
+					assert.Equal(t, "AKO", userHeaders[utils.XAviUserAgentHeader])
+					return mockClientPool, utils.MaxAviVersion, nil
+				})
+			},
+			expectedUserHeaders: map[string]string{
+				utils.XAviUserAgentHeader: "AKO",
+			},
+			wantStatus:  utils.AVIAPI_CONNECTED,
+			wantVersion: utils.MaxAviVersion,
+		},
+		{
+			name: "success: userHeaders with multiple clients",
+			ctrlProperties: map[string]string{
+				utils.ENV_CTRL_USERNAME:  "admin",
+				utils.ENV_CTRL_PASSWORD:  "password123",
+				utils.ENV_CTRL_AUTHTOKEN: "",
+				utils.ENV_CTRL_CADATA:    "ca-data",
+			},
+			setupControllerIP: func() { lib.SetControllerIP("10.1.1.1") },
+			prepareMock: func(mockFactory *mock.MockAviRestClientPoolFactory) {
+				mockClientPool := &utils.AviRestClientPool{}
+				mockFactory.EXPECT().NewAviRestClientPool(
+					1, "10.1.1.1", "admin", "password123", "", "", "ca-data", "admin", "",
+					gomock.Any(),
+				).DoAndReturn(func(numClients int, ctrlIpAddress, ctrlUsername, ctrlPassword, ctrlAuthToken, controllerVersion, ctrlCAData string, tenant string, protocol string, userHeaders map[string]string) (*utils.AviRestClientPool, string, error) {
+					// Verify the userHeaders contain the expected AKO user agent
+					assert.Equal(t, "AKO", userHeaders[utils.XAviUserAgentHeader])
+					return mockClientPool, utils.MaxAviVersion, nil
+				})
+			},
+			expectedUserHeaders: map[string]string{
+				utils.XAviUserAgentHeader: "AKO",
+			},
+			wantStatus:  utils.AVIAPI_CONNECTED,
+			wantVersion: utils.MaxAviVersion,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Setup controller IP
+			if tt.setupControllerIP != nil {
+				tt.setupControllerIP()
+			}
+
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			mockFactory := mock.NewMockAviRestClientPoolFactory(ctrl)
+			tt.prepareMock(mockFactory)
+
+			k8sClient := createFakeK8sClient()
+			eventManager := &event.EventManager{}
+
+			session := &Session{
+				sync:                     &sync.Mutex{},
+				aviRestClientPoolFactory: mockFactory,
+				ctrlProperties:           tt.ctrlProperties,
+				k8sClient:                k8sClient,
+				status:                   utils.AVIAPI_INITIATING,
+				eventManager:             eventManager,
+				tenant:                   "",
+			}
+
+			session.CreateAviClients(context.Background(), 1)
+
+			// Verify results
+			if tt.wantStatus != "" {
+				assert.Equal(t, tt.wantStatus, session.status)
+			}
+			if tt.wantVersion != "" {
+				assert.Equal(t, tt.wantVersion, session.controllerVersion)
+			}
+		})
+		// Cleanup
+		ResetSessionInstance()
+	}
 }

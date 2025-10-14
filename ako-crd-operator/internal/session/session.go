@@ -132,6 +132,8 @@ func (s *Session) CreateAviClients(ctx context.Context, numClient int) {
 	var aviRestClientPool *utils.AviRestClientPool
 	s.tenant = lib.GetTenant()
 	log.Infof("Tenant is: %s", s.tenant)
+	userHeaders := utils.SharedCtrlProp().GetCtrlUserHeader()
+	userHeaders[utils.XAviUserAgentHeader] = "AKO"
 	aviRestClientPool, s.controllerVersion, err = s.aviRestClientPoolFactory.NewAviRestClientPool(
 		numClient,
 		ctrlIpAddress,
@@ -142,7 +144,7 @@ func (s *Session) CreateAviClients(ctx context.Context, numClient int) {
 		ctrlCAData,
 		s.tenant,
 		"",
-		nil,
+		userHeaders,
 	)
 	if err != nil {
 		s.status = utils.AVIAPI_DISCONNECTED
