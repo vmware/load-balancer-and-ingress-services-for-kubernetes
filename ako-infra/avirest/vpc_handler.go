@@ -80,22 +80,30 @@ func (v *VPCHandler) createInfraSettingAndAnnotateNS(nsToVPCMap, nsToSEGMap map[
 	}
 
 	processedInfraSettingCRSet := make(map[string]struct{})
+	nsxProjectToTenantMap, err := lib.GetNSXProjectToTenantMap(InfraAviClientInstance())
+	if err != nil {
+		utils.AviLog.Errorf("Failed to get NSX project to tenant map, skipping reconcilliation, error: %s", err.Error())
+		return
+	}
+
 	for ns, vpc := range nsToVPCMap {
 		arr := strings.Split(vpc, "/vpcs/")
 		projectArr := strings.Split(arr[0], "/projects/")
-		name := projectArr[len(projectArr)-1] + arr[len(arr)-1]
+		project := projectArr[len(projectArr)-1]
+		tenant, ok := nsxProjectToTenantMap[project]
+		if !ok {
+			utils.AviLog.Warnf("Tenant not found for project %s", project)
+			continue
+		}
+
+		name := project + arr[len(arr)-1]
 		segName := "Default-Group"
 		if seg, ok := nsToSEGMap[ns]; ok {
 			name = name + seg
 			segName = seg
 		}
 		infraSettingName := lib.GetAviInfraSettingName(name)
-		c := InfraAviClientInstance()
-		tenant, err := lib.GetTenantForProject(projectArr[len(projectArr)-1], c)
-		if err != nil {
-			utils.AviLog.Warnf("failed to fetch admin tenant from Avi, error: %s", err.Error())
-			continue
-		}
+
 		// multiple namespaces can use the same vpc, and there will always be only 1 infrasetting per vpc
 		// so no need to attempt Infrasetting creation
 		// just annotate the namespace with the infrasetting and tenant info
@@ -119,6 +127,8 @@ func (v *VPCHandler) createInfraSettingAndAnnotateNS(nsToVPCMap, nsToSEGMap map[
 		err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Delete(context.TODO(), infraSettingName, metav1.DeleteOptions{})
 		if err != nil {
 			utils.AviLog.Warnf("failed to delete aviInfraSetting, name: %s, error: %s", infraSettingName, err.Error())
+		} else {
+			utils.AviLog.Infof("deleted aviInfraSetting, name: %s", infraSettingName)
 		}
 	}
 
