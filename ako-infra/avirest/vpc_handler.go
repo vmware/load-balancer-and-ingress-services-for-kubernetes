@@ -86,7 +86,7 @@ func (v *VPCHandler) createInfraSettingAndAnnotateNS(nsToVPCMap, nsToSEGMap map[
 		c := InfraAviClientInstance()
 		tenant, err := lib.GetTenantForProject(projectArr[len(projectArr)-1], c)
 		if err != nil {
-			utils.AviLog.Warnf("failed to fetch admin tenant from Avi, error: %s", err.Error())
+			utils.AviLog.Warnf("failed to get Tenant for project %s from Avi, error: %s", projectArr[len(projectArr)-1], err.Error())
 			continue
 		}
 		// multiple namespaces can use the same vpc, and there will always be only 1 infrasetting per vpc
