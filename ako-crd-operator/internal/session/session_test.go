@@ -134,10 +134,10 @@ func TestCreateAviClients(t *testing.T) {
 				mockClientPool := &utils.AviRestClientPool{}
 				mockFactory.EXPECT().NewAviRestClientPool(
 					1, "10.1.1.1", "admin", "password123", "", "", "ca-data", "admin", "", gomock.Any(),
-				).Return(mockClientPool, "20.1.1", nil)
+				).Return(mockClientPool, utils.MaxAviVersion, nil)
 			},
 			wantStatus:     utils.AVIAPI_CONNECTED,
-			wantVersion:    "20.1.1",
+			wantVersion:    utils.MaxAviVersion,
 			wantClientPool: true,
 		},
 		{
@@ -153,10 +153,10 @@ func TestCreateAviClients(t *testing.T) {
 				mockClientPool := &utils.AviRestClientPool{}
 				mockFactory.EXPECT().NewAviRestClientPool(
 					1, "10.1.1.1", "admin", "", "token123", "", "ca-data", "admin", "", gomock.Any(),
-				).Return(mockClientPool, "20.1.1", nil)
+				).Return(mockClientPool, utils.MaxAviVersion, nil)
 			},
 			wantStatus:     utils.AVIAPI_CONNECTED,
-			wantVersion:    "20.1.1",
+			wantVersion:    utils.MaxAviVersion,
 			wantClientPool: true,
 		},
 		{
@@ -176,10 +176,10 @@ func TestCreateAviClients(t *testing.T) {
 				mockClientPool := &utils.AviRestClientPool{}
 				mockFactory.EXPECT().NewAviRestClientPool(
 					1, "192.168.1.100", "admin", "password123", "", "", "ca-data", "admin", "", gomock.Any(),
-				).Return(mockClientPool, "20.1.1", nil)
+				).Return(mockClientPool, utils.MaxAviVersion, nil)
 			},
 			wantStatus:     utils.AVIAPI_CONNECTED,
-			wantVersion:    "20.1.1",
+			wantVersion:    utils.MaxAviVersion,
 			wantClientPool: true,
 		},
 		{
@@ -415,11 +415,11 @@ func TestUpdateAviClients(t *testing.T) {
 				mockClientPool := &utils.AviRestClientPool{}
 				mockFactory.EXPECT().NewAviRestClientPool(
 					2, "10.1.1.1", "admin", "password123", "", "", "ca-data", "admin", "", gomock.Any(),
-				).Return(mockClientPool, "20.1.1", nil)
+				).Return(mockClientPool, utils.MaxAviVersion, nil)
 			},
 			wantErr:     false,
 			wantStatus:  utils.AVIAPI_CONNECTED,
-			wantVersion: "20.1.1",
+			wantVersion: utils.MaxAviVersion,
 		},
 		{
 			name: "error: populate properties fails",
@@ -545,8 +545,8 @@ func TestCreateAviClients_ConcurrentAccess(t *testing.T) {
 	mockClientPool1 := &utils.AviRestClientPool{}
 	mockClientPool2 := &utils.AviRestClientPool{}
 
-	mockFactory.EXPECT().NewAviRestClientPool(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(mockClientPool1, "20.1.1", nil)
-	mockFactory.EXPECT().NewAviRestClientPool(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(mockClientPool2, "20.1.1", nil)
+	mockFactory.EXPECT().NewAviRestClientPool(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(mockClientPool1, utils.MaxAviVersion, nil)
+	mockFactory.EXPECT().NewAviRestClientPool(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(mockClientPool2, utils.MaxAviVersion, nil)
 
 	// Test concurrent access
 	var wg sync.WaitGroup
@@ -813,14 +813,14 @@ func TestCreateAviClients_UserHeaders(t *testing.T) {
 				).DoAndReturn(func(numClients int, ctrlIpAddress, ctrlUsername, ctrlPassword, ctrlAuthToken, controllerVersion, ctrlCAData string, tenant string, protocol string, userHeaders map[string]string) (*utils.AviRestClientPool, string, error) {
 					// Verify the userHeaders contain the expected AKO user agent
 					assert.Equal(t, "AKO", userHeaders[utils.XAviUserAgentHeader])
-					return mockClientPool, "20.1.1", nil
+					return mockClientPool, utils.MaxAviVersion, nil
 				})
 			},
 			expectedUserHeaders: map[string]string{
 				utils.XAviUserAgentHeader: "AKO",
 			},
 			wantStatus:  utils.AVIAPI_CONNECTED,
-			wantVersion: "20.1.1",
+			wantVersion: utils.MaxAviVersion,
 		},
 		{
 			name: "success: userHeaders with auth token",
@@ -839,14 +839,14 @@ func TestCreateAviClients_UserHeaders(t *testing.T) {
 				).DoAndReturn(func(numClients int, ctrlIpAddress, ctrlUsername, ctrlPassword, ctrlAuthToken, controllerVersion, ctrlCAData string, tenant string, protocol string, userHeaders map[string]string) (*utils.AviRestClientPool, string, error) {
 					// Verify the userHeaders contain the expected AKO user agent
 					assert.Equal(t, "AKO", userHeaders[utils.XAviUserAgentHeader])
-					return mockClientPool, "20.1.1", nil
+					return mockClientPool, utils.MaxAviVersion, nil
 				})
 			},
 			expectedUserHeaders: map[string]string{
 				utils.XAviUserAgentHeader: "AKO",
 			},
 			wantStatus:  utils.AVIAPI_CONNECTED,
-			wantVersion: "20.1.1",
+			wantVersion: utils.MaxAviVersion,
 		},
 		{
 			name: "success: userHeaders with multiple clients",
@@ -865,14 +865,14 @@ func TestCreateAviClients_UserHeaders(t *testing.T) {
 				).DoAndReturn(func(numClients int, ctrlIpAddress, ctrlUsername, ctrlPassword, ctrlAuthToken, controllerVersion, ctrlCAData string, tenant string, protocol string, userHeaders map[string]string) (*utils.AviRestClientPool, string, error) {
 					// Verify the userHeaders contain the expected AKO user agent
 					assert.Equal(t, "AKO", userHeaders[utils.XAviUserAgentHeader])
-					return mockClientPool, "20.1.1", nil
+					return mockClientPool, utils.MaxAviVersion, nil
 				})
 			},
 			expectedUserHeaders: map[string]string{
 				utils.XAviUserAgentHeader: "AKO",
 			},
 			wantStatus:  utils.AVIAPI_CONNECTED,
-			wantVersion: "20.1.1",
+			wantVersion: utils.MaxAviVersion,
 		},
 	}
 
