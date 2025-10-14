@@ -198,6 +198,14 @@ func (c *VCFK8sController) AddVKSCapabilityEventHandler(stopCh <-chan struct{}) 
 }
 
 func (c *VCFK8sController) startVKSInfrastructure(stopCh <-chan struct{}) {
+	// Check if VKS AVI client is available (indicates controller version >= 31.3.1)
+	if !avirest.IsVKSAviClientAvailable() {
+		utils.AviLog.Warnf("VKS: Cannot start VKS infrastructure - VKS AVI client not available. Controller version must be >= %s to support Management Service APIs", avirest.VKSAviVersion)
+		return
+	}
+
+	utils.AviLog.Infof("VKS: Starting VKS infrastructure with controller version >= %s", avirest.VKSAviVersion)
+
 	go addon.EnsureGlobalAddonInstallWithRetry(stopCh)
 
 	go proxy.EnsureGlobalManagementServiceWithRetry(stopCh)
