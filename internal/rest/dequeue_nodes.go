@@ -2183,7 +2183,7 @@ func (rest *RestOperations) StringGroupVsCU(stringGroupNodes []*nodes.AviStringG
 }
 
 func (rest *RestOperations) StringGroupDelete(sg_to_delete []avicache.NamespaceName, namespace string, rest_ops []*utils.RestOp, key string) []*utils.RestOp {
-	utils.AviLog.Infof("key: %s, msg: about to delete the StringGroup %s", key, sg_to_delete)
+	utils.AviLog.Debugf("key: %s, msg: about to delete the StringGroup %s", key, sg_to_delete)
 	for _, del_sg := range sg_to_delete {
 		// fetch trhe stringgroup uuid from cache
 		sg_key := avicache.NamespaceName{Namespace: namespace, Name: del_sg.Name}

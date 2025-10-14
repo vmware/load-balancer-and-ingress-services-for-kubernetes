@@ -807,7 +807,7 @@ func CreateHealthMonitorCRDWithStatus(t *testing.T, name, namespace, uuid string
 			"status": map[string]interface{}{
 				"conditions": []interface{}{
 					map[string]interface{}{
-						"type":    "Ready",
+						"type":    "Programmed",
 						"status":  status,
 						"reason":  reason,
 						"message": message,
@@ -873,7 +873,7 @@ func UpdateHealthMonitorStatus(t *testing.T, name, namespace string, ready bool,
 
 	conditions := []interface{}{
 		map[string]interface{}{
-			"type":    "Ready",
+			"type":    "Programmed",
 			"status":  status,
 			"reason":  reason,
 			"message": message,
@@ -1016,7 +1016,7 @@ func CreatePKIProfileCR(t *testing.T, name, namespace string, caCerts []string) 
 				"controller": akogatewayapilib.AKOCRDController,
 				"conditions": []interface{}{
 					map[string]interface{}{
-						"type":   "Ready",
+						"type":   "Programmed",
 						"status": "True",
 						"reason": "ValidationSucceeded",
 					},
@@ -1352,7 +1352,7 @@ func GetFakeApplicationProfile(name string, status *FakeApplicationProfileStatus
 			"backendObjectName": name,
 			"conditions": []interface{}{
 				map[string]interface{}{
-					"type":    "Ready",
+					"type":    "Programmed",
 					"status":  status.Status,
 					"reason":  status.Reason,
 					"message": status.Message,

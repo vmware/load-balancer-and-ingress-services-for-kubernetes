@@ -1018,7 +1018,7 @@ func TestRouteBackendExtensionBackendTLSValidation(t *testing.T) {
 				Status: akov1alpha1.PKIProfileStatus{
 					Conditions: []metav1.Condition{
 						{
-							Type:   "Ready",
+							Type:   "Programmed",
 							Status: "False",
 						},
 					},

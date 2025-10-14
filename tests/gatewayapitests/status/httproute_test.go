@@ -2768,10 +2768,10 @@ func TestHTTPRouteStatusWithRouteBackendExtensionPKIProfileLifecycle(t *testing.
 	pkiProfile.SetName(pkiProfileName)
 	pkiProfile.SetNamespace(DEFAULT_NAMESPACE)
 
-	// Set Ready=False condition
+	// Set Programmed=False condition
 	conditions := []interface{}{
 		map[string]interface{}{
-			"type":               "Ready",
+			"type":               "Programmed",
 			"status":             "False",
 			"lastTransitionTime": time.Now().Format(time.RFC3339),
 			"reason":             "ValidationFailed",
@@ -2799,10 +2799,10 @@ func TestHTTPRouteStatusWithRouteBackendExtensionPKIProfileLifecycle(t *testing.
 			condition.Reason == string(gatewayv1.RouteReasonBackendNotFound)
 	}, 30*time.Second).Should(gomega.Equal(true))
 
-	// Test Case 3: Update PKIProfile to Ready=True
+	// Test Case 3: Update PKIProfile to Programmed=True
 	conditions = []interface{}{
 		map[string]interface{}{
-			"type":               "Ready",
+			"type":               "Programmed",
 			"status":             "True",
 			"lastTransitionTime": time.Now().Format(time.RFC3339),
 			"reason":             "ValidationSucceeded",

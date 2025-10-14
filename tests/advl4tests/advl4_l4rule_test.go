@@ -283,7 +283,7 @@ func TestAdvL4WithHealthMonitorCRDRef(t *testing.T) {
 				"tenant":             "admin",
 				"conditions": []interface{}{
 					map[string]interface{}{
-						"type":               "Ready",
+						"type":               "Programmed",
 						"status":             "True",
 						"lastTransitionTime": "2023-01-01T00:00:00Z",
 						"reason":             "Accepted",
