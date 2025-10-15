@@ -21,15 +21,14 @@ import (
 )
 
 // HealthMonitorType defines the type of health monitor.
-// +kubebuilder:validation:Enum=HEALTH_MONITOR_TCP;HEALTH_MONITOR_PING;HEALTH_MONITOR_HTTP;HEALTH_MONITOR_HTTPS
+// +kubebuilder:validation:Enum=HEALTH_MONITOR_TCP;HEALTH_MONITOR_PING;HEALTH_MONITOR_HTTP
 type HealthMonitorType string
 
 const (
 	// types of health monitor
-	HealthMonitorTCP   HealthMonitorType = "HEALTH_MONITOR_TCP"
-	HealthMonitorPing  HealthMonitorType = "HEALTH_MONITOR_PING"
-	HealthMonitorHTTP  HealthMonitorType = "HEALTH_MONITOR_HTTP"
-	HealthMonitorHTTPS HealthMonitorType = "HEALTH_MONITOR_HTTPS"
+	HealthMonitorTCP  HealthMonitorType = "HEALTH_MONITOR_TCP"
+	HealthMonitorPing HealthMonitorType = "HEALTH_MONITOR_PING"
+	HealthMonitorHTTP HealthMonitorType = "HEALTH_MONITOR_HTTP"
 )
 
 // HealthMonitorAuth defines the type of authentication for HTTP/HTTPS monitors.
