@@ -46,15 +46,9 @@ func (v *VPCHandler) AddNetworkInfoEventHandler(stopCh <-chan struct{}) {
 }
 
 func (v *VPCHandler) SyncLSLRNetwork() {
-	client := InfraAviClientInstance()
-	if client == nil {
-		utils.AviLog.Warnf("Infra AVI client not available, skipping full sync")
-		return
-	}
-
 	// Check controller uptime - if controller was rebooted/upgraded, AKO-infra will restart
 	aviObjCache := avicache.SharedAviObjCache()
-	if err := aviObjCache.AviClusterStatusPopulate(client); err != nil {
+	if err := aviObjCache.AviClusterStatusPopulate(InfraAviClientInstance()); err != nil {
 		utils.AviLog.Warnf("Failed to check controller cluster status: %v", err)
 	}
 
