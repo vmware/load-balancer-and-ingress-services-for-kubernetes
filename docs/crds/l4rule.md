@@ -1,9 +1,7 @@
 ### L4Rule 
 
 L4Rule CRD can be used to modify the default properties of the L4 VS and the pools created from a service of Type LoadBalancer.
-Service of type LoadBalancer has to be annotated with the name of the CRD to attach the CRD to the service.
-
-**NOTE**: L4Rule CRD with Gateway API is not supported currently.
+Service of type LoadBalancer has to be annotated with the name of the CRD to attach the CRD to the service. Although cross namespace usage is allowed between L4Rule and LB service, both should use the same tenant.
 
 A sample L4Rule CRD looks like this:
 
@@ -39,6 +37,8 @@ A sample L4Rule CRD looks like this:
       healthMonitorRefs:
       - Custom-HM-01
       - Custom-HM-02
+      healthMonitorCrdRefs:
+      - my-health-monitor
       lbAlgorithm: LB_ALGORITHM_CONSISTENT_HASH
       lbAlgorithmHash: LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER
       lbAlgorithmConsistentHashHdr: "custom-string"
@@ -246,6 +246,8 @@ A sample `backendProperties` looks like this:
       healthMonitorRefs:
       - Custom-HM-01
       - Custom-HM-02
+      healthMonitorCrdRefs:
+      - my-health-monitor
       lbAlgorithm: LB_ALGORITHM_CONSISTENT_HASH
       lbAlgorithmHash: LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER
       lbAlgorithmConsistentHashHdr: "custom-string"
@@ -288,6 +290,18 @@ L4Rule CRD can be used to express custom health monitor references. The health m
 ```
 
 The health monitors can be used to verify server health. A server (Kubernetes pods in this case) will be marked UP only when all the health monitors return successful responses. Health monitors provided here overwrite the default health monitor configuration set by AKO i.e. `System-TCP` for TCP traffic and `System-UDP` for UDP traffic based on the service configuration.
+
+Alternatively, you can use the HealthMonitor CRD to define custom health monitoring configurations directly in Kubernetes:
+
+```yaml
+      healthMonitorCrdRefs:
+      - my-health-monitor
+      - my-backup-health-monitor
+```
+
+The `healthMonitorCrdRefs` field references HealthMonitor CRD objects that must be created in the same namespace as the L4Rule. The HealthMonitor CRD is managed by the AKO CRD Operator and supports TCP, HTTP, and PING health check types with fine-grained control over health check parameters. For more details on creating HealthMonitor CRDs, see the [HealthMonitor documentation](./healthmonitor.md).
+
+**NOTE**: `healthMonitorCrdRefs` will not be used if `healthMonitorRefs` are specified.
 
 #### Configure LB Algorithm
 
