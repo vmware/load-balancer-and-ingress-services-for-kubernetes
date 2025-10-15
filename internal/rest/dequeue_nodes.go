@@ -310,7 +310,7 @@ func (rest *RestOperations) CheckAndPublishForRetry(err error, publishKey avicac
 	}
 
 	// Handle other network errors with slow retry
-	// Keeping check for "Rest request error" again in case any other error matches this string in addition to the check in the preceeding if block
+	// Keeping check for "Rest request error" again in case any other error matches this string in addition to the check in the preceding if block
 	if strings.Contains(errorMsg, "timed out waiting for rest response") || strings.Contains(errorMsg, "Rest request error") || errors.As(err, &urlError) {
 		utils.AviLog.Warnf("key: %s, msg: got error while executing rest request: %s, adding to slow retry queue", key, errorMsg)
 		rest.PublishKeyToSlowRetryLayer(publishKey, key)
