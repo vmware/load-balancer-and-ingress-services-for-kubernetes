@@ -359,7 +359,9 @@ func setRouteConditionInHTTPRouteStatus(key, reason, msg string, httpRoute *gate
 			continue
 		}
 
-		httpRouteStatus.Parents = append(httpRouteStatus.Parents, gatewayv1.RouteParentStatus{})
+		if len(httpRouteStatus.Parents) <= parentRefIndexFromSpec {
+			httpRouteStatus.Parents = append(httpRouteStatus.Parents, gatewayv1.RouteParentStatus{})
+		}
 		httpRouteStatus.Parents[parentRefIndexFromSpec].ControllerName = akogatewayapilib.GatewayController
 		httpRouteStatus.Parents[parentRefIndexFromSpec].ParentRef.Name = gatewayv1.ObjectName(name)
 		httpRouteStatus.Parents[parentRefIndexFromSpec].ParentRef.Namespace = (*gatewayv1.Namespace)(&namespace)
