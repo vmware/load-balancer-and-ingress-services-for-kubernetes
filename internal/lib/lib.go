@@ -1217,7 +1217,12 @@ func SetApiServerInstance(akoApiInstance api.ApiServerInterface) {
 }
 
 func ShutdownApi() {
-	akoApi.ShutDown()
+	if akoApi != nil {
+		akoApi.ShutDown()
+	} else {
+		// ako-infra doesn't have an API server, use Fatalf instead
+		utils.AviLog.Fatalf("AKO restart required due to Avi controller upgrade/reboot")
+	}
 }
 
 var clusterLabelChecksum uint32
