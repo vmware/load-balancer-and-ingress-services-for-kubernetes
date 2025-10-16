@@ -165,6 +165,9 @@ type akoControlConfig struct {
 
 	//fqdnReusePolicy is set to Strict/InterNamespaceAllowed according to whether AKO allows FQDN sharing across namespaces
 	fqdnReusePolicy string
+
+	// AKO gateway API container
+	isAKOGatewayAPIContainer bool
 }
 
 var akoControlConfigInstance *akoControlConfig
@@ -178,6 +181,13 @@ func AKOControlConfig() *akoControlConfig {
 	return akoControlConfigInstance
 }
 
+func (c *akoControlConfig) SetAKOGatewayAPIContainer(isGWContainer bool) {
+	c.isAKOGatewayAPIContainer = isGWContainer
+}
+
+func (c *akoControlConfig) AKOGatewayAPIContainer() bool {
+	return c.isAKOGatewayAPIContainer
+}
 func (c *akoControlConfig) SetIsLeaderFlag(flag bool) {
 	c.isLeaderLock.Lock()
 	defer c.isLeaderLock.Unlock()
