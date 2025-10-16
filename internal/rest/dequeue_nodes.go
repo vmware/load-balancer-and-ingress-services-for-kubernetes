@@ -304,7 +304,7 @@ func (rest *RestOperations) CheckAndPublishForRetry(err error, publishKey avicac
 	if strings.Contains(errorMsg, "Rest request error, returning to caller") {
 		// This is typically a session refresh failure from AVI SDK
 		// Route to fast retry to allow immediate session refresh attempt
-		utils.AviLog.Warnf("key: %s, msg: detected session expiry issue: %s, adding to fast retry queue", key, errorMsg)
+		utils.AviLog.Warnf("key: %s, msg: detected error for rest op: %s, adding to fast retry queue", key, errorMsg)
 		rest.PublishKeyToRetryLayer(publishKey, key)
 		return true
 	}
