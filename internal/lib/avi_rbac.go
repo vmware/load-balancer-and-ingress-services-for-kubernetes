@@ -275,6 +275,8 @@ func CreateClusterUserWithRoles(aviClient *clients.AviClient, clusterName string
 
 		if err := deleteUserByUUID(aviClient, userName, existingUUID); err != nil {
 			utils.AviLog.Warnf("Failed to delete existing user %s: %v, continuing", userName, err)
+		} else {
+			utils.AviLog.Infof("Successfully deleted existing user %s", userName)
 		}
 	}
 
@@ -415,7 +417,7 @@ func CleanupSharedRoles(aviClient *clients.AviClient) error {
 }
 
 func getUserByName(aviClient *clients.AviClient, userName string) (string, error) {
-	uri := fmt.Sprintf("/api/user?name=%s&include_service_accounts=true", userName)
+	uri := fmt.Sprintf("/api/user?name=%s&include_service_accounts=true&fields=uuid", userName)
 	result, err := AviGetCollectionRaw(aviClient, uri)
 	if err != nil {
 		return "", fmt.Errorf("failed to query user %s: %v", userName, err)
