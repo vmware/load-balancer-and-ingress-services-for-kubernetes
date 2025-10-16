@@ -300,7 +300,6 @@ func (rest *RestOperations) CheckAndPublishForRetry(err error, publishKey avicac
 	var urlError *url.Error
 	errorMsg := err.Error()
 
-	// Check for session expiry issues that should go to fast retry
 	if strings.Contains(errorMsg, "Rest request error, returning to caller") {
 		// This is typically a session refresh failure from AVI SDK
 		// Route to fast retry to allow immediate session refresh attempt
