@@ -393,7 +393,14 @@ func setResolvedRefConditionInHTTPRouteStatus(key string, routeConditionResolved
 		return
 	}
 	httpRouteStatus := akogatewayapiobjects.GatewayApiLister().GetRouteToRouteStatusMapping(routeTypeNamespaceName)
-	routeConditionResolvedRef.ObservedGeneration(httpRouteStatus.Parents[0].Conditions[0].ObservedGeneration)
+	if httpRouteStatus == nil || len(httpRouteStatus.Parents) == 0 {
+		utils.AviLog.Warnf("key: %s, msg: HTTPRoute status not initialized yet for %s", key, routeTypeNamespaceName)
+		return
+	}
+	// TODO: Use HTTPRoute status instead of status from cache
+	if len(httpRouteStatus.Parents[0].Conditions) > 0 {
+		routeConditionResolvedRef.ObservedGeneration(httpRouteStatus.Parents[0].Conditions[0].ObservedGeneration)
+	}
 	for parentRefIndex := range httpRouteStatus.Parents {
 		isResolveRefSet := false
 		// Go through conditions
