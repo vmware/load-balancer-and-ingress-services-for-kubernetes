@@ -247,7 +247,7 @@ func GetPositiveConditions(ports []int32) *gatewayv1.GatewayStatus {
 	expectedStatus.Listeners[0].Conditions[1].Message = "Reference is valid"
 	return expectedStatus
 }
-func GetListenerStatusV1(ports []int32, attachedRoutes []int32, getResolvedRefCondition bool, getProgrammedCondition bool) []gatewayv1.ListenerStatus {
+func GetListenerStatusV1(ports []int32, attachedRoutes []int32, getResolvedRefCondition bool, getProgrammedCondition bool, programmedConditionMessage ...string) []gatewayv1.ListenerStatus {
 	listeners := make([]gatewayv1.ListenerStatus, 0, len(ports))
 	for i, port := range ports {
 		listener := gatewayv1.ListenerStatus{
@@ -275,10 +275,15 @@ func GetListenerStatusV1(ports []int32, attachedRoutes []int32, getResolvedRefCo
 			listener.Conditions = append(listener.Conditions, *resolvedRefCondition)
 		}
 		if getProgrammedCondition {
+			message := "Virtual service configured/updated"
+			if len(programmedConditionMessage) > 0 {
+				message = programmedConditionMessage[0]
+			}
+
 			programmedCondition := &metav1.Condition{
 				Type:               string(gatewayv1.ListenerConditionProgrammed),
 				Status:             metav1.ConditionTrue,
-				Message:            "Virtual service configured/updated",
+				Message:            message,
 				ObservedGeneration: 1,
 				Reason:             string(gatewayv1.ListenerReasonProgrammed),
 			}
@@ -777,6 +782,39 @@ func ValidateHTTPRouteStatus(t *testing.T, actualStatus, expectedStatus *gateway
 		g.Expect(actualRouteParentStatus.ParentRef).To(gomega.Equal(expectedRouteParentStatus.ParentRef))
 		ValidateConditions(t, actualRouteParentStatus.Conditions, expectedRouteParentStatus.Conditions)
 	}
+}
+
+func ValidateHTTPRouteStatusWithRetry(t *testing.T, actualStatus, expectedStatus *gatewayv1.HTTPRouteStatus) bool {
+	if len(actualStatus.Parents) != len(expectedStatus.Parents) {
+		return false
+	}
+	for i := range actualStatus.Parents {
+		if actualStatus.Parents[i].ControllerName != expectedStatus.Parents[i].ControllerName {
+			return false
+		}
+		if actualStatus.Parents[i].ParentRef.Name != expectedStatus.Parents[i].ParentRef.Name ||
+			*actualStatus.Parents[i].ParentRef.Namespace != *expectedStatus.Parents[i].ParentRef.Namespace ||
+			*actualStatus.Parents[i].ParentRef.SectionName != *expectedStatus.Parents[i].ParentRef.SectionName {
+			return false
+		}
+		for _, actualCondition := range actualStatus.Parents[i].Conditions {
+			for _, expectedCondition := range expectedStatus.Parents[i].Conditions {
+				if actualCondition.Type != expectedCondition.Type {
+					continue
+				}
+				if actualCondition.Status != expectedCondition.Status {
+					return false
+				}
+				if actualCondition.Reason != expectedCondition.Reason {
+					return false
+				}
+				if actualCondition.Message != expectedCondition.Message {
+					return false
+				}
+			}
+		}
+	}
+	return true
 }
 
 func CreateHealthMonitorCRD(t *testing.T, name, namespace, uuid string) {
@@ -1398,6 +1436,7 @@ type FakeApplicationProfileStatus struct {
 	Status  string
 	Reason  string
 	Message string
+	UUID    string
 }
 
 func GetFakeApplicationProfile(name string, status *FakeApplicationProfileStatus) unstructured.Unstructured {
@@ -1415,7 +1454,7 @@ func GetFakeApplicationProfile(name string, status *FakeApplicationProfileStatus
 		},
 	}
 	if status != nil {
-		ob["status"] = map[string]interface{}{
+		statusMap := map[string]interface{}{
 			"backendObjectName": name,
 			"conditions": []interface{}{
 				map[string]interface{}{
@@ -1427,6 +1466,10 @@ func GetFakeApplicationProfile(name string, status *FakeApplicationProfileStatus
 			},
 			"tenant": "admin",
 		}
+		if status.UUID != "" {
+			statusMap["uuid"] = status.UUID
+		}
+		ob["status"] = statusMap
 	}
 
 	appProfile.SetUnstructuredContent(ob)

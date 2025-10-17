@@ -96,6 +96,7 @@ type ServiceMetadataObj struct {
 	PassthroughChildRef        string              `json:"passthrough_child_ref"`
 	Gateway                    string              `json:"gateway"`   // ns/name
 	HTTPRoute                  string              `json:"httproute"` // ns/name
+	HTTPRouteRuleName          string              `json:"httproute_rule_name"`
 	InsecureEdgeTermAllow      bool                `json:"insecureedgetermallow"`
 	IsMCIIngress               bool                `json:"is_mci_ingress"`
 	FQDNReusePolicy            string              `json:"fqdn_reuse_policy"`
@@ -110,10 +111,16 @@ const (
 	ServiceTypeLBVS      ServiceMetadataMappingObjType = "SERVICELB_VS"
 	GatewayPool          ServiceMetadataMappingObjType = "GATEWAY_POOL"
 	SNIInsecureOrEVHPool ServiceMetadataMappingObjType = "SNI_INSECURE_OR_EVH_POOL"
+	HTTPRouteChildVS     ServiceMetadataMappingObjType = "HTTP_ROUTE_CHILD_VS"
 )
 
 func (c ServiceMetadataObj) ServiceMetadataMapping(objType string) ServiceMetadataMappingObjType {
-	if c.Gateway != "" {
+	if objType == "VS" && c.HTTPRoute != "" && c.HTTPRouteRuleName != "" {
+		// Check for `HTTPRoute` and `HTTPRouteRuleName` in VS serviceMetadata. Present in case of
+		// 1) HTTPRoute VS
+		// This needs to be above Gateway check
+		return HTTPRouteChildVS
+	} else if c.Gateway != "" {
 		// Check for `Gateway` in VS serviceMetadata. Present in case of
 		// 1) Advl4 VS
 		// 2) SvcApi VS
