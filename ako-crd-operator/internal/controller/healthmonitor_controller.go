@@ -273,7 +273,7 @@ func (r *HealthMonitorReconciler) DeleteObject(ctx context.Context, hm *akov1alp
 					if statusErr := r.StatusManager.SetStatus(ctx, hm, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionFalse, akov1alpha1.ObjectReasonDeletionSkipped, controllerutils.ParseAviErrorMessage(*aviError.Message)); statusErr != nil {
 						return statusErr, false
 					}
-					return err, false
+					return nil, false
 				}
 			}
 			log.Errorf("error deleting healthmonitor: %s", err.Error())
