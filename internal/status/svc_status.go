@@ -92,8 +92,14 @@ func (l *leader) UpdateL4LBStatus(options []UpdateOptions, bulk bool) {
 					key, oldServiceStatus.Ingress, service.Status.LoadBalancer.Ingress)
 			}
 
-			if err = updateSvcAnnotations(updatedSvc, option, service, svcHostname); err != nil {
-				utils.AviLog.Errorf("key: %s, msg: there was an error in updating the service annotations: %v", key, err)
+			if utils.IsVCFCluster() {
+				if err = updateSvcAnnotationsWithVSUUID(updatedSvc, option, service); err != nil {
+					utils.AviLog.Errorf("key: %s, msg: there was an error in updating the service annotations: %v", key, err)
+				}
+			} else {
+				if err = updateSvcAnnotations(updatedSvc, option, service, svcHostname); err != nil {
+					utils.AviLog.Errorf("key: %s, msg: there was an error in updating the service annotations: %v", key, err)
+				}
 			}
 		}
 
@@ -110,6 +116,38 @@ func (l *leader) UpdateL4LBStatus(options []UpdateOptions, bulk bool) {
 			}, "", lib.SyncStatusKey)
 		}
 	}
+}
+
+func updateSvcAnnotationsWithVSUUID(svc *corev1.Service, updateOption UpdateOptions, oldSvc *corev1.Service) error {
+	if updateOption.VirtualServiceUUID == "" {
+		utils.AviLog.Debugf("key: %s, msg: VirtualServiceUUID is empty, not updating the VS annotations for service %s/%s", updateOption.Key, svc.Namespace, svc.Name)
+		return nil
+	}
+	if svc == nil {
+		svc = oldSvc
+	}
+	if svc.Annotations == nil {
+		svc.Annotations = make(map[string]string)
+	}
+	if value, ok := svc.Annotations[lib.VSAnnotation]; ok && value == updateOption.VirtualServiceUUID {
+		return nil
+	}
+	svc.Annotations[lib.VSUUIDAnnotation] = updateOption.VirtualServiceUUID
+	patchPayload := map[string]interface{}{
+		"metadata": map[string]map[string]string{
+			"annotations": svc.Annotations,
+		},
+	}
+	patchPayloadBytes, err := json.Marshal(patchPayload)
+	if err != nil {
+		return fmt.Errorf("error in marshalling patch payload for service %s/%s: %s", svc.Namespace, svc.Name, err.Error())
+	}
+	if _, err := utils.GetInformers().ClientSet.CoreV1().Services(svc.Namespace).Patch(context.TODO(), svc.Name,
+		types.MergePatchType, patchPayloadBytes, metav1.PatchOptions{}); err != nil {
+		return fmt.Errorf("error in patching service %s/%s: %s", svc.Namespace, svc.Name, err.Error())
+	}
+	utils.AviLog.Infof("key: %s, msg: Successfully updated the VS annotations for service %s/%s", updateOption.Key, svc.Namespace, svc.Name)
+	return nil
 }
 
 func updateSvcAnnotations(svc *corev1.Service, updateOption UpdateOptions, oldSvc *corev1.Service, svcHostname string) error {
@@ -192,6 +230,7 @@ func deleteSvcAnnotation(svc *corev1.Service) error {
 				lib.VSAnnotation:         nil,
 				lib.ControllerAnnotation: nil,
 				lib.TenantAnnotation:     nil,
+				lib.VSUUIDAnnotation:     nil,
 			},
 		},
 	}

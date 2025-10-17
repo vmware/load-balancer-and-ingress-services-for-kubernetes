@@ -288,6 +288,7 @@ const (
 	AntreaTransportAddressAnnotation = "node.antrea.io/transport-addresses"
 	TenantAnnotation                 = "ako.vmware.com/tenant-name"
 	GwProxyProtocolEnableAnnotation  = "iaas.vmware.com/proxy-protocol-enabled"
+	VSUUIDAnnotation                 = "ako.vmware.com/vs-uuid"
 
 	// Specifies command used in namespace event handler
 	NsFilterAdd                    = "ADD"

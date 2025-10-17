@@ -583,6 +583,11 @@ func (rest *RestOperations) StatusUpdateForVS(restMethod utils.RestMethod, vsCac
 		}
 		utils.AviLog.Infof("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.Gateway, utils.Stringify(statusOption))
 		status.PublishToStatusQueue(updateOptions.ServiceMetadata.Gateway, statusOption)
+		if utils.IsVCFCluster() {
+			// Call StatusUpdateForPool to trigger L4 LB Service Status Update for adding VS UUID annotation for v1alpha1pre1 Gateways
+			// In case of GatewayAPI, this call will be a no-op since GatewayAPI does not support L4 LB Service Status Update
+			rest.StatusUpdateForPool(restMethod, vsCacheObj, key)
+		}
 	case lib.ServiceTypeLBVS:
 		updateOptions := status.UpdateOptions{
 			Vip:                IPAddrs,
