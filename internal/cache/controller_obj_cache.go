@@ -814,6 +814,7 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud stri
 		utils.AviLog.Warnf("Failed to unmarshal vsvip data, err: %v", err)
 		return nil, err
 	}
+	isAKOGWContainer := lib.AKOControlConfig().AKOGatewayAPIContainer()
 	for i := 0; i < len(elems); i++ {
 		vsvip := models.VsVip{}
 		err = json.Unmarshal(elems[i], &vsvip)
@@ -824,6 +825,13 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud stri
 
 		if vsvip.Name == nil || vsvip.UUID == nil {
 			utils.AviLog.Warnf("Incomplete vsvip data unmarshalled, %s", utils.Stringify(vsvip))
+			continue
+		}
+		// If it is not AKO GW container, do not add vsvip ,with prefix of AKO GW, in vsvip cache
+		// assuming no other object (clustername) doesn't have AKOGWPrefix prefix
+		if !isAKOGWContainer && strings.HasPrefix(*vsvip.Name, lib.AKOGWPrefix) {
+			// Debug level: To minimize logging
+			utils.AviLog.Debugf("VSVIP: %s is not associated with AKO. Not adding to VSVIP Cache", *vsvip.Name)
 			continue
 		}
 
@@ -2594,6 +2602,19 @@ func (c *AviObjCache) AviObjVSCachePopulate(client *clients.AviClient, cloud str
 							} else {
 								utils.AviLog.Warnf("No httppolicyset UUID found in http_policy_set_ref for VS: %s", vs["name"].(string))
 							}
+						}
+					}
+				}
+				if vs["pool_group_ref"] != nil {
+					pgRef, ok := vs["pool_group_ref"].(string)
+					if ok {
+						pgUuid := ExtractUUID(pgRef, "poolgroup-.*.#")
+						pgName, foundpg := c.PgCache.AviCacheGetNameByUuid(pgUuid)
+						if foundpg {
+							pgKey := NamespaceName{Namespace: tenant, Name: pgName.(string)}
+							poolgroupKeys = append(poolgroupKeys, pgKey)
+							pgpoolKeys := c.AviPGPoolCachePopulate(client, cloud, pgName.(string), tenant)
+							poolKeys = append(poolKeys, pgpoolKeys...)
 						}
 					}
 				}

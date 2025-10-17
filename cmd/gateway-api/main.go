@@ -100,6 +100,8 @@ func Initialize() {
 		utils.AviLog.Fatalf("Error building gateway-api clientset: %s", err.Error())
 	}
 	akoControlConfig.SetGatewayAPIClientset(gwApiClient)
+	// instead of using GWAPI client set using this for easy use
+	lib.AKOControlConfig().SetAKOGatewayAPIContainer(true)
 
 	dynamicClient, err := akogatewaylib.NewDynamicClientSet(cfg)
 	if err != nil {
