@@ -84,6 +84,10 @@ func Initialize() {
 		}
 	}
 
+	// Configure QPS and Burst with custom values to increase rate limit
+	cfg.QPS = 100
+	cfg.Burst = 100
+
 	akoControlConfig := akogatewaylib.AKOControlConfig()
 
 	// Set the user with prefix
