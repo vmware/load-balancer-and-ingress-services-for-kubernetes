@@ -104,7 +104,7 @@ To install the CRDs:
 kubectl apply -f <output_dir>/ako/crds/
 ```
 
-Note: This is not required for CRDs in ako-crd-operator as this would be the first installation of ako-crd-operator and all CRDs in ako-crd-operator will be freshly installed upon upgradation.
+Note: This step is not necessary for CRDs included in the ako-crd-operator, as this will be the initial installation of the ako-crd-operator, and all associated CRDs will be newly installed during the upgrade process.
 
 *Step2*
 
@@ -139,6 +139,7 @@ helm upgrade  <secondary-ako-chart-name>  oci://projects.packages.broadcom.com/a
 
 ***Note***
 1. In a multiple AKO deployment scenario, all AKO instances should be on the same version.
+2. In a given cluster, there can only be one ako-crd-operator instance running.
 
 ## Parameters
 
