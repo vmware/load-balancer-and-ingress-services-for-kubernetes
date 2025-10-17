@@ -579,19 +579,6 @@ func (w *VKSClusterWatcher) createCleanupAviClient(controllerIP, username, passw
 			if err != nil {
 				return nil, fmt.Errorf("failed to get controller version: %v", err)
 			}
-
-			maxVersion, err := utils.NewVersion(utils.MaxAviVersion)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse max version: %v", err)
-			}
-			curVersion, err := utils.NewVersion(version)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse controller version: %v", err)
-			}
-			if curVersion.Compare(maxVersion) > 0 {
-				utils.AviLog.Infof("VKS cleanup: Capping controller version %s to max version %s", version, utils.MaxAviVersion)
-				version = utils.MaxAviVersion
-			}
 			ctrlVersion = version
 		} else {
 			return nil, fmt.Errorf("controller version not available")

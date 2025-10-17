@@ -367,8 +367,7 @@ func DeleteClusterUser(aviClient *clients.AviClient, clusterName string) error {
 
 	userUUID, err := getUserByName(aviClient, userName)
 	if err != nil {
-		utils.AviLog.Warnf("Error checking for cluster user %s: %v", userName, err)
-		return nil
+		return fmt.Errorf("error checking for cluster user %s: %v", userName, err)
 	}
 
 	if userUUID == "" {
