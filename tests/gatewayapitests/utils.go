@@ -1331,6 +1331,7 @@ type FakeApplicationProfileStatus struct {
 	Status  string
 	Reason  string
 	Message string
+	UUID    string
 }
 
 func GetFakeApplicationProfile(name string, status *FakeApplicationProfileStatus) unstructured.Unstructured {
@@ -1348,7 +1349,7 @@ func GetFakeApplicationProfile(name string, status *FakeApplicationProfileStatus
 		},
 	}
 	if status != nil {
-		ob["status"] = map[string]interface{}{
+		statusMap := map[string]interface{}{
 			"backendObjectName": name,
 			"conditions": []interface{}{
 				map[string]interface{}{
@@ -1360,6 +1361,10 @@ func GetFakeApplicationProfile(name string, status *FakeApplicationProfileStatus
 			},
 			"tenant": "admin",
 		}
+		if status.UUID != "" {
+			statusMap["uuid"] = status.UUID
+		}
+		ob["status"] = statusMap
 	}
 
 	appProfile.SetUnstructuredContent(ob)
