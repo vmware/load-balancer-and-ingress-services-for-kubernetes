@@ -53,3 +53,24 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Fixed:
 - Fix: AKO creates label on SE group when GatewayAPI is enabled.
+
+## AKO-Gateway-1.14.1
+
+### Changed:
+- AKO will Set min pool up in vs to 1 so Gateway child VS will go down on zero pools up. 
+- Support for `Endpoints` using `enableEndpointSlice` flag is removed.
+
+### Added:
+- AKO now claims support for v1.3 for HttpRoute, Gateway, GatewayClass.
+- Suport for MTLS support for Istio with Gateway API in Nodeport and ClusterIP mode.
+- Support for Named Route Rule.
+- Support for Health Monitor CRD([Details](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/3d7b3e45d7361d0a035e7afc10572ef48c8fde45/docs/crds/healthmonitor.md)). 
+- Support for Application profile CRD([Details](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/3d7b3e45d7361d0a035e7afc10572ef48c8fde45/docs/crds/applicationprofile.md)).
+- Support for Persistence profile([Details](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/crds/routebackendextension.md#session-persistence-configuration)).
+- Support for RouteBackendExtension CRD([Details](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/3d7b3e45d7361d0a035e7afc10572ef48c8fde45/docs/crds/routebackendextension.md)).
+- Support for L7Rule CRD([Details](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/crds/l7rule.md#attaching-l7rule-to-httproute)). 
+- Support for enabling AKO (with Gateway API) to leverage SSL to talk to backend servers([Details](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/crds/routebackendextension.md#backend-tlsssl-configuration)).
+- Support to disable/enable the traffic enabled knob of VS for Gateway ParentVS.
+- Support for VPC Mode when Gateway API is enabled.
+- Regex support in path in GatewayAPI.
+- Support for enabling WAF Protection for Gateways and HTTRoute.
