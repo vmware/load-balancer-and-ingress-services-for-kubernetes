@@ -71,6 +71,8 @@ All notable changes to this project will be documented in this file. The format 
 - Support for L7Rule CRD([Details](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/crds/l7rule.md#attaching-l7rule-to-httproute)). 
 - Support for enabling AKO (with Gateway API) to leverage SSL to talk to backend servers([Details](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/crds/routebackendextension.md#backend-tlsssl-configuration)).
 - Support to disable/enable the traffic enabled knob of VS for Gateway ParentVS.
-- Support for VPC Mode when Gateway API is enabled.
 - Regex support in path in GatewayAPI.
-- Support for enabling WAF Protection for Gateways and HTTRoute.
+- Support for enabling WAF Protection for Gateways and HTTRoute.([Details](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/crds/l7rule.md#:~:text=Nil-,wafPolicy,-Defines%20specific%20set))
+
+### Fixed:
+- Support for VPC Mode when Gateway API is enabled.
