@@ -53,3 +53,9 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Fixed:
 - Fix: AKO creates label on SE group when GatewayAPI is enabled.
+
+## AKO-Gateway-1.14.1
+
+### Added
+
+### Fixed:
