@@ -200,7 +200,7 @@ func (r *PKIProfileReconciler) DeleteObject(ctx context.Context, pki *akov1alpha
 					if statusErr := r.SetStatus(ctx, pki, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionFalse, akov1alpha1.ObjectReasonDeletionSkipped, controllerutils.ParseAviErrorMessage(*aviError.Message)); statusErr != nil {
 						return statusErr, false
 					}
-					return err, false
+					return nil, false
 				}
 			}
 			log.Errorf("error deleting pki profile: %s", err.Error())
