@@ -565,11 +565,12 @@ func (rest *RestOperations) StatusUpdateForVS(restMethod utils.RestMethod, vsCac
 	switch serviceMetadataObj.ServiceMetadataMapping("VS") {
 	case lib.GatewayVS:
 		updateOptions := status.UpdateOptions{
-			Vip:             IPAddrs,
-			ServiceMetadata: serviceMetadataObj,
-			Key:             key,
-			VSName:          vsCacheObj.Name,
-			Tenant:          vsCacheObj.Tenant,
+			Vip:                IPAddrs,
+			ServiceMetadata:    serviceMetadataObj,
+			Key:                key,
+			VirtualServiceUUID: vsCacheObj.Uuid,
+			VSName:             vsCacheObj.Name,
+			Tenant:             vsCacheObj.Tenant,
 		}
 		statusOption := status.StatusOptions{
 			ObjType: lib.Gateway,
@@ -618,6 +619,22 @@ func (rest *RestOperations) StatusUpdateForVS(restMethod utils.RestMethod, vsCac
 		// }
 		// utils.AviLog.Infof("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.IngressName, utils.Stringify(statusOption))
 		// status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
+	case lib.HTTPRouteChildVS:
+		updateOptions := status.UpdateOptions{
+			ServiceMetadata:    serviceMetadataObj,
+			Key:                key,
+			VirtualServiceUUID: vsCacheObj.Uuid,
+			VSName:             vsCacheObj.Name,
+			Tenant:             vsCacheObj.Tenant,
+		}
+		statusOption := status.StatusOptions{
+			ObjType: utils.HTTPRoute,
+			Op:      lib.UpdateStatus,
+			Key:     key,
+			Options: &updateOptions,
+		}
+		utils.AviLog.Infof("key: %s Publishing HTTPRoute status to status queue, options: %v", key, utils.Stringify(statusOption))
+		status.PublishToStatusQueue(serviceMetadataObj.HTTPRoute, statusOption)
 	default:
 		rest.StatusUpdateForPool(restMethod, vsCacheObj, key)
 
@@ -854,6 +871,22 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 
 				status.HostRuleEventBroadcast(vsCacheObj.Name, vsCacheObj.ServiceMetadataObj.CRDStatus, lib.CRDMetadata{})
 				status.SSORuleEventBroadcast(vsCacheObj.Name, vsCacheObj.ServiceMetadataObj.CRDStatus, lib.CRDMetadata{})
+			case lib.HTTPRouteChildVS:
+				updateOptions := status.UpdateOptions{
+					ServiceMetadata:    vsCacheObj.ServiceMetadataObj,
+					Key:                key,
+					VirtualServiceUUID: vsCacheObj.Uuid,
+					VSName:             vsCacheObj.Name,
+					Tenant:             vsCacheObj.Tenant,
+				}
+				statusOption := status.StatusOptions{
+					ObjType: utils.HTTPRoute,
+					Op:      lib.DeleteStatus,
+					Key:     key,
+					Options: &updateOptions,
+				}
+				utils.AviLog.Infof("key: %s Publishing HTTPRoute status to status queue, options: %v", key, utils.Stringify(statusOption))
+				status.PublishToStatusQueue(vsCacheObj.ServiceMetadataObj.HTTPRoute, statusOption)
 			default:
 				// insecure ingress status updates in regular AKO.
 				for _, poolKey := range vsCacheObj.PoolKeyCollection {

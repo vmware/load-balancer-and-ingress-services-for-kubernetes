@@ -23,6 +23,7 @@ const (
 	RouteBackendExtensionKind = "RouteBackendExtension"
 	AKOCRDController          = "AKOCRDController"
 	CRDOperatorPrefix         = "ako-crd-operator-"
+	HTTPRouteAcceptedMessage  = "Parent reference is valid"
 )
 
 const (
