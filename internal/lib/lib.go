@@ -2385,27 +2385,69 @@ func GetAviInfraSettingName(projVpc string) string {
 	return hex.EncodeToString(hash[:])
 }
 
-var defaultNSXProject string
+var projectToTenantCache = make(map[string]string)
 
 func GetTenantForProject(project string, c *clients.AviClient) (string, error) {
-	if defaultNSXProject == "" {
-		uri := "api/tenant/admin"
-		response := models.Tenant{}
-		err := AviGet(c, uri, &response)
+	if cachedTenant, exists := projectToTenantCache[project]; exists {
+		return cachedTenant, nil
+	}
+
+	uri := "/api/tenant?fields=name,uuid,attrs"
+	for {
+		result, err := AviGetCollectionRaw(c, uri)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("failed to get tenants from Avi: %v", err)
 		}
-		for _, attr := range response.Attrs {
-			if *attr.Key == "path" {
-				projectSlice := strings.Split(*attr.Value, "/projects/")
-				defaultNSXProject = projectSlice[len(projectSlice)-1]
+
+		elems := make([]json.RawMessage, result.Count)
+		err = json.Unmarshal(result.Results, &elems)
+		if err != nil {
+			return "", fmt.Errorf("failed to unmarshal tenant results: %v", err)
+		}
+
+		for i := 0; i < len(elems); i++ {
+			tenant := models.Tenant{}
+			err = json.Unmarshal(elems[i], &tenant)
+			if err != nil {
+				continue
+			}
+
+			if tenant.Name != nil && *tenant.Name == project {
+				projectToTenantCache[project] = *tenant.Name
+				return *tenant.Name, nil
+			}
+
+			if tenant.UUID != nil && *tenant.UUID == project {
+				projectToTenantCache[project] = *tenant.Name
+				return *tenant.Name, nil
+			}
+
+			if *tenant.Name == GetAdminTenant() {
+				for _, attr := range tenant.Attrs {
+					if attr != nil && attr.Key != nil && attr.Value != nil && *attr.Key == "path" {
+						projectSlice := strings.Split(*attr.Value, "/projects/")
+						if projectSlice[len(projectSlice)-1] == project {
+							projectToTenantCache[projectSlice[len(projectSlice)-1]] = *tenant.Name
+							return *tenant.Name, nil
+						}
+					}
+				}
 			}
 		}
+
+		if result.Next == "" {
+			break
+		}
+
+		nextURI := strings.Split(result.Next, "/api/tenant")
+		if len(nextURI) > 1 {
+			uri = "/api/tenant" + nextURI[1]
+		} else {
+			break
+		}
 	}
-	if project == defaultNSXProject {
-		return "admin", nil
-	}
-	return project, nil
+
+	return "", fmt.Errorf("tenant not found for project: %s", project)
 }
 
 func GetNSToSEGMap() (map[string]string, error) {
