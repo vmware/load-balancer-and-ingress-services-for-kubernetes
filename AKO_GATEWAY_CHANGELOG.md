@@ -73,6 +73,7 @@ All notable changes to this project will be documented in this file. The format 
 - Support to disable/enable the traffic enabled knob of VS for Gateway ParentVS.
 - Regex support in path in GatewayAPI.
 - Support for enabling WAF Protection for Gateways and HTTRoute.([Details](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/crds/l7rule.md#:~:text=Nil-,wafPolicy,-Defines%20specific%20set))
+- AKO with Gatway API now supports multitenancy. This feature allows AKO to map each Kubernetes cluster uniquely to a tenant in Avi Controller or to map each namespace in a single Kubernetes cluster uniquely to a tenant in Avi Controller. See AKO Tenancy for more [details](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/363e5c02f0ab9138318fca966f84194934a7e695/docs/ako_tenancy.md).
 
 ### Fixed:
 - Support for VPC Mode when Gateway API is enabled.
