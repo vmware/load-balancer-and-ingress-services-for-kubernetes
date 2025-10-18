@@ -488,7 +488,11 @@ func PopulateControllerProperties(cs kubernetes.Interface) error {
 	ctrlPropCache := utils.SharedCtrlProp()
 	ctrlProps, err := lib.GetControllerPropertiesFromSecret(cs)
 	if err != nil {
-		return err
+		// Fallback to local system properties when secret retrieval fails
+		ctrlProps, err = lib.GetControllerPropertiesFromLocalSystem()
+		if err != nil {
+			return err
+		}
 	}
 	ctrlPropCache.PopulateCtrlProp(ctrlProps)
 	return nil
