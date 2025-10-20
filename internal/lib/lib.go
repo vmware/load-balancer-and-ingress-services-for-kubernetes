@@ -2062,9 +2062,9 @@ func GetControllerPropertiesFromLocalSystem() (map[string]string, error) {
 	ctrlProps[utils.ENV_CTRL_USERNAME] = os.Getenv("CTRL_USERNAME")
 	ctrlProps[utils.ENV_CTRL_PASSWORD] = os.Getenv("CTRL_PASSWORD")
 
-	cert, err := os.ReadFile(os.Getenv("CTRL_CERT_PATH"))
+	cert, err := os.ReadFile(os.Getenv("ROOT_CA_CERT_PATH"))
 	if err != nil {
-		utils.AviLog.Errorf("Failed to read cert from %s, err: %+v", os.Getenv("CTRL_CERT_PATH"), err)
+		utils.AviLog.Errorf("Failed to read cert from %s, err: %+v", os.Getenv("ROOT_CA_CERT_PATH"), err)
 		return ctrlProps, err
 	}
 	ctrlProps[utils.ENV_CTRL_CADATA] = string(cert)
