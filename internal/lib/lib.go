@@ -2057,6 +2057,21 @@ func RefreshAuthToken(kc kubernetes.Interface) {
 	}
 }
 
+func GetControllerPropertiesFromLocalSystem() (map[string]string, error) {
+	ctrlProps := make(map[string]string)
+	ctrlProps[utils.ENV_CTRL_USERNAME] = os.Getenv("CTRL_USERNAME")
+	ctrlProps[utils.ENV_CTRL_PASSWORD] = os.Getenv("CTRL_PASSWORD")
+
+	cert, err := os.ReadFile(os.Getenv("ROOT_CA_CERT_PATH"))
+	if err != nil {
+		utils.AviLog.Errorf("Failed to read cert from %s, err: %+v", os.Getenv("ROOT_CA_CERT_PATH"), err)
+		return ctrlProps, err
+	}
+	ctrlProps[utils.ENV_CTRL_CADATA] = string(cert)
+
+	return ctrlProps, nil
+}
+
 func GetControllerPropertiesFromSecret(cs kubernetes.Interface) (map[string]string, error) {
 	ctrlProps := make(map[string]string)
 	aviSecret, err := cs.CoreV1().Secrets(utils.GetAKONamespace()).Get(context.TODO(), AviSecret, metav1.GetOptions{})
