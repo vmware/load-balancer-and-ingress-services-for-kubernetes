@@ -359,7 +359,7 @@ func TestRouteBackendExtensionController(t *testing.T) {
 				},
 			},
 			wantErr:        true,
-			wantRequeue:    true,
+			wantRequeue:    false,
 			validateEvents: false,
 		},
 		{
@@ -488,14 +488,11 @@ func TestRouteBackendExtensionController(t *testing.T) {
 			result, err := reconciler.Reconcile(ctx, req)
 			if tt.wantErr {
 				assert.Error(t, err)
-				if tt.wantRequeue {
-					assert.Equal(t, crdlib.RequeueInterval, result.RequeueAfter)
-				}
 			} else {
 				assert.NoError(t, err)
-				assert.False(t, result.Requeue)
-				assert.Equal(t, int64(0), result.RequeueAfter.Nanoseconds())
 			}
+			assert.False(t, result.Requeue)
+			assert.Equal(t, int64(0), result.RequeueAfter.Nanoseconds())
 
 			// Validate events if needed
 			if tt.validateEvents {
@@ -1026,7 +1023,7 @@ func TestRouteBackendExtensionBackendTLSValidation(t *testing.T) {
 			},
 			wantErr:      true,
 			wantStatus:   string(akov1alpha1.ObjectStatusRejected),
-			wantErrorMsg: "RBE is rejected beacause PKIProfile not-ready-pki-profile is not ready in namespace default",
+			wantErrorMsg: "RBE is rejected because PKIProfile not-ready-pki-profile is not ready in namespace default",
 		},
 		{
 			name: "error: PKIProfile with no conditions",
@@ -1055,7 +1052,42 @@ func TestRouteBackendExtensionBackendTLSValidation(t *testing.T) {
 			},
 			wantErr:      true,
 			wantStatus:   string(akov1alpha1.ObjectStatusRejected),
-			wantErrorMsg: "RBE is rejected beacause PKIProfile no-conditions-pki-profile is not ready in namespace default",
+			wantErrorMsg: "RBE is rejected because PKIProfile no-conditions-pki-profile is not ready in namespace default",
+		},
+		{
+			name: "error: PKIProfile tenant mismatch",
+			rbe: &akov1alpha1.RouteBackendExtension{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "test-rbe-tenant-mismatch",
+					Namespace: "default",
+				},
+				Spec: akov1alpha1.RouteBackendExtensionSpec{
+					BackendTLS: &akov1alpha1.BackendTLS{
+						PKIProfile: &akov1alpha1.BackendPKIProfile{
+							Kind: akov1alpha1.ObjectKindCRD,
+							Name: "tenant-mismatch-pki-profile",
+						},
+					},
+				},
+			},
+			pkiProfile: &akov1alpha1.PKIProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "tenant-mismatch-pki-profile",
+					Namespace: "default",
+				},
+				Status: akov1alpha1.PKIProfileStatus{
+					Tenant: "tenant-b",
+					Conditions: []metav1.Condition{
+						{
+							Type:   string(akov1alpha1.ObjectConditionProgrammed),
+							Status: metav1.ConditionTrue,
+						},
+					},
+				},
+			},
+			wantErr:      true,
+			wantStatus:   string(akov1alpha1.ObjectStatusRejected),
+			wantErrorMsg: "PKIProfile tenant-mismatch-pki-profile tenant tenant-b does not match namespace default tenant admin",
 		},
 	}
 
