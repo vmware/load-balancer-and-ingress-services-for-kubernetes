@@ -151,7 +151,7 @@ By default, the AKO sets the `duration` of logging the non-significant logs to *
 L4Rule CRD can be used to express application profile references. The application profile can be used to enable PROXY Protocol, rate limit the connections from a client, etc. The application profile must be created in the AVI Controller before referring to it.
 
 ```yaml
-    applicationProfile: Custom-L4-Application-Profile
+    applicationProfileRef: Custom-L4-Application-Profile
  ```
 
 **NOTE**: The application profile should be of type `L4` or `L4 SSL/TLS`. If SSL is enabled for any port in [listenerProperties](#configure-listener-properties) section then application profile should be of type `L4 SSL/TLS`. `L4 SSL/TLS` is supported starting AKO 1.11.1.
@@ -488,7 +488,7 @@ There are some limitations when trying to enable SSL termintaion for an L4 virtu
 
 1. Currently, only a single `TCP` port is allowed in the LoadBalancer service definition if SSL is required to be enabled. Hence, the same limitation also applies to `listenerProperties` which can also have only one matching **TCP** based port definition along with `enableSsl` field. This is because Avi only supports SSL termination with TCP protocol and also a VS of type L4 SSL can have only one backend pool configured.
 
-2. If **enableSsl** is set to true for any port in `listenerProperties` section then `applicationProfile` should be of type `L4 SSL/TLS`. If application profile is not of type `L4 SSL/TLS`, then L4Rule will be rejected. If `applicationProfile` is not set, then it defaults to **System-L4-Application** in the CRD, but AKO intermally sets the application profile as **System-SSL-Application** which is the default value when SSL is enabled.
+2. If **enableSsl** is set to true for any port in `listenerProperties` section then `applicationProfileRef` should be of type `L4 SSL/TLS`. If application profile is not of type `L4 SSL/TLS`, then L4Rule will be rejected. If `applicationProfileRef` is not set, then it defaults to **System-L4-Application** in the CRD, but AKO intermally sets the application profile as **System-SSL-Application** which is the default value when SSL is enabled.
 
 3. If **enableSsl** is set to true for any port in `listenerProperties` section then `networkProfileRef` should be of type TCP proxy, since only a single **TCP** port definition is allowed in the LoadBalancer service and listener properties.
 
