@@ -79,7 +79,7 @@ func IsRetryableError(err error) bool {
 
 	if aviError, ok := err.(session.AviError); ok {
 		// For AviError, check if it's a 403(session expired) error
-		if strings.Contains(err.Error(), "Rest request error, returning to caller") && aviError.HttpStatusCode == 403 {
+		if strings.Contains(err.Error(), "Rest request error, returning to caller") {
 			return true
 		}
 		switch aviError.HttpStatusCode {
