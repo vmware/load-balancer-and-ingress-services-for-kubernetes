@@ -115,6 +115,7 @@ func (r *RouteBackendExtensionReconciler) Reconcile(ctx context.Context, req ctr
 	// When this CRD will have other crd object, this logic will change
 	if err := r.ValidatedObject(ctx, rbe); err != nil {
 		// Check if the error is retryable
+		// TODO: Do not retry on dependent object failures
 		if !controllerutils.IsRetryableError(err) {
 			return ctrl.Result{}, nil
 		}
