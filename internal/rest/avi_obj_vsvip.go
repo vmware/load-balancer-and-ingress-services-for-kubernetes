@@ -108,8 +108,10 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 			if vsvip_meta.IPAddress != "" {
 				if utils.IsV4(vsvip_meta.IPAddress) {
 					vip.IPAddress = &avimodels.IPAddr{Type: &ipType, Addr: &vsvip_meta.IPAddress}
+					vip.AutoAllocateIP = utils.BoolToPtr(false)
 				} else {
 					vip.Ip6Address = &avimodels.IPAddr{Type: &ip6Type, Addr: &vsvip_meta.IPAddress}
+					vip.AutoAllocateIP = utils.BoolToPtr(false)
 				}
 			}
 
@@ -188,8 +190,10 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 		if vsvip_meta.IPAddress != "" {
 			if utils.IsV4(vsvip_meta.IPAddress) {
 				vip.IPAddress = &avimodels.IPAddr{Type: &ipType, Addr: &vsvip_meta.IPAddress}
+				vip.AutoAllocateIP = utils.BoolToPtr(false)
 			} else {
 				vip.Ip6Address = &avimodels.IPAddr{Type: &ip6Type, Addr: &vsvip_meta.IPAddress}
+				vip.AutoAllocateIP = utils.BoolToPtr(false)
 			}
 		}
 
