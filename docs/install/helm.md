@@ -112,7 +112,7 @@ Note: This step is not necessary for CRDs included in the ako-crd-operator, as t
 helm list -n avi-system
 
 NAME          	NAMESPACE 	REVISION	UPDATED                             	    STATUS  	CHART    	APP VERSION
-ako-1593523840	avi-system	1       	2024-08-04 13:44:31.609195757 +0000 UTC	    deployed	ako-1.12.2	1.12.2
+ako-1593523840	avi-system	1       	2024-08-04 13:44:31.609195757 +0000 UTC	    deployed	ako-1.12.2.2.12.2
 ```
 
 *Step3*
