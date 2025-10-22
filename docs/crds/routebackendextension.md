@@ -355,7 +355,7 @@ kubectl describe pkiprofile <name> -n <namespace>
 
 *Solution*:
 - Check AKO CRD Operator pod status
-- Review controller logs for errors
+- Review ako-crd-operator logs for errors
 - Verify RBAC permissions
 
 ```bash
