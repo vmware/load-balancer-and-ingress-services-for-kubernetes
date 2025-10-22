@@ -25,7 +25,7 @@ LABEL release="1"
 LABEL description="Manage configmap, statefulset and other artifacts for deploying AKO controller"
 LABEL vendor="VMware"
 
-RUN yum -y update-minimal --security --sec-severity=Important --sec-severity=Critical
+RUN yum -y update-minimal --security --sec-severity=Important --sec-severity=Critical && yum clean all
 
 WORKDIR /
 COPY LICENSE /licenses/
