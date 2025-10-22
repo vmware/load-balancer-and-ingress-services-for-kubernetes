@@ -17,7 +17,7 @@ RUN GOARCH=amd64 \
     $BUILD_PATH/cmd/infra-main
 
 FROM ${photon_src_repo}
-RUN yum install -y tar.x86_64
+RUN yum install -y tar.x86_64 && yum clean all
 COPY --from=build /go/bin/ako-infra .
 EXPOSE 8080
 ENTRYPOINT ["./ako-infra"]
