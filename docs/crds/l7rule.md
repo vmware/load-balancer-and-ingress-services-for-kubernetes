@@ -52,7 +52,6 @@ spec:
       - policy-set-2
 ```
 
-**NOTE**: The L7Rule CRD must be configured in the same namespace as HostRule.
 
 ### Comprehensive Examples
 
@@ -183,11 +182,11 @@ The section below walks over the details and associated rules of using each fiel
 | `analyticsPolicy.fullClientLogs.duration`                         | Duration for full client logs.                                                                                                   | 0                                   |
 | `analyticsPolicy.logAllHeaders`                         | Log all headers in analytics.                                                                                                   | False                                   |
 | `httpPolicy.overwrite`                         | Overwrite existing HTTP policies.                                                                                                   | Nil                                   |
-| `httpPolicy.policySets`                         | Array of policy set names to apply.                                                                                                   | Nil                                   |
+| `httpPolicy.policySets`                         | Array of HTTPPolicyset objects present on AviController.                                                                                                 | Nil                                   |
 
 #### Profile Reference Types
 
-All profile references (`analyticsProfile`, `applicationProfile`, `wafPolicy`, `icapProfile`, `errorPageProfile`) follow the same structure:
+Profile references like `analyticsProfile`, `applicationProfile`, `wafPolicy`, `icapProfile`, `errorPageProfile` follow the same structure:
 
 ```yaml
 profileName:
@@ -223,7 +222,7 @@ The `httpPolicy` section controls HTTP policy application:
 ```yaml
 httpPolicy:
   overwrite: true          # Overwrite existing HTTP policies
-  policySets:              # Array of policy set names
+  policySets:              # Array of HTTPPolicyset object names present on AviController
     - "rate-limiting-policy"
     - "header-rewrite-policy"
     - "redirect-policy"
@@ -244,6 +243,7 @@ spec:
     fqdnType: Exact
     l7Rule: my-l7-rule
 ```
+**NOTE**: The L7Rule CRD must be configured in the same namespace as HostRule.
 
 #### Attaching L7Rule to HTTPRoute
 
@@ -330,7 +330,7 @@ The detailed rejection reason can be obtained from the status:
 - `errorPageProfile.kind`: Must be `AviRef` (default)
 
 **Required Fields:**
-- All profile references require both `kind` and `name` fields
+- analyticsProfile, applicationProfile, wafPolicy, icapProfile, errorPageProfile references require both `kind` and `name` fields
 - `kind` field only supports `AviRef` value
 
 #### Conditions and Caveats
