@@ -328,7 +328,7 @@ spec:
                 type: object
               nodePortSelector:
                 description: NodePortSelector defines the node port settings, to be
-                  used only if the serviceTYpe is selected NodePort
+                  used only if the serviceType is selected NodePort
                 properties:
                   key:
                     type: string
