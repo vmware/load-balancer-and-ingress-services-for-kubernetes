@@ -17,7 +17,7 @@ RUN GOARCH=amd64 \
     $BUILD_PATH/cmd/ako-main
 
 FROM ${photon_src_repo}
-RUN yum install -y tar.x86_64
+RUN yum install -y tar.x86_64 && yum clean all
 COPY --from=build /go/bin/akc /usr/bin/
 COPY ./scripts/pre_stop_hook.sh /var/pre_stop_hook.sh
 EXPOSE 8080

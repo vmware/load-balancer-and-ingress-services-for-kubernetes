@@ -26,7 +26,7 @@ LABEL description="Manage configmap, statefulset and other artifacts for deployi
 LABEL vendor="VMware by Broadcom"
 LABEL maintainer="VMware by Broadcom"
 
-RUN yum -y update-minimal --security --sec-severity=Important --sec-severity=Critical
+RUN yum -y update-minimal --security --sec-severity=Important --sec-severity=Critical && yum clean all
 
 WORKDIR /
 COPY LICENSE /licenses/
