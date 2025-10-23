@@ -56,10 +56,6 @@ docker manifest inspect $CI_REGISTRY_IMAGE_AKO_CRD_OPERATOR:${build_version} --i
 cat ako_crd_operator_manifest.json
 sudo /srp-tools/srp provenance add-output package.oci --set-key=ako-crd-operator-image --action-key=ako-build --name=${CI_REGISTRY_IMAGE_AKO_CRD_OPERATOR}  --digest=${IMAGE_DIGEST} --manifest-path $WORKSPACE/ako_crd_operator_manifest.json --working-dir $WORKSPACE/provenance
 
-# branch_version=$($WORKSPACE/hack/jenkins/get_branch_version.sh)
-# version_numbers=(${branch_version//./ })
-# minor_version=${version_numbers[1]}
-
 CI_REGISTRY_IMAGE_AKO_GATEWAY_API=$CI_REGISTRY_PATH/ako/$branch/ako-gateway-api
 IMAGE_DIGEST=`sudo docker images $CI_REGISTRY_IMAGE_AKO_GATEWAY_API  --digests | grep sha256 | xargs | cut -d " " -f3`
 echo $IMAGE_DIGEST
