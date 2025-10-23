@@ -287,8 +287,24 @@ func saveAviModel(modelName string, aviGraph *nodes.AviObjectGraph, key string) 
 }
 
 func (o *AviObjectGraph) ProcessRouteDeletion(key, parentNsName string, routeModel RouteModel, fullsync bool) {
-	o.Lock.Lock()
-	defer o.Lock.Unlock()
+	// Perform locked operations in a separate scope to ensure lock is always released
+	func() {
+		o.Lock.Lock()
+		defer o.Lock.Unlock()
+		o.processRouteDeletionInternal(key, parentNsName, routeModel, fullsync)
+	}()
+
+	// Save model AFTER releasing lock to avoid deadlock with SetRetryCounter/CalculateCheckSum
+	parentNode := o.GetAviEvhVS()
+	modelName := parentNode[0].Tenant + "/" + parentNode[0].Name
+	ok := saveAviModel(modelName, o.AviObjectGraph, key)
+	if ok && len(o.AviObjectGraph.GetOrderedNodes()) != 0 && !fullsync {
+		sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
+		nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
+	}
+}
+
+func (o *AviObjectGraph) processRouteDeletionInternal(key, parentNsName string, routeModel RouteModel, fullsync bool) {
 	parentNode := o.GetAviEvhVS()
 	routeTypeNsName := routeModel.GetType() + "/" + routeModel.GetNamespace() + "/" + routeModel.GetName()
 	if parentNode[0].Dedicated {
@@ -308,14 +324,7 @@ func (o *AviObjectGraph) ProcessRouteDeletion(key, parentNsName string, routeMod
 		}
 	}
 	updateHostname(key, parentNsName, parentNode[0])
-	modelName := parentNode[0].Tenant + "/" + parentNode[0].Name
-	ok := saveAviModel(modelName, o.AviObjectGraph, key)
-	if ok && len(o.AviObjectGraph.GetOrderedNodes()) != 0 && !fullsync {
-		sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-		nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
-	}
 }
-
 func (o *AviObjectGraph) ProcessRouteDeletionForDedicatedMode(key, parentNsName string, routeModel RouteModel, fullsync bool) {
 	utils.AviLog.Infof("key: %s, msg: Processing route deletion for dedicated mode: %s/%s", key, routeModel.GetNamespace(), routeModel.GetName())
 
