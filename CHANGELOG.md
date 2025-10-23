@@ -524,3 +524,23 @@ All notable changes to this project will be documented in this file. The format 
 ### Added
 - AKO now claims support for Kubernetes 1.33.
 - Support for enabling VPC mode in ako with NSX-T Cloud
+
+## AKO-1.13.4
+
+### Added
+- AKO now claims support for Kubernetes 1.34.
+
+
+## AKO-2.1.1
+
+### Added
+- AKO now claims support for Kubernetes 1.34.
+- AKO supports the `externalTrafficPolicy` field set to Local in a NodePort service. See [ExternalTrafficPolicySupport](docs/ako_external_traffic_policy_local.md) for the more details.
+- AKO supports route revocation for NSX-T cloud using [L4 Rule](docs/crds/l4rule.md#configure-vip-route-revocation)
+- AKO HostRule CRD has a new sub-field `Duration` in `analyticsPolicy:fullClientLogs` field for logging non-significant logs.
+- AKO supports applying HealthMonitors, present on the AviController, to LoadBalancer type service using [L4Rule](docs/crds/l4rule.md#express-custom-health-monitors).
+
+
+### Changed
+- AKO will not create a lease lock object when there is a single AKO instance running. Please refer [AKO HA](docs/ako_ha.md#steps-to-run-ako-in-high-availability) for the more details when AKO replica count is changed.
+

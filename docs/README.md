@@ -8,7 +8,7 @@ AKO runs as a POD inside the Kubernetes cluster.
 
 To Run AKO you need the following pre-requisites:
 
-* <i>**Step 1**</i>: Configure an Avi Controller with a [vCenter cloud](https://avinetworks.com/docs/18.2/installing-avi-vantage-for-vmware-vcenter/). The Avi Controller should be versioned 18.2.10 / 20.1.2 or later.
+* <i>**Step 1**</i>: Configure an Avi Controller with a [vCenter cloud](https://techdocs.broadcom.com/us/en/vmware-security-load-balancing/avi-load-balancer/avi-load-balancer/30-1/vmware-nsx-advanced-load-balancer-installation-guide/installing-nsx-alb-in-vmware-vsphere-environments.html/). The Avi Controller should be versioned 30.1.1 or later.
 * <i>**Step 2**</i>:
   * Make sure a PG network is part of the NS IPAM configured in the vCenter
 * <i>**Step 3**</i>: If your POD CIDRs are not routable:
@@ -89,9 +89,9 @@ AKO version 2.1.1 support for Kubernetes, Openshift, Avi Controller is as below:
 
 | **Orchestrator/ Controller** | **Versions Supported** |
 | --------- | ----------- |
-| `Kubernetes` | 1.27 - 1.33 |
-| `Openshift` | 4.14 - 4.17 |
-| `Avi Controller` | 22.1.3 - 31.1.1   |
+| `Kubernetes` | 1.29 - 1.34 |
+| `Openshift` | 4.16 - 4.18 |
+| `Avi Controller` | 30.1.1 - 31.2.1   |
 
 
 ### FAQ
