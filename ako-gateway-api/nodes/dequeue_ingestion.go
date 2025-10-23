@@ -287,7 +287,8 @@ func saveAviModel(modelName string, aviGraph *nodes.AviObjectGraph, key string) 
 }
 
 func (o *AviObjectGraph) ProcessRouteDeletion(key, parentNsName string, routeModel RouteModel, fullsync bool) {
-
+	o.Lock.Lock()
+	defer o.Lock.Unlock()
 	parentNode := o.GetAviEvhVS()
 	routeTypeNsName := routeModel.GetType() + "/" + routeModel.GetNamespace() + "/" + routeModel.GetName()
 	if parentNode[0].Dedicated {
@@ -351,7 +352,8 @@ func (o *AviObjectGraph) ProcessRouteDeletionForDedicatedMode(key, parentNsName 
 }
 
 func (o *AviObjectGraph) DeleteStaleChildVSes(key string, routeModel RouteModel, childVSes map[string]struct{}, fullsync bool) {
-
+	o.Lock.Lock()
+	defer o.Lock.Unlock()
 	parentNode := o.GetAviEvhVS()
 
 	_, storedChildVSes := akogatewayapiobjects.GatewayApiLister().GetRouteToChildVS(routeModel.GetType() + "/" + routeModel.GetNamespace() + "/" + routeModel.GetName())
