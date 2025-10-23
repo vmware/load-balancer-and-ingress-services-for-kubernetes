@@ -40,7 +40,7 @@ import (
 func (o *AviObjectGraph) AddDefaultHTTPPolicySet(key string) {
 
 	parentVS := o.GetAviEvhVS()[0]
-
+	// TODO: Add lock here
 	policyRefName := akogatewayapilib.GetDefaultHTTPPSName()
 	// find default backend, if found make sure it is at last index
 	for i, policyRef := range parentVS.HttpPolicyRefs {
@@ -79,6 +79,8 @@ func (o *AviObjectGraph) AddDefaultHTTPPolicySet(key string) {
 }
 
 func (o *AviObjectGraph) ProcessL7Routes(key string, routeModel RouteModel, parentNsName string, childVSes map[string]struct{}, fullsync bool) {
+	o.Lock.Lock()
+	defer o.Lock.Unlock()
 	httpRouteConfig := routeModel.ParseRouteConfig(key)
 	httpRouteRules := httpRouteConfig.Rules
 	if o.GetAviEvhVS()[0].Dedicated {
