@@ -46,21 +46,21 @@ if [ "$?" != "0" ]; then
 fi
 
 #Save ako images as tarball
-branch_version=$($WORKSPACE/hack/jenkins/get_branch_version.sh)
-version_numbers=(${branch_version//./ })
-minor_version=${version_numbers[1]}
+# branch_version=$($WORKSPACE/hack/jenkins/get_branch_version.sh)
+# version_numbers=(${branch_version//./ })
+# minor_version=${version_numbers[1]}
 
 sudo docker save -o ako.tar ako:latest
 sudo cp -r ako.tar $target_path/
 sudo chmod 744 $target_path/ako.tar
 
-if [ "$minor_version" -ge "11" ]; then
-	sudo docker save -o ako-operator.tar ako-operator:latest
-	sudo docker save -o ako-gateway-api.tar ako-gateway-api:latest
-	sudo cp -r ako-operator.tar $target_path/
-	sudo cp -r ako-gateway-api.tar $target_path/
-	sudo chmod 744 $target_path/ako-operator.tar $target_path/ako-gateway-api.tar
-fi
+
+sudo docker save -o ako-operator.tar ako-operator:latest
+sudo docker save -o ako-gateway-api.tar ako-gateway-api:latest
+sudo cp -r ako-operator.tar $target_path/
+sudo cp -r ako-gateway-api.tar $target_path/
+sudo chmod 744 $target_path/ako-operator.tar $target_path/ako-gateway-api.tar
+
 
 # Save ako-crd-operator docker image
 sudo docker save -o ako-crd-operator.tar ako-crd-operator:latest

@@ -11,9 +11,7 @@ minor_version=${version_numbers[1]}
 
 AKO_IMAGES=("ako" "ako-operator" "ako-crd-operator")
 
-if [ "$minor_version" -ge "11" ]; then
-    AKO_IMAGES+=("ako-gateway-api")
-fi
+AKO_IMAGES+=("ako-gateway-api")
 
 echo ${AKO_IMAGES[@]}
 
