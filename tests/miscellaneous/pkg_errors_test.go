@@ -1,0 +1,107 @@
+/*
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package miscellaneous
+
+import (
+	"testing"
+
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/errors"
+)
+
+func TestNewAkoError(t *testing.T) {
+	tests := []struct {
+		name        string
+		msg         string
+		expectedMsg string
+	}{
+		{
+			name:        "Simple error message",
+			msg:         "test error",
+			expectedMsg: "test error",
+		},
+		{
+			name:        "Empty error message",
+			msg:         "",
+			expectedMsg: "",
+		},
+		{
+			name:        "Error with special characters",
+			msg:         "error: failed to process resource 'test-resource'",
+			expectedMsg: "error: failed to process resource 'test-resource'",
+		},
+		{
+			name:        "Long error message",
+			msg:         "this is a very long error message that contains multiple words and describes a complex error scenario",
+			expectedMsg: "this is a very long error message that contains multiple words and describes a complex error scenario",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := errors.NewAkoError(tt.msg)
+			if err == nil {
+				t.Errorf("NewAkoError() returned nil, expected error")
+				return
+			}
+			if err.Error() != tt.expectedMsg {
+				t.Errorf("NewAkoError().Error() = %v, want %v", err.Error(), tt.expectedMsg)
+			}
+		})
+	}
+}
+
+func TestAkoError_Error(t *testing.T) {
+	tests := []struct {
+		name        string
+		msg         string
+		expectedMsg string
+	}{
+		{
+			name:        "Error method returns correct message",
+			msg:         "test error message",
+			expectedMsg: "test error message",
+		},
+		{
+			name:        "Error method with empty message",
+			msg:         "",
+			expectedMsg: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := errors.NewAkoError(tt.msg)
+			if got := err.Error(); got != tt.expectedMsg {
+				t.Errorf("AkoError.Error() = %v, want %v", got, tt.expectedMsg)
+			}
+		})
+	}
+}
+
+func TestAkoError_ErrorInterface(t *testing.T) {
+	// Test that AkoError implements the error interface
+	var _ error = errors.NewAkoError("test")
+
+	err := errors.NewAkoError("interface test")
+	if err == nil {
+		t.Error("Expected non-nil error")
+	}
+
+	// Verify it can be used as an error
+	errMsg := err.Error()
+	if errMsg != "interface test" {
+		t.Errorf("Expected 'interface test', got '%s'", errMsg)
+	}
+}

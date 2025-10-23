@@ -1,0 +1,488 @@
+/*
+ * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * All Rights Reserved.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package miscellaneous
+
+import (
+	"sync"
+	"testing"
+
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+)
+
+func TestNewAviCache(t *testing.T) {
+	cache := utils.NewAviCache()
+	if cache == nil {
+		t.Error("NewAviCache() returned nil")
+	}
+}
+
+func TestAviCacheAdd(t *testing.T) {
+	cache := utils.NewAviCache()
+
+	tests := []struct {
+		name  string
+		key   interface{}
+		value interface{}
+	}{
+		{
+			name:  "Add string key-value",
+			key:   "key1",
+			value: "value1",
+		},
+		{
+			name:  "Add int key-value",
+			key:   1,
+			value: "value2",
+		},
+		{
+			name:  "Add struct key-value",
+			key:   struct{ name string }{"test"},
+			value: "value3",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cache.AviCacheAdd(tt.key, tt.value)
+
+			val, ok := cache.AviCacheGet(tt.key)
+			if !ok {
+				t.Errorf("AviCacheAdd() failed to add key %v", tt.key)
+			}
+			if val != tt.value {
+				t.Errorf("AviCacheAdd() value = %v, want %v", val, tt.value)
+			}
+		})
+	}
+}
+
+func TestAviCacheGet(t *testing.T) {
+	cache := utils.NewAviCache()
+
+	// Add test data
+	cache.AviCacheAdd("existing", "value")
+
+	tests := []struct {
+		name      string
+		key       interface{}
+		wantValue interface{}
+		wantOk    bool
+	}{
+		{
+			name:      "Get existing key",
+			key:       "existing",
+			wantValue: "value",
+			wantOk:    true,
+		},
+		{
+			name:      "Get non-existing key",
+			key:       "nonexistent",
+			wantValue: nil,
+			wantOk:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			val, ok := cache.AviCacheGet(tt.key)
+			if ok != tt.wantOk {
+				t.Errorf("AviCacheGet() ok = %v, want %v", ok, tt.wantOk)
+			}
+			if ok && val != tt.wantValue {
+				t.Errorf("AviCacheGet() value = %v, want %v", val, tt.wantValue)
+			}
+		})
+	}
+}
+
+func TestAviCacheDelete(t *testing.T) {
+	cache := utils.NewAviCache()
+
+	// Add test data
+	cache.AviCacheAdd("key1", "value1")
+	cache.AviCacheAdd("key2", "value2")
+
+	// Delete key1
+	cache.AviCacheDelete("key1")
+
+	// Verify key1 is deleted
+	_, ok := cache.AviCacheGet("key1")
+	if ok {
+		t.Error("AviCacheDelete() failed to delete key")
+	}
+
+	// Verify key2 still exists
+	val, ok := cache.AviCacheGet("key2")
+	if !ok {
+		t.Error("AviCacheDelete() incorrectly deleted other keys")
+	}
+	if val != "value2" {
+		t.Errorf("AviCacheDelete() affected other keys, got %v", val)
+	}
+
+	// Delete non-existing key (should not panic)
+	cache.AviCacheDelete("nonexistent")
+}
+
+func TestAviCacheGetKeyByUuid(t *testing.T) {
+	cache := utils.NewAviCache()
+
+	// Add test data with AviVsCache
+	vsCache1 := &utils.AviVsCache{
+		Name: "vs1",
+		Uuid: "uuid-123",
+	}
+	vsCache2 := &utils.AviVsCache{
+		Name: "vs2",
+		Uuid: "uuid-456",
+	}
+
+	cache.AviCacheAdd("key1", vsCache1)
+	cache.AviCacheAdd("key2", vsCache2)
+
+	tests := []struct {
+		name    string
+		uuid    string
+		wantKey interface{}
+		wantOk  bool
+	}{
+		{
+			name:    "Find existing UUID",
+			uuid:    "uuid-123",
+			wantKey: "key1",
+			wantOk:  true,
+		},
+		{
+			name:    "Find another existing UUID",
+			uuid:    "uuid-456",
+			wantKey: "key2",
+			wantOk:  true,
+		},
+		{
+			name:    "UUID not found",
+			uuid:    "uuid-nonexistent",
+			wantKey: nil,
+			wantOk:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			key, ok := cache.AviCacheGetKeyByUuid(tt.uuid)
+			if ok != tt.wantOk {
+				t.Errorf("AviCacheGetKeyByUuid() ok = %v, want %v", ok, tt.wantOk)
+			}
+			if ok && key != tt.wantKey {
+				t.Errorf("AviCacheGetKeyByUuid() key = %v, want %v", key, tt.wantKey)
+			}
+		})
+	}
+}
+
+func TestAviCacheConcurrency(t *testing.T) {
+	cache := utils.NewAviCache()
+	var wg sync.WaitGroup
+
+	// Test concurrent adds
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			cache.AviCacheAdd(id, id*10)
+		}(i)
+	}
+	wg.Wait()
+
+	// Test concurrent reads
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			val, ok := cache.AviCacheGet(id)
+			if !ok {
+				t.Errorf("Concurrent read failed for key %d", id)
+			}
+			if ok && val != id*10 {
+				t.Errorf("Concurrent read got %v, want %v", val, id*10)
+			}
+		}(i)
+	}
+	wg.Wait()
+
+	// Test concurrent deletes
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			cache.AviCacheDelete(id)
+		}(i)
+	}
+	wg.Wait()
+}
+
+func TestNewAviMultiCache(t *testing.T) {
+	cache := utils.NewAviMultiCache()
+	if cache == nil {
+		t.Error("NewAviMultiCache() returned nil")
+	}
+}
+
+func TestAviMultiCacheAdd(t *testing.T) {
+	cache := utils.NewAviMultiCache()
+
+	// Add values to same key
+	cache.AviMultiCacheAdd("key1", "value1")
+	cache.AviMultiCacheAdd("key1", "value2")
+	cache.AviMultiCacheAdd("key2", "value3")
+
+	// Verify key1 has multiple values
+	vals, ok := cache.AviMultiCacheGetKey("key1")
+	if !ok {
+		t.Error("AviMultiCacheAdd() failed to add key1")
+	}
+	if len(vals) != 2 {
+		t.Errorf("AviMultiCacheAdd() key1 has %d values, want 2", len(vals))
+	}
+	if !vals["value1"] {
+		t.Error("AviMultiCacheAdd() missing value1 in key1")
+	}
+	if !vals["value2"] {
+		t.Error("AviMultiCacheAdd() missing value2 in key1")
+	}
+
+	// Verify key2 has one value
+	vals2, ok := cache.AviMultiCacheGetKey("key2")
+	if !ok {
+		t.Error("AviMultiCacheAdd() failed to add key2")
+	}
+	if len(vals2) != 1 {
+		t.Errorf("AviMultiCacheAdd() key2 has %d values, want 1", len(vals2))
+	}
+}
+
+func TestAviMultiCacheGetKey(t *testing.T) {
+	cache := utils.NewAviMultiCache()
+
+	cache.AviMultiCacheAdd("key1", "value1")
+	cache.AviMultiCacheAdd("key1", "value2")
+
+	tests := []struct {
+		name      string
+		key       interface{}
+		wantCount int
+		wantOk    bool
+	}{
+		{
+			name:      "Get existing key",
+			key:       "key1",
+			wantCount: 2,
+			wantOk:    true,
+		},
+		{
+			name:      "Get non-existing key",
+			key:       "nonexistent",
+			wantCount: 0,
+			wantOk:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			vals, ok := cache.AviMultiCacheGetKey(tt.key)
+			if ok != tt.wantOk {
+				t.Errorf("AviMultiCacheGetKey() ok = %v, want %v", ok, tt.wantOk)
+			}
+			if ok && len(vals) != tt.wantCount {
+				t.Errorf("AviMultiCacheGetKey() count = %d, want %d", len(vals), tt.wantCount)
+			}
+		})
+	}
+}
+
+func TestAviMultiCacheLookup(t *testing.T) {
+	cache := utils.NewAviMultiCache()
+
+	cache.AviMultiCacheAdd("key1", "value1")
+	cache.AviMultiCacheAdd("key1", "value2")
+
+	tests := []struct {
+		name  string
+		key   interface{}
+		value interface{}
+		want  bool
+	}{
+		{
+			name:  "Lookup existing key-value",
+			key:   "key1",
+			value: "value1",
+			want:  true,
+		},
+		{
+			name:  "Lookup another existing key-value",
+			key:   "key1",
+			value: "value2",
+			want:  true,
+		},
+		{
+			name:  "Lookup non-existing value",
+			key:   "key1",
+			value: "value3",
+			want:  false,
+		},
+		{
+			name:  "Lookup non-existing key",
+			key:   "key2",
+			value: "value1",
+			want:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := cache.AviMultiCacheLookup(tt.key, tt.value)
+			if got != tt.want {
+				t.Errorf("AviMultiCacheLookup() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestAviMultiCacheDeleteVal(t *testing.T) {
+	cache := utils.NewAviMultiCache()
+
+	cache.AviMultiCacheAdd("key1", "value1")
+	cache.AviMultiCacheAdd("key1", "value2")
+	cache.AviMultiCacheAdd("key1", "value3")
+
+	// Delete one value
+	cache.AviMultiCacheDeleteVal("key1", "value2")
+
+	// Verify value2 is deleted
+	if cache.AviMultiCacheLookup("key1", "value2") {
+		t.Error("AviMultiCacheDeleteVal() failed to delete value")
+	}
+
+	// Verify other values still exist
+	if !cache.AviMultiCacheLookup("key1", "value1") {
+		t.Error("AviMultiCacheDeleteVal() incorrectly deleted value1")
+	}
+	if !cache.AviMultiCacheLookup("key1", "value3") {
+		t.Error("AviMultiCacheDeleteVal() incorrectly deleted value3")
+	}
+
+	// Delete remaining values
+	cache.AviMultiCacheDeleteVal("key1", "value1")
+	cache.AviMultiCacheDeleteVal("key1", "value3")
+
+	// Verify key is deleted when all values are removed
+	_, ok := cache.AviMultiCacheGetKey("key1")
+	if ok {
+		t.Error("AviMultiCacheDeleteVal() should delete key when all values removed")
+	}
+}
+
+func TestAviMultiCacheDeleteKey(t *testing.T) {
+	cache := utils.NewAviMultiCache()
+
+	cache.AviMultiCacheAdd("key1", "value1")
+	cache.AviMultiCacheAdd("key1", "value2")
+	cache.AviMultiCacheAdd("key2", "value3")
+
+	// Delete key1
+	cache.AviMultiCacheDeleteKey("key1")
+
+	// Verify key1 is deleted
+	_, ok := cache.AviMultiCacheGetKey("key1")
+	if ok {
+		t.Error("AviMultiCacheDeleteKey() failed to delete key")
+	}
+
+	// Verify key2 still exists
+	vals, ok := cache.AviMultiCacheGetKey("key2")
+	if !ok {
+		t.Error("AviMultiCacheDeleteKey() incorrectly deleted other keys")
+	}
+	if len(vals) != 1 {
+		t.Errorf("AviMultiCacheDeleteKey() affected other keys")
+	}
+
+	// Delete non-existing key (should not panic)
+	cache.AviMultiCacheDeleteKey("nonexistent")
+}
+
+func TestAviMultiCacheConcurrency(t *testing.T) {
+	cache := utils.NewAviMultiCache()
+	var wg sync.WaitGroup
+
+	// Test concurrent adds
+	for i := 0; i < 10; i++ {
+		for j := 0; j < 10; j++ {
+			wg.Add(1)
+			go func(key, val int) {
+				defer wg.Done()
+				cache.AviMultiCacheAdd(key, val)
+			}(i, j)
+		}
+	}
+	wg.Wait()
+
+	// Test concurrent reads
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go func(key int) {
+			defer wg.Done()
+			vals, ok := cache.AviMultiCacheGetKey(key)
+			if !ok {
+				t.Errorf("Concurrent read failed for key %d", key)
+			}
+			if ok && len(vals) != 10 {
+				t.Errorf("Concurrent read got %d values, want 10", len(vals))
+			}
+		}(i)
+	}
+	wg.Wait()
+
+	// Test concurrent lookups
+	for i := 0; i < 10; i++ {
+		for j := 0; j < 10; j++ {
+			wg.Add(1)
+			go func(key, val int) {
+				defer wg.Done()
+				if !cache.AviMultiCacheLookup(key, val) {
+					t.Errorf("Concurrent lookup failed for key %d, val %d", key, val)
+				}
+			}(i, j)
+		}
+	}
+	wg.Wait()
+}
+
+func TestAviMultiCacheAddDuplicateValue(t *testing.T) {
+	cache := utils.NewAviMultiCache()
+
+	// Add same value multiple times
+	cache.AviMultiCacheAdd("key1", "value1")
+	cache.AviMultiCacheAdd("key1", "value1")
+	cache.AviMultiCacheAdd("key1", "value1")
+
+	// Should only have one entry (map behavior)
+	vals, ok := cache.AviMultiCacheGetKey("key1")
+	if !ok {
+		t.Error("AviMultiCacheAdd() failed to add key")
+	}
+	if len(vals) != 1 {
+		t.Errorf("AviMultiCacheAdd() duplicate values created %d entries, want 1", len(vals))
+	}
+}
