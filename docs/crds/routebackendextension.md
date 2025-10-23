@@ -41,7 +41,60 @@ spec:
 
 The RouteBackendExtension CRD supports the following configuration options:
 
+##### Field Reference Summary
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| `lbAlgorithm` | string | No | `LB_ALGORITHM_LEAST_CONNECTIONS` | Load balancing algorithm for traffic distribution |
+| `lbAlgorithmHash` | string | Conditional* | - | Hash criteria for consistent hashing (required when using consistent hash) |
+| `lbAlgorithmConsistentHashHdr` | string | Conditional** | - | HTTP header name for custom header hashing |
+| `persistenceProfile` | string | No | - | Session persistence mechanism |
+| `healthMonitor` | array | No | - | Health monitors for backend server health checks |
+| `backendTLS` | object | No | - | TLS/SSL configuration for backend communication |
+| `backendTLS.pkiProfile` | object | No | - | PKI profile reference for TLS certificates |
+| `backendTLS.hostCheckEnabled` | boolean | No | `false` | Enable hostname verification during TLS handshake |
+| `backendTLS.domainName` | array | Conditional*** | - | Domain names for server certificate verification |
+
+\* Required when `lbAlgorithm` is `LB_ALGORITHM_CONSISTENT_HASH`
+\** Required when `lbAlgorithmHash` is `LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER`
+\*** Can only be set when `hostCheckEnabled` is `true`
+
 ##### Load Balancing Configuration
+
+**lbAlgorithm** (optional)
+- **Type**: string
+- **Default**: `LB_ALGORITHM_LEAST_CONNECTIONS`
+- **Description**: Defines the load balancing algorithm used to distribute traffic across backend servers. The algorithm determines how incoming requests are routed to available backend servers.
+- **Supported Values**:
+  - `LB_ALGORITHM_LEAST_CONNECTIONS`: Routes requests to the server with the fewest active connections
+  - `LB_ALGORITHM_ROUND_ROBIN`: Distributes requests sequentially across all available servers
+  - `LB_ALGORITHM_FASTEST_RESPONSE`: Routes requests to the server with the fastest response time
+  - `LB_ALGORITHM_CONSISTENT_HASH`: Uses consistent hashing to ensure the same client is always routed to the same server (requires `lbAlgorithmHash`)
+  - `LB_ALGORITHM_LEAST_LOAD`: Routes requests to the server with the lowest current load
+  - `LB_ALGORITHM_FEWEST_SERVERS`: Routes requests to minimize the number of servers used
+  - `LB_ALGORITHM_RANDOM`: Randomly distributes requests across available servers
+  - `LB_ALGORITHM_FEWEST_TASKS`: Routes requests to the server with the fewest pending tasks
+  - `LB_ALGORITHM_NEAREST_SERVER`: Routes requests to the geographically nearest server
+  - `LB_ALGORITHM_CORE_AFFINITY`: Routes requests based on CPU core affinity
+  - `LB_ALGORITHM_TOPOLOGY`: Routes requests based on network topology considerations
+
+**lbAlgorithmHash** (conditional)
+- **Type**: string
+- **Description**: Specifies the criteria used as a key for consistent hashing when `lbAlgorithm` is set to `LB_ALGORITHM_CONSISTENT_HASH`. This field is required when using consistent hash load balancing and determines what client information is used to generate the hash.
+- **Required When**: `lbAlgorithm` is `LB_ALGORITHM_CONSISTENT_HASH`
+- **Supported Values**:
+  - `LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS`: Uses the client's source IP address for hashing
+  - `LB_ALGORITHM_CONSISTENT_HASH_SOURCE_IP_ADDRESS_AND_PORT`: Uses both source IP address and port for hashing
+  - `LB_ALGORITHM_CONSISTENT_HASH_URI`: Uses the request URI for hashing
+  - `LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER`: Uses a custom HTTP header for hashing (requires `lbAlgorithmConsistentHashHdr`)
+  - `LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_STRING`: Uses a custom string for hashing
+  - `LB_ALGORITHM_CONSISTENT_HASH_CALLID`: Uses the SIP Call-ID header for hashing (SIP applications)
+
+**lbAlgorithmConsistentHashHdr** (conditional)
+- **Type**: string
+- **Description**: Specifies the name of the HTTP header to use as the hash key when using custom header-based consistent hashing. This field is required when `lbAlgorithmHash` is set to `LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER`.
+- **Required When**: `lbAlgorithmHash` is `LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER`
+- **Example Values**: `"X-User-ID"`, `"X-Forwarded-For"`, `"Authorization"`
 
 ##### Session Persistence Configuration
 
@@ -58,14 +111,14 @@ The RouteBackendExtension CRD supports the following configuration options:
 
 **healthMonitor** (optional)
 - **Type**: array of BackendHealthMonitor objects
-- **Description**: Defines health monitors for backend server health checks. Multiple health monitors can be specified, and a backend server is marked UP only when all health monitors return successful responses.
+- **Description**: Defines health monitors for backend server health checks. Multiple health monitors can be specified, and a backend server is marked UP only when all health monitors return successful responses. Health monitors provide automated health checking to ensure traffic is only sent to healthy backend servers.
 
 Each BackendHealthMonitor object has the following fields:
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `kind` | string | Yes | Type of HealthMonitor object. Must be `AVIREF` (reference to health monitor on Avi Controller). CRD references are not supported. |
-| `name` | string | Yes | Name of the HealthMonitor object. The health monitor must exist in the Avi Controller in the same tenant as the RouteBackendExtension namespace. |
+| `kind` | string | Yes | Type of HealthMonitor object. Must be `"AVIREF"` (reference to health monitor on Avi Controller). This indicates that the health monitor is a reference to an existing health monitor configured in the Avi Load Balancer Controller. |
+| `name` | string | Yes | Name of the HealthMonitor object. The health monitor must exist in the Avi Controller in the same tenant as the RouteBackendExtension namespace. This should match the exact name of the health monitor as configured in Avi. |
 
 **Example:**
 ```yaml
@@ -247,15 +300,34 @@ spec:
 
 #### Validation Rules and Constraints
 
-The RouteBackendExtension CRD enforces the following validation rules:
+The RouteBackendExtension CRD enforces the following validation rules to ensure proper configuration:
 
-1. **Consistent Hash Validation**: When `lbAlgorithm` is set to `LB_ALGORITHM_CONSISTENT_HASH`, the `lbAlgorithmHash` field must be specified.
+1. **Consistent Hash Algorithm Validation**:
+   - When `lbAlgorithm` is set to `LB_ALGORITHM_CONSISTENT_HASH`, the `lbAlgorithmHash` field must be specified
+   - Conversely, `lbAlgorithmHash` can only be set when `lbAlgorithm` is `LB_ALGORITHM_CONSISTENT_HASH`
+   - **Error Message**: "lbAlgorithmHash must be set if and only if lbAlgorithm is LB_ALGORITHM_CONSISTENT_HASH"
 
-2. **Custom Header Validation**: When `lbAlgorithmHash` is set to `LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER`, the `lbAlgorithmConsistentHashHdr` field must be provided.
+2. **Custom Header Hash Validation**:
+   - When `lbAlgorithmHash` is set to `LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER`, the `lbAlgorithmConsistentHashHdr` field must be provided
+   - The `lbAlgorithmConsistentHashHdr` field can only be set when using custom header hashing
+   - **Error Message**: "lbAlgorithmConsistentHashHdr must be set if and only if lbAlgorithmHash is LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER"
 
-3. **Domain Name Validation**: The `domainName` field in `backendTLS` can only be configured when `hostCheckEnabled` is set to `true`.
+3. **Backend TLS Domain Name Validation**:
+   - The `domainName` field in `backendTLS` can only be configured when `hostCheckEnabled` is set to `true`
+   - This ensures domain name verification is only attempted when hostname checking is enabled
+   - **Error Message**: "domainName can only be configured when hostCheckEnabled is set to true"
 
-4. **Namespace Scope**: All referenced objects (PKI profiles) must be in the same namespace as the RouteBackendExtension object.
+4. **Namespace Scope Requirements**:
+   - All referenced objects (PKI profiles, health monitors) must be in the same namespace as the RouteBackendExtension object
+   - This ensures proper RBAC and resource isolation
+
+5. **Health Monitor Constraints**:
+   - Health monitor `kind` must be `"AVIREF"` (only Avi Controller references are supported)
+   - Both `kind` and `name` fields are required for each health monitor entry
+
+6. **PKI Profile Constraints**:
+   - PKI profile `kind` must be `"CRD"` (only Custom Resource Definition references are supported)
+   - Both `kind` and `name` fields are required when specifying a PKI profile
 
 #### Gateway API Integration
 
@@ -320,11 +392,40 @@ spec:
 
 #### Status Fields
 
-The RouteBackendExtension CRD provides status information:
+The RouteBackendExtension CRD provides status information to track the state of the resource:
 
-- **controller**: Indicates which controller is managing the resource (typically "ako-crd-operator")
-- **status**: Current status of the resource processing
-- **error**: Error message if the resource processing failed
+**status.controller** (read-only)
+- **Type**: string
+- **Description**: Indicates which controller is managing the resource. This field is automatically populated by the AKO CRD operator.
+- **Typical Value**: `"ako-crd-operator"`
+
+**status.status** (read-only)
+- **Type**: string
+- **Description**: Current status of the resource processing. Indicates whether the RouteBackendExtension has been successfully processed and applied.
+- **Possible Values**:
+  - `"Accepted"`: The configuration has been successfully validated and applied
+  - `"Rejected"`: The configuration contains errors and could not be applied
+
+**status.error** (read-only)
+- **Type**: string
+- **Description**: Error message providing details about why the CRD object was transitioned to the "Rejected" state. This field is only populated when there are validation or processing errors.
+- **Usage**: Check this field when `status.status` is "Rejected" to understand what needs to be corrected
+
+#### kubectl Output
+
+When listing RouteBackendExtension resources using `kubectl get routebackendextensions` or `kubectl get rbe` (short name), the following columns are displayed:
+
+- **NAME**: The name of the RouteBackendExtension resource
+- **STATUS**: Current processing status (Accepted/Rejected)
+- **AGE**: Time since the resource was created
+
+Example output:
+```
+$ kubectl get rbe
+NAME                     STATUS     AGE
+my-route-backend-ext     Accepted   5m30s
+failed-config           Rejected   2m15s
+```
 
 #### Troubleshooting
 
