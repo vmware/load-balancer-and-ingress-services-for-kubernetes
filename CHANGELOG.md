@@ -546,4 +546,4 @@ All notable changes to this project will be documented in this file. The format 
 - AKO now sets the minimum pools required for EVH Child Virtual Service to be up to 1. Therefore, EVH Child Virtual Service will be down if no pools are up.
 - AKO now ignores secrets of type `helm.sh/release.v1`.
 - AKO now explicitly sets the graceful shutdown timeout to 60 seconds for pools. With Avi Controller 31.2.1, the previous default value of 1 minute is no longer set, so AKO sets it explicitly.
-- AKO will not process SSL certificates with no Common Name or SAN as this is no longer allowed starting with Avi Controller version 31.2.1.
+- Creation of SSL certificates with no Common Name or SAN by AKO in Avi Controller will fail as this is no longer allowed, starting with Avi Controller version 31.2.1.
