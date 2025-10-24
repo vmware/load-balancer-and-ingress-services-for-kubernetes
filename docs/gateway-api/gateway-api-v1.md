@@ -26,6 +26,48 @@ A GatewayClass `avi-lb` with `controllerName` as `ako.vmware.com/avi-lb` will ge
 
 **NOTE:** The GatewayClass, Gateway, and Route CRD definitions must be installed on the cluster before enabling the GatewayAPI feature in AKO. The CRDs can be found [here](https://github.com/kubernetes-sigs/gateway-api/tree/main/config/crd/standard).
 
+### Named Route Rules Support
+
+Starting from **AKO 2.1.1**, AKO supports Gateway API v1.3 which introduces the [Named Route Rules](https://gateway-api.sigs.k8s.io/reference/spec/#httprouterule) field (`HTTPRoute → rules → name`). When this field is specified, AKO uses the rule name instead of the jsonified match in the naming convention for ChildVS, Pool, and PoolGroup.
+
+**Key Behaviors:**
+- The `rule → name` field is **optional** and must be **unique** within an HTTPRoute if set.
+- If multiple rules have the same `rule → name`, the HTTPRoute will be rejected with Accepted condition set to `False` and message: "Route contains multiple rules with duplicate names"
+- If `rule → name` is not set for a rule, the legacy naming convention (using sha1 of HTTPRoute rule match) will be used for that rule's ChildVS, Pool, and PoolGroup.
+- HTTPRoutes can have a mix of named and unnamed rules - each will use the appropriate naming convention.
+- On upgrade from older AKO versions, existing ChildVSes, Pools, and PoolGroups remain unchanged unless the HTTPRoute is updated to include named rules. Upon modification, old objects will be deleted and new ones created.
+
+**Example HTTPRoute with Named Rule:**
+
+```yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: insecure-http-route
+  namespace: test-httproute-ns
+spec:
+  parentRefs:
+  - name: test-insecure-gateway
+    sectionName: http
+  hostnames:
+  - "products.avi.internal"
+  rules:
+  - name: test-rule-name
+    matches:
+    - path:
+        value: "/foo"
+    backendRefs:
+    - name: app-http
+      port: 80
+```
+
+For the above HTTPRoute, the object names would be:
+- **ChildVS**: `ako-gw-<cluster-name>--<sha1 hash of <gateway-namespace>-test-insecure-gateway-test-httproute-ns-insecure-http-route-<stringified FNV1a_32 hash of bytes(test-rule-name)>>`
+- **Pool**: `ako-gw-<cluster-name>--<sha1 hash of <gateway-namespace>-test-insecure-gateway-test-httproute-ns-insecure-http-route-<stringified FNV1a_32 hash of bytes(test-rule-name)>-<backendRefs_namespace>-app-http-80>`
+- **PoolGroup**: `ako-gw-<cluster-name>–-<sha1 hash of <gateway-namespace>-test-insecure-gateway-test-httproute-ns-insecure-http-route-<stringified FNV1a_32 hash of bytes(test-rule-name)>>`
+
+For detailed naming conventions, see [naming conventions](../naming-conventions/ako-gateway-api.md).
+
 ### Gateway API Objects
 
 #### GatewayClass
