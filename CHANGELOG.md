@@ -535,12 +535,15 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Added
 - AKO now claims support for Kubernetes 1.34.
-- AKO supports the `externalTrafficPolicy` field set to Local in a NodePort service. See [ExternalTrafficPolicySupport](docs/ako_external_traffic_policy_local.md) for the more details.
+- AKO supports the `externalTrafficPolicy` field set to Local in NodePort and LoadBalancer services. See [ExternalTrafficPolicySupport](docs/ako_external_traffic_policy_local.md) for the more details.
 - AKO supports route revocation for NSX-T cloud using [L4 Rule](docs/crds/l4rule.md#configure-vip-route-revocation)
-- AKO HostRule CRD has a new sub-field `Duration` in `analyticsPolicy:fullClientLogs` field for logging non-significant logs.
-- AKO supports applying HealthMonitors, present on the AviController, to LoadBalancer type service using [L4Rule](docs/crds/l4rule.md#express-custom-health-monitors).
-
+- AKO HostRule CRD has a new sub-field `Duration` in `analyticsPolicy:fullClientLogs` field for logging non-significant logs. See [HostRule](docs/crds/hostrule.md#configure-analytics-policy).
+- AKO supports applying HealthMonitors created using the HealthMonitor CRD to pools for LoadBalancer type services. See [L4Rule](docs/crds/l4rule.md#express-custom-health-monitors).
+- AKO L7Rule CRD has new fields added: `analyticsProfile`, `applicationProfile`, `wafPolicy`, `icapProfile`, `errorPageProfile`, `analyticsPolicy`, and `httpPolicy`. These fields are also present in HostRule CRD, and HostRule fields take precedence when both are specified. See [L7Rule](docs/crds/l7rule.md).
 
 ### Changed
 - AKO will not create a lease lock object when there is a single AKO instance running. Please refer [AKO HA](docs/ako_ha.md#steps-to-run-ako-in-high-availability) for the more details when AKO replica count is changed.
-
+- AKO now sets the minimum pools required for EVH Child Virtual Service to be up to 1. Therefore, EVH Child Virtual Service will be down if no pools are up.
+- AKO now ignores secrets of type `helm.sh/release.v1`.
+- AKO now explicitly sets the graceful shutdown timeout to 60 seconds for pools. With Avi Controller 31.2.1, the previous default value of 1 minute is no longer set, so AKO sets it explicitly.
+- AKO will not process SSL certificates with no Common Name or SAN as this is no longer allowed starting with Avi Controller version 31.2.1.
