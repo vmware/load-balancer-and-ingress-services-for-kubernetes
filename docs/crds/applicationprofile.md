@@ -59,7 +59,7 @@ The ApplicationProfile CRD is defined with the following structure:
 - **API Version**: `ako.vmware.com/v1alpha1`
 - **Kind**: `ApplicationProfile`
 - **Scope**: `Namespaced`
-- **Short Name**: `appprofile`
+- **Short Name**: `ap`
 - **Plural**: `applicationprofiles`
 - **Singular**: `applicationprofile`
 
