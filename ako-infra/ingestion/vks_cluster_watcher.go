@@ -74,9 +74,10 @@ type VKSClusterConfig struct {
 
 	CloudName string
 
-	CNIPlugin   string
-	ServiceType string
-	ClusterName string
+	CNIPlugin    string
+	ServiceType  string
+	ClusterName  string
+	StorageClass string
 }
 
 // VKSSecretInfo holds information about a VKS secret
@@ -971,6 +972,7 @@ func (w *VKSClusterWatcher) buildVKSClusterConfig(cluster *unstructured.Unstruct
 		CNIPlugin:                cniPlugin,
 		ServiceType:              serviceType,
 		ClusterName:              clusterNameWithUID,
+		StorageClass:             w.extractStorageClass(cluster),
 		VPCMode:                  true,
 		DedicatedTenantMode:      true,
 		Managed:                  true,
@@ -980,8 +982,8 @@ func (w *VKSClusterWatcher) buildVKSClusterConfig(cluster *unstructured.Unstruct
 		utils.AviLog.Warnf("Controller version not available for cluster %s/%s (UID: %s)", clusterNamespace, cluster.GetName(), cluster.GetUID())
 	}
 
-	utils.AviLog.Infof("Built configuration for cluster %s/%s (UID: %s): SEG=%s, Tenant=%s, T1LR=%s, Cloud=%s, CNI=%s, ServiceType=%s",
-		clusterNamespace, cluster.GetName(), cluster.GetUID(), config.ServiceEngineGroup, config.TenantName, config.NsxtT1LR, config.CloudName, config.CNIPlugin, config.ServiceType)
+	utils.AviLog.Infof("Built configuration for cluster %s/%s (UID: %s): SEG=%s, Tenant=%s, T1LR=%s, Cloud=%s, CNI=%s, ServiceType=%s, StorageClass=%s",
+		clusterNamespace, cluster.GetName(), cluster.GetUID(), config.ServiceEngineGroup, config.TenantName, config.NsxtT1LR, config.CloudName, config.CNIPlugin, config.ServiceType, config.StorageClass)
 
 	return config, nil
 }
@@ -1142,6 +1144,10 @@ func (w *VKSClusterWatcher) buildSecretData(config *VKSClusterConfig) map[string
 		secretData["serviceType"] = []byte(config.ServiceType)
 	}
 
+	if config.StorageClass != "" {
+		secretData["storageClass"] = []byte(config.StorageClass)
+	}
+
 	secretData["cloudName"] = []byte(config.CloudName)
 
 	secretData["vpcMode"] = []byte(strconv.FormatBool(config.VPCMode))
@@ -1203,6 +1209,40 @@ func (w *VKSClusterWatcher) detectAndValidateCNI(cluster *unstructured.Unstructu
 	}
 
 	return detectedCNI, nil
+}
+
+// extractStorageClass extracts the storageClass from the VKS cluster topology variables
+func (w *VKSClusterWatcher) extractStorageClass(cluster *unstructured.Unstructured) string {
+	clusterName := cluster.GetName()
+	clusterNamespace := cluster.GetNamespace()
+
+	variables, found, err := unstructured.NestedSlice(cluster.Object, "spec", "topology", "variables")
+	if err != nil || !found {
+		utils.AviLog.Infof("VKS cluster watcher: no topology variables found for cluster %s/%s, will use cluster default StorageClass", clusterNamespace, clusterName)
+		return ""
+	}
+
+	for _, v := range variables {
+		varMap, ok := v.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		name, nameFound, _ := unstructured.NestedString(varMap, "name")
+		if !nameFound || name != "storageClass" {
+			continue
+		}
+
+		storageClass, found, _ := unstructured.NestedString(varMap, "value")
+		if found && storageClass != "" {
+			utils.AviLog.Infof("VKS cluster watcher: detected storageClass '%s' for cluster %s/%s",
+				storageClass, clusterNamespace, clusterName)
+			return storageClass
+		}
+	}
+
+	utils.AviLog.Infof("VKS cluster watcher: storageClass variable not found in cluster %s/%s topology, will use cluster default StorageClass", clusterNamespace, clusterName)
+	return ""
 }
 
 // StartVKSClusterWatcherWithRetry starts cluster watcher with infinite retry
