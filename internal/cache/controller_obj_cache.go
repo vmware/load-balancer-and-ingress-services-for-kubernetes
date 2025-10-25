@@ -503,6 +503,10 @@ func (c *AviObjCache) AviPopulateAllPGs(client *clients.AviClient, cloud string,
 		for _, member := range pg.Members {
 			// Parse each pool and populate inside pools.
 			// Find out the uuid of the pool and then corresponding name
+			if member.PoolRef == nil {
+				utils.AviLog.Warnf("PoolRef is nil for pool group member in pg: %s", *pg.Name)
+				continue
+			}
 			poolUuid := ExtractUUID(*member.PoolRef, "pool-.*.#")
 			// Search the poolName using this Uuid in the poolcache.
 			poolName, found := c.PoolCache.AviCacheGetNameByUuid(poolUuid)
