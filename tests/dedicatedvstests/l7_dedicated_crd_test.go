@@ -1343,7 +1343,6 @@ This test case tests following scenario
 5. Create an hostrule with fqdn foo1.com and aliases as `foo.com`.
 6. Check CRD is accepted or not.
 */
-/*
 func TestCreateUpdateDeleteHostRuleWithFqdnAlias_Dedicated(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	modelName := "admin/cluster--foo.com-L7-dedicated"
@@ -1431,4 +1430,3 @@ func TestCreateUpdateDeleteHostRuleWithFqdnAlias_Dedicated(t *testing.T) {
 
 	integrationtest.TeardownHostRule(t, g, sniVSKey, hrname)
 }
-*/
