@@ -245,6 +245,7 @@ func BuildVsVipNodeForGateway(key string, gateway *gatewayv1.Gateway, parentVsNo
 func DeleteTLSNode(key string, object *AviObjectGraph, gateway *gatewayv1.Gateway, secretObj *corev1.Secret) bool {
 	var tlsNodes []*nodes.AviTLSKeyCertNode
 	_, certNamespace, secretName := lib.ExtractTypeNameNamespace(key)
+	// TODO: Add lock here
 	evhVsCertRefs := object.GetAviEvhVS()[0].SSLKeyCertRefs
 	gwStatus := akogatewayapiobjects.GatewayApiLister().GetGatewayToGatewayStatusMapping(gateway.Namespace + "/" + gateway.Name)
 	encodedCertName := akogatewayapilib.GetTLSKeyCertNodeName(gateway.Namespace, gateway.Name, certNamespace, secretName)
@@ -265,6 +266,7 @@ func DeleteTLSNode(key string, object *AviObjectGraph, gateway *gatewayv1.Gatewa
 
 func AddTLSNode(key string, object *AviObjectGraph, gateway *gatewayv1.Gateway, secretObj *corev1.Secret) {
 	_, certNamespace, secretName := lib.ExtractTypeNameNamespace(key)
+	// TODO: Add lock here
 	parentVSNode := object.GetAviEvhVS()[0]
 	tlsNodes := parentVSNode.SSLKeyCertRefs
 	gwStatus := akogatewayapiobjects.GatewayApiLister().GetGatewayToGatewayStatusMapping(gateway.Namespace + "/" + gateway.Name)
