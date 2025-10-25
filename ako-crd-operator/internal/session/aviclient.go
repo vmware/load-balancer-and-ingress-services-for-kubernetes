@@ -31,26 +31,19 @@ type AviClientInterface interface {
 // retryOnSessionExpiry wraps REST calls with retry logic for session expiry errors
 func (s *AviSessionClient) retryOnSessionExpiry(restCall func() error) error {
 	maxRetries := 3
-	var lastErr error
-
-	for attempt := 0; attempt <= maxRetries; attempt++ {
-		err := restCall()
+	var err error
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		err = restCall()
 		if err == nil {
 			return nil
 		}
 
-		lastErr = err
 		// Check if error is session expiry error
-		if strings.Contains(err.Error(), "Rest request error, returning to caller") {
-			if attempt < maxRetries {
-				continue
-			}
-		} else {
-			// For non-session expiry errors, return immediately
+		if !strings.Contains(err.Error(), "Rest request error, returning to caller") {
 			return err
 		}
 	}
-	return lastErr
+	return err
 }
 
 func (s *AviSessionClient) AviSessionGet(url string, response interface{}, params ...session.ApiOptionsParams) error {
