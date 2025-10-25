@@ -1515,6 +1515,10 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 		strings.HasSuffix(r.URL.RawQuery, lib.GetTcpHalfOpenHealthMonitorName()) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"results": [], "count": 0}`))
+	} else if r.Method == "GET" && strings.Contains(url, "/api/tenant") && strings.Contains(r.URL.RawQuery, "attrs") {
+		w.WriteHeader(http.StatusOK)
+		data, _ := os.ReadFile(fmt.Sprintf("%s/tenant_mock_attrs.json", mockFilePath))
+		w.Write(data)
 	} else if r.Method == "GET" && inArray(FakeAviObjects, object) {
 		FeedMockCollectionData(w, r, mockFilePath)
 

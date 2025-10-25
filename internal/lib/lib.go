@@ -2400,27 +2400,64 @@ func GetAviInfraSettingName(projVpc string) string {
 	return hex.EncodeToString(hash[:])
 }
 
-var defaultNSXProject string
-
 func GetTenantForProject(project string, c *clients.AviClient) (string, error) {
-	if defaultNSXProject == "" {
-		uri := "api/tenant/admin"
-		response := models.Tenant{}
-		err := AviGet(c, uri, &response)
+	projectToTenantMap, err := GetNSXProjectToTenantMap(c)
+	if err != nil {
+		return "", err
+	}
+	tenant, ok := projectToTenantMap[project]
+	if !ok {
+		return "", fmt.Errorf("tenant not found for project %s", project)
+	}
+	return tenant, nil
+}
+
+func GetNSXProjectToTenantMap(c *clients.AviClient) (map[string]string, error) {
+	projectToTenantMap := make(map[string]string)
+
+	uri := "/api/tenant?fields=name,attrs"
+	for {
+		result, err := AviGetCollectionRaw(c, uri)
 		if err != nil {
-			return "", err
+			return nil, fmt.Errorf("failed to get tenants from Avi: %v", err)
 		}
-		for _, attr := range response.Attrs {
-			if *attr.Key == "path" {
-				projectSlice := strings.Split(*attr.Value, "/projects/")
-				defaultNSXProject = projectSlice[len(projectSlice)-1]
+
+		elems := make([]json.RawMessage, result.Count)
+		err = json.Unmarshal(result.Results, &elems)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal tenant results: %v", err)
+		}
+
+		for i := 0; i < len(elems); i++ {
+			tenant := models.Tenant{}
+			err = json.Unmarshal(elems[i], &tenant)
+			if err != nil || tenant.Name == nil {
+				continue
+			}
+
+			for _, attr := range tenant.Attrs {
+				if attr != nil && attr.Key != nil && attr.Value != nil && *attr.Key == "path" {
+					projectSlice := strings.Split(*attr.Value, "/projects/")
+					project := projectSlice[len(projectSlice)-1]
+					projectToTenantMap[project] = *tenant.Name
+					break
+				}
 			}
 		}
+
+		if result.Next == "" {
+			break
+		}
+
+		nextURI := strings.Split(result.Next, "/api/tenant")
+		if len(nextURI) > 1 {
+			uri = "/api/tenant" + nextURI[1]
+		} else {
+			break
+		}
 	}
-	if project == defaultNSXProject {
-		return "admin", nil
-	}
-	return project, nil
+
+	return projectToTenantMap, nil
 }
 
 func GetNSToSEGMap() (map[string]string, error) {
