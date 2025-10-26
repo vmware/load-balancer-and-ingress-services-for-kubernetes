@@ -76,6 +76,10 @@ func IsRetryableError(err error) bool {
 			return false
 		}
 	}
+	// For AviError, check if it's session expired
+	if strings.Contains(err.Error(), "Rest request error, returning to caller") {
+		return true
+	}
 	if aviError, ok := err.(session.AviError); ok {
 		switch aviError.HttpStatusCode {
 		case 400, 401, 403, 404, 409, 412, 422, 501:

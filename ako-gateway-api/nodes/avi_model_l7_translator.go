@@ -15,6 +15,7 @@
 package nodes
 
 import (
+	"context"
 	"fmt"
 	"slices"
 	"strconv"
@@ -25,6 +26,7 @@ import (
 
 	"github.com/vmware/alb-sdk/go/models"
 	"google.golang.org/protobuf/proto"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/sets"
 
@@ -36,9 +38,10 @@ import (
 )
 
 func (o *AviObjectGraph) AddDefaultHTTPPolicySet(key string) {
+	o.Lock.Lock()
+	defer o.Lock.Unlock()
 
 	parentVS := o.GetAviEvhVS()[0]
-
 	policyRefName := akogatewayapilib.GetDefaultHTTPPSName()
 	// find default backend, if found make sure it is at last index
 	for i, policyRef := range parentVS.HttpPolicyRefs {
@@ -77,6 +80,8 @@ func (o *AviObjectGraph) AddDefaultHTTPPolicySet(key string) {
 }
 
 func (o *AviObjectGraph) ProcessL7Routes(key string, routeModel RouteModel, parentNsName string, childVSes map[string]struct{}, fullsync bool) {
+	o.Lock.Lock()
+	defer o.Lock.Unlock()
 	httpRouteConfig := routeModel.ParseRouteConfig(key)
 	httpRouteRules := httpRouteConfig.Rules
 	if o.GetAviEvhVS()[0].Dedicated {
@@ -125,7 +130,7 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 		Gateway:   parentNsName,
 		HTTPRoute: routeModel.GetNamespace() + "/" + routeModel.GetName(),
 	}
-	childNode.ApplicationProfileRef = proto.String(fmt.Sprintf("/api/applicationprofile/?name=%s", utils.DEFAULT_L7_APP_PROFILE))
+	childNode.ApplicationProfile = utils.DEFAULT_L7_APP_PROFILE
 	childNode.ServiceEngineGroup = lib.GetSEGName()
 	childNode.VrfContext = lib.GetVrf()
 	childNode.AviMarkers = utils.AviObjectMarkers{
@@ -144,7 +149,7 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 	o.BuildVHMatch(key, parentNsName, routeTypeNsName, childNode, rule, hosts)
 	if len(childNode.VHMatches) == 0 {
 		utils.AviLog.Warnf("key: %s, msg: No valid domain name added for child virtual service", key)
-		o.ProcessRouteDeletion(key, parentNsName, routeModel, fullsync)
+		o.processRouteDeletionInternal(key, parentNsName, routeModel, fullsync)
 		return
 	}
 
@@ -155,6 +160,7 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 	o.BuildHTTPPolicySet(key, childNode, routeModel, rule, 0, childVSName)
 	// Apply Extension Ref
 	o.ApplyRuleExtensionRefs(key, childNode, routeModel, rule)
+
 	foundEvhModel := nodes.FindAndReplaceEvhInModel(childNode, parentNode, key)
 	if !foundEvhModel {
 		parentNode[0].EvhNodes = append(parentNode[0].EvhNodes, childNode)
@@ -273,9 +279,8 @@ func (o *AviObjectGraph) BuildApplicationPersistenceProfile(key string, rule *Ru
 }
 
 func (o *AviObjectGraph) ApplyRuleExtensionRefs(key string, childNode *nodes.AviEvhVsNode, routeModel RouteModel, rule *Rule) {
-
-	if rule != nil && rule.Filters != nil {
-		isFilterAppProfSet := false
+	isFilterAppProfSet := false
+	if rule != nil && rule.Filters != nil && len(rule.Filters) > 0 {
 		for _, filter := range rule.Filters {
 			if filter.ExtensionRef != nil {
 				// validations are already done. Here we need to just apply Extension refs
@@ -285,7 +290,13 @@ func (o *AviObjectGraph) ApplyRuleExtensionRefs(key string, childNode *nodes.Avi
 
 				switch filter.ExtensionRef.Kind {
 				case lib.ApplicationProfile:
-					appProfRef := fmt.Sprintf("/api/applicationprofile/?name=%s-%s-%s", lib.GetClusterName(), routeModel.GetNamespace(), filter.ExtensionRef.Name)
+					// Get ApplicationProfile UUID from status
+					appProfUUID, err := getApplicationProfileUUID(routeModel.GetNamespace(), filter.ExtensionRef.Name)
+					if err != nil {
+						utils.AviLog.Warnf("key: %s, msg: error: ApplicationProfile %s/%s UUID not found. err: %s", key, routeModel.GetNamespace(), filter.ExtensionRef.Name, err)
+						continue
+					}
+					appProfRef := fmt.Sprintf("/api/applicationprofile/%s", appProfUUID)
 					childNode.ApplicationProfileRef = &appProfRef
 					isFilterAppProfSet = true
 				case lib.L7Rule:
@@ -296,10 +307,16 @@ func (o *AviObjectGraph) ApplyRuleExtensionRefs(key string, childNode *nodes.Avi
 				}
 			}
 		}
+	} else {
+		resetChildNodeFields(key, nil, childNode, isFilterAppProfSet)
 	}
 }
 func resetChildNodeFields(key string, err error, childNode *nodes.AviEvhVsNode, isFilterAppProfSet bool) {
-	utils.AviLog.Warnf("key: %s, msg: Error while parsing extension ref: %s. Resetting child VS %s fields", key, err.Error(), childNode.Name)
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: Error while parsing extension ref: %s. Resetting child VS %s fields", key, err.Error(), childNode.Name)
+	} else {
+		utils.AviLog.Infof("key: %s, msg: No filters specified. Resetting child VS %s fields", key, childNode.Name)
+	}
 	generatedFields := childNode.GetGeneratedFields()
 	generatedFields.ConvertL7RuleFieldsToNil()
 	childNode.SetAnalyticsPolicy(nil)
@@ -762,4 +779,26 @@ func (o *AviObjectGraph) BuildHTTPPolicySetHTTPRequestUrlRewriteRules(key, httpP
 			break
 		}
 	}
+}
+
+// getApplicationProfileUUID retrieves the UUID of an ApplicationProfile from its status
+func getApplicationProfileUUID(namespace, name string) (string, error) {
+	clientSet := akogatewayapilib.GetDynamicClientSet()
+	obj, err := clientSet.Resource(akogatewayapilib.AppProfileCRDGVR).Namespace(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		return "", fmt.Errorf("failed to get ApplicationProfile %s/%s: %v", namespace, name, err)
+	}
+
+	statusJSON, found, err := unstructured.NestedMap(obj.UnstructuredContent(), "status")
+	if err != nil || !found {
+		return "", fmt.Errorf("ApplicationProfile %s/%s status not found: %v", namespace, name, err)
+	}
+
+	// Get the UUID directly from status
+	uuid, ok := statusJSON["uuid"]
+	if !ok || uuid == "" {
+		return "", fmt.Errorf("ApplicationProfile %s/%s uuid not found", namespace, name)
+	}
+
+	return uuid.(string), nil
 }

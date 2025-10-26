@@ -298,8 +298,20 @@ func (rest *RestOperations) CheckAndPublishForRetry(err error, publishKey avicac
 		}
 	}
 	var urlError *url.Error
-	if strings.Contains(err.Error(), "Rest request error") || strings.Contains(err.Error(), "timed out waiting for rest response") || errors.As(err, &urlError) {
-		utils.AviLog.Warnf("key: %s, msg: got error while executing rest request: %s, adding to slow retry queue", key, err.Error())
+	errorMsg := err.Error()
+
+	if strings.Contains(errorMsg, "Rest request error, returning to caller") {
+		// This is typically a session refresh failure from AVI SDK
+		// Route to fast retry to allow immediate session refresh attempt
+		utils.AviLog.Warnf("key: %s, msg: detected error for rest op: %s, adding to fast retry queue", key, errorMsg)
+		rest.PublishKeyToRetryLayer(publishKey, key)
+		return true
+	}
+
+	// Handle other network errors with slow retry
+	// Keeping check for "Rest request error" again in case any other error matches this string in addition to the check in the preceding if block
+	if strings.Contains(errorMsg, "timed out waiting for rest response") || strings.Contains(errorMsg, "Rest request error") || errors.As(err, &urlError) {
+		utils.AviLog.Warnf("key: %s, msg: got error while executing rest request: %s, adding to slow retry queue", key, errorMsg)
 		rest.PublishKeyToSlowRetryLayer(publishKey, key)
 		return true
 	}

@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
@@ -45,6 +46,12 @@ func (v *VPCHandler) AddNetworkInfoEventHandler(stopCh <-chan struct{}) {
 }
 
 func (v *VPCHandler) SyncLSLRNetwork() {
+	// Check controller uptime - if controller was rebooted/upgraded, AKO-infra will restart
+	aviObjCache := avicache.SharedAviObjCache()
+	if err := aviObjCache.AviClusterStatusPopulate(InfraAviClientInstance()); err != nil {
+		utils.AviLog.Warnf("Failed to check controller cluster status: %v", err)
+	}
+
 	nsToVPCMap, err := lib.GetVPCs()
 	if err != nil {
 		utils.AviLog.Errorf("Failed to list VPCs, error: %s", err)

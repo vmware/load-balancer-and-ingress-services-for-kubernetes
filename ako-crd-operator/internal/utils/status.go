@@ -56,7 +56,6 @@ func (sm *StatusManager) SetStatus(ctx context.Context, obj StatusObject, condit
 	// Set additional status fields
 	lastUpdated := metav1.Time{Time: time.Now().UTC()}
 	obj.SetLastUpdated(&lastUpdated)
-	obj.SetObservedGeneration(obj.GetGeneration())
 
 	// Determine event type based on condition status
 	var eventType string
@@ -72,6 +71,7 @@ func (sm *StatusManager) SetStatus(ctx context.Context, obj StatusObject, condit
 		} else {
 			eventMessage = message
 		}
+		obj.SetObservedGeneration(obj.GetGeneration())
 	case metav1.ConditionFalse:
 		eventType = corev1.EventTypeWarning
 		eventReason = string(reason)

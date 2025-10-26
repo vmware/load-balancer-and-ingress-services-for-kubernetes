@@ -1,9 +1,7 @@
 ### L4Rule 
 
 L4Rule CRD can be used to modify the default properties of the L4 VS and the pools created from a service of Type LoadBalancer.
-Service of type LoadBalancer has to be annotated with the name of the CRD to attach the CRD to the service.
-
-**NOTE**: L4Rule CRD with Gateway API is not supported currently.
+Service of type LoadBalancer has to be annotated with the name of the CRD to attach the CRD to the service. Although cross namespace usage is allowed between L4Rule and LB service, both should use the same tenant.
 
 A sample L4Rule CRD looks like this:
 
@@ -39,6 +37,8 @@ A sample L4Rule CRD looks like this:
       healthMonitorRefs:
       - Custom-HM-01
       - Custom-HM-02
+      healthMonitorCrdRefs:
+      - my-health-monitor
       lbAlgorithm: LB_ALGORITHM_CONSISTENT_HASH
       lbAlgorithmHash: LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER
       lbAlgorithmConsistentHashHdr: "custom-string"
@@ -151,7 +151,7 @@ By default, the AKO sets the `duration` of logging the non-significant logs to *
 L4Rule CRD can be used to express application profile references. The application profile can be used to enable PROXY Protocol, rate limit the connections from a client, etc. The application profile must be created in the AVI Controller before referring to it.
 
 ```yaml
-    applicationProfile: Custom-L4-Application-Profile
+    applicationProfileRef: Custom-L4-Application-Profile
  ```
 
 **NOTE**: The application profile should be of type `L4` or `L4 SSL/TLS`. If SSL is enabled for any port in [listenerProperties](#configure-listener-properties) section then application profile should be of type `L4 SSL/TLS`. `L4 SSL/TLS` is supported starting AKO 1.11.1.
@@ -246,6 +246,8 @@ A sample `backendProperties` looks like this:
       healthMonitorRefs:
       - Custom-HM-01
       - Custom-HM-02
+      healthMonitorCrdRefs:
+      - my-health-monitor
       lbAlgorithm: LB_ALGORITHM_CONSISTENT_HASH
       lbAlgorithmHash: LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER
       lbAlgorithmConsistentHashHdr: "custom-string"
@@ -288,6 +290,18 @@ L4Rule CRD can be used to express custom health monitor references. The health m
 ```
 
 The health monitors can be used to verify server health. A server (Kubernetes pods in this case) will be marked UP only when all the health monitors return successful responses. Health monitors provided here overwrite the default health monitor configuration set by AKO i.e. `System-TCP` for TCP traffic and `System-UDP` for UDP traffic based on the service configuration.
+
+Alternatively, you can use the HealthMonitor CRD to define custom health monitoring configurations directly in Kubernetes:
+
+```yaml
+      healthMonitorCrdRefs:
+      - my-health-monitor
+      - my-backup-health-monitor
+```
+
+The `healthMonitorCrdRefs` field references HealthMonitor CRD objects that must be created in the same namespace as the L4Rule. The HealthMonitor CRD is managed by the AKO CRD Operator and supports TCP, HTTP, and PING health check types with fine-grained control over health check parameters. For more details on creating HealthMonitor CRDs, see the [HealthMonitor documentation](./healthmonitor.md).
+
+**NOTE**: `healthMonitorCrdRefs` will not be used if `healthMonitorRefs` are specified.
 
 #### Configure LB Algorithm
 
@@ -474,7 +488,7 @@ There are some limitations when trying to enable SSL termintaion for an L4 virtu
 
 1. Currently, only a single `TCP` port is allowed in the LoadBalancer service definition if SSL is required to be enabled. Hence, the same limitation also applies to `listenerProperties` which can also have only one matching **TCP** based port definition along with `enableSsl` field. This is because Avi only supports SSL termination with TCP protocol and also a VS of type L4 SSL can have only one backend pool configured.
 
-2. If **enableSsl** is set to true for any port in `listenerProperties` section then `applicationProfile` should be of type `L4 SSL/TLS`. If application profile is not of type `L4 SSL/TLS`, then L4Rule will be rejected. If `applicationProfile` is not set, then it defaults to **System-L4-Application** in the CRD, but AKO intermally sets the application profile as **System-SSL-Application** which is the default value when SSL is enabled.
+2. If **enableSsl** is set to true for any port in `listenerProperties` section then `applicationProfileRef` should be of type `L4 SSL/TLS`. If application profile is not of type `L4 SSL/TLS`, then L4Rule will be rejected. If `applicationProfileRef` is not set, then it defaults to **System-L4-Application** in the CRD, but AKO internally sets the application profile as **System-SSL-Application** which is the default value when SSL is enabled.
 
 3. If **enableSsl** is set to true for any port in `listenerProperties` section then `networkProfileRef` should be of type TCP proxy, since only a single **TCP** port definition is allowed in the LoadBalancer service and listener properties.
 

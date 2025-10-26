@@ -155,7 +155,11 @@ func PopulateControllerProperties(cs kubernetes.Interface) error {
 	ctrlPropCache := utils.SharedCtrlProp()
 	ctrlProps, err := lib.GetControllerPropertiesFromSecret(cs)
 	if err != nil {
-		return err
+		// Fallback to local system properties when secret retrieval fails
+		ctrlProps, err = lib.GetControllerPropertiesFromLocalSystem()
+		if err != nil {
+			return err
+		}
 	}
 	ctrlPropCache.PopulateCtrlProp(ctrlProps)
 	return nil
@@ -526,14 +530,14 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	statusQueueParams := utils.WorkerQueue{NumWorkers: numGraphWorkers, WorkqueueName: utils.StatusQueue}
 	graphQueue = utils.SharedWorkQueue(&ingestionQueueParams, &graphQueueParams, &slowRetryQParams, &fastRetryQParams, &statusQueueParams).GetQueueByName(utils.GraphLayer)
 
-	c.addIndexers()
-	c.Start(stopCh)
 	err := PopulateCache()
 	if err != nil {
 		c.DisableSync = true
 		utils.AviLog.Errorf("failed to populate cache, disabling sync")
 		lib.ShutdownApi()
 	}
+	c.addIndexers()
+	c.Start(stopCh)
 
 	fullSyncInterval := os.Getenv(utils.FULL_SYNC_INTERVAL)
 	interval, err := strconv.ParseInt(fullSyncInterval, 10, 64)

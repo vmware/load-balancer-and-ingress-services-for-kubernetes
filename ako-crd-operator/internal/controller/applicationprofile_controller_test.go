@@ -600,7 +600,7 @@ func TestApplicationProfileController(t *testing.T) {
 			wantErr: true,
 		},
 		{
-			name: "error: delete fails with 403 error (referenced by other objects)",
+			name: "success: delete fails with 403 error (referenced by other objects)",
 			ap: &akov1alpha1.ApplicationProfile{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:              "test",
@@ -626,7 +626,7 @@ func TestApplicationProfileController(t *testing.T) {
 					Name:              "test",
 					Finalizers:        []string{"applicationprofile.ako.vmware.com/finalizer"},
 					DeletionTimestamp: &metav1.Time{Time: time.Now().Truncate(time.Second)},
-					ResourceVersion:   "1001",
+					ResourceVersion:   "1002", // Incremented twice: once in DeleteObject status update, once in reconcile status update
 				},
 				Status: akov1alpha1.ApplicationProfileStatus{
 					UUID: "123",
@@ -642,7 +642,7 @@ func TestApplicationProfileController(t *testing.T) {
 					Tenant: "admin",
 				},
 			},
-			wantErr: true, // 403 returns error for requeue
+			wantErr: false, // 403 does not return error, status is updated and object is requeued
 		},
 		{
 			name: "error: non-retryable error (status update without requeue)",

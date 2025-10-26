@@ -573,24 +573,11 @@ func (w *VKSClusterWatcher) createCleanupAviClient(controllerIP, username, passw
 
 	ctrlVersion := lib.GetControllerVersion()
 	if ctrlVersion == "" {
-		infraClient := avirest.InfraAviClientInstance()
-		if infraClient != nil && infraClient.AviSession != nil {
+		infraClient := avirest.VKSAviClientInstance()
+		if infraClient.AviSession != nil {
 			version, err := infraClient.AviSession.GetControllerVersion()
 			if err != nil {
 				return nil, fmt.Errorf("failed to get controller version: %v", err)
-			}
-
-			maxVersion, err := utils.NewVersion(utils.MaxAviVersion)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse max version: %v", err)
-			}
-			curVersion, err := utils.NewVersion(version)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse controller version: %v", err)
-			}
-			if curVersion.Compare(maxVersion) > 0 {
-				utils.AviLog.Infof("VKS cleanup: Capping controller version %s to max version %s", version, utils.MaxAviVersion)
-				version = utils.MaxAviVersion
 			}
 			ctrlVersion = version
 		} else {
@@ -803,11 +790,7 @@ func (w *VKSClusterWatcher) cleanupClusterSpecificRBAC(clusterName string) error
 		return w.mockRBACFunc(clusterName)
 	}
 
-	aviClient := avirest.InfraAviClientInstance()
-	if aviClient == nil {
-		utils.AviLog.Warnf("Avi Controller client not available for RBAC cleanup of cluster %s", clusterName)
-		return fmt.Errorf("avi Controller client not available for RBAC cleanup of cluster %s", clusterName)
-	}
+	aviClient := avirest.VKSAviClientInstance()
 
 	if err := lib.DeleteClusterUser(aviClient, clusterName); err != nil {
 		utils.AviLog.Errorf("Failed to delete VKS cluster user for %s: %v", clusterName, err)
@@ -830,10 +813,7 @@ func (w *VKSClusterWatcher) createClusterSpecificCredentials(clusterNameWithUID 
 		return w.mockCredentialsFunc(clusterNameWithUID, operationalTenant)
 	}
 
-	aviClient := avirest.InfraAviClientInstance()
-	if aviClient == nil {
-		return nil, fmt.Errorf("avi Controller client not available - ensure AKO infra is properly initialized")
-	}
+	aviClient := avirest.VKSAviClientInstance()
 
 	if operationalTenant == "" {
 		return nil, fmt.Errorf("no tenant configured for cluster %s: tenant must be provided from namespace annotation %s", clusterNameWithUID, lib.TenantAnnotation)

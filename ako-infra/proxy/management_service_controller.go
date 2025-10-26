@@ -227,9 +227,6 @@ func EnsureGlobalManagementService() error {
 	}
 
 	aviClient := avirest.VKSAviClientInstance()
-	if aviClient == nil {
-		return fmt.Errorf("VKS AVI Controller client not available")
-	}
 
 	payload := map[string]interface{}{
 		"cloud_uuid":    c.cloudUUID,
@@ -343,9 +340,7 @@ func CleanupGlobalManagementService() error {
 		return fmt.Errorf("failed to cleanup management service controller: %w", err)
 	}
 	aviClient := avirest.VKSAviClientInstance()
-	if aviClient == nil {
-		return fmt.Errorf("VKS AVI Controller client not available")
-	}
+
 	payload := map[string]interface{}{
 		"cloud_uuid":            c.cloudUUID,
 		"supervisor_id":         c.supervisorID,
@@ -445,9 +440,6 @@ func (c *ManagementServiceController) CreateManagementServiceGrant(namespace str
 	}
 
 	aviClient := avirest.VKSAviClientInstance()
-	if aviClient == nil {
-		return fmt.Errorf("VKS AVI Controller client not available")
-	}
 
 	payload := map[string]interface{}{
 		"cloud_uuid":   c.cloudUUID,
@@ -522,9 +514,6 @@ func (c *ManagementServiceController) validateManagementServiceGrantConfig(grant
 func (c *ManagementServiceController) DeleteManagementServiceGrant(namespace string) error {
 	grantName := fmt.Sprintf("%s-%s", namespace, VKSManagementServiceGrant)
 	aviClient := avirest.VKSAviClientInstance()
-	if aviClient == nil {
-		return fmt.Errorf("VKS AVI Controller client not available")
-	}
 
 	payload := map[string]interface{}{
 		"cloud_uuid":                         c.cloudUUID,

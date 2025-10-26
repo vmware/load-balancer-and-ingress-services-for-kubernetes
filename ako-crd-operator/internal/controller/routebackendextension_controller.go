@@ -115,12 +115,11 @@ func (r *RouteBackendExtensionReconciler) Reconcile(ctx context.Context, req ctr
 	// When this CRD will have other crd object, this logic will change
 	if err := r.ValidatedObject(ctx, rbe); err != nil {
 		// Check if the error is retryable
-		if controllerutils.IsRetryableError(err) {
-			// For 404(object not found) also, we are not retrying. So user has to update the object again to trigger
-			// processing.
-			// other way to retry for certain number of times for each object and then stop
-			return ctrl.Result{RequeueAfter: crdlib.RequeueInterval}, err
+		// TODO: Do not retry on dependent object failures
+		if !controllerutils.IsRetryableError(err) {
+			return ctrl.Result{}, nil
 		}
+		return ctrl.Result{}, err
 	}
 	return ctrl.Result{}, nil
 }
@@ -165,6 +164,8 @@ func (r *RouteBackendExtensionReconciler) SetupWithManager(mgr ctrl.Manager) err
 		Watches(
 			&akov1alpha1.PKIProfile{},
 			handler.EnqueueRequestsFromMapFunc(r.findRouteBackendExtensionsForPKIProfile),
+			// TODO: Add a predicate to trigger reconciliation only when certain status fields are updated
+			// currently on single spec change of PKIProfile, each RBE is getting reconciled twice
 		).
 		Complete(r)
 }
@@ -269,7 +270,7 @@ func (r *RouteBackendExtensionReconciler) ValidatedObject(ctx context.Context, r
 		}
 
 		if !isReady {
-			err = fmt.Errorf("RBE is rejected beacause PKIProfile %s is not ready in namespace %s", rbe.Spec.BackendTLS.PKIProfile.Name, rbe.Namespace)
+			err = fmt.Errorf("RBE is rejected because PKIProfile %s is not ready in namespace %s", rbe.Spec.BackendTLS.PKIProfile.Name, rbe.Namespace)
 			log.Error(err.Error())
 			r.SetStatus(rbe, err.Error(), akov1alpha1.ObjectStatusRejected)
 			return err

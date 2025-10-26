@@ -53,6 +53,12 @@ func VKSAviClientInstance(c ...*clients.AviClient) *clients.AviClient {
 	return vksAviClientInstance
 }
 
+// IsVKSAviClientAvailable returns true if VKS AVI client has been successfully initialized
+// This indicates that the controller version supports VKS Management Service APIs
+func IsVKSAviClientAvailable() bool {
+	return vksAviClientInstance != nil
+}
+
 // CreateVKSAviClient creates a new AVI client specifically for VKS operations
 // with API version set to support Management Service APIs
 func CreateVKSAviClient(controllerIP, username, authToken, caData string) (*clients.AviClient, error) {
