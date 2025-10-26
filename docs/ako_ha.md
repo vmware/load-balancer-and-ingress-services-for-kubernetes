@@ -45,7 +45,7 @@ To transition from a single AKO replica to high availability mode, you must foll
 
 ```bash
 # upgrade command
-helm upgrade ako-1593523840 oci://projects.packages.broadcom.com/ako/helm-charts/ako -f /path/to/values.yaml --version 1.14.1 --set ControllerSettings.controllerHost=<IP or Hostname> --set avicredentials.password=<username> --set avicredentials.username=<username> --namespace=avi-system
+helm upgrade ako-1593523840 oci://projects.packages.broadcom.com/ako/helm-charts/ako -f /path/to/values.yaml --version 2.2.1 --set ControllerSettings.controllerHost=<IP or Hostname> --set avicredentials.password=<username> --set avicredentials.username=<username> --namespace=avi-system
 ```
 
 **Important:** This two-step process is required because:
