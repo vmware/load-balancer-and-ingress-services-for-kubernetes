@@ -38,9 +38,10 @@ import (
 )
 
 func (o *AviObjectGraph) AddDefaultHTTPPolicySet(key string) {
+	o.Lock.Lock()
+	defer o.Lock.Unlock()
 
 	parentVS := o.GetAviEvhVS()[0]
-
 	policyRefName := akogatewayapilib.GetDefaultHTTPPSName()
 	// find default backend, if found make sure it is at last index
 	for i, policyRef := range parentVS.HttpPolicyRefs {
@@ -79,6 +80,8 @@ func (o *AviObjectGraph) AddDefaultHTTPPolicySet(key string) {
 }
 
 func (o *AviObjectGraph) ProcessL7Routes(key string, routeModel RouteModel, parentNsName string, childVSes map[string]struct{}, fullsync bool) {
+	o.Lock.Lock()
+	defer o.Lock.Unlock()
 	httpRouteConfig := routeModel.ParseRouteConfig(key)
 	httpRouteRules := httpRouteConfig.Rules
 	if o.GetAviEvhVS()[0].Dedicated {
@@ -146,7 +149,7 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 	o.BuildVHMatch(key, parentNsName, routeTypeNsName, childNode, rule, hosts)
 	if len(childNode.VHMatches) == 0 {
 		utils.AviLog.Warnf("key: %s, msg: No valid domain name added for child virtual service", key)
-		o.ProcessRouteDeletion(key, parentNsName, routeModel, fullsync)
+		o.processRouteDeletionInternal(key, parentNsName, routeModel, fullsync)
 		return
 	}
 
@@ -157,6 +160,7 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 	o.BuildHTTPPolicySet(key, childNode, routeModel, rule, 0, childVSName)
 	// Apply Extension Ref
 	o.ApplyRuleExtensionRefs(key, childNode, routeModel, rule)
+
 	foundEvhModel := nodes.FindAndReplaceEvhInModel(childNode, parentNode, key)
 	if !foundEvhModel {
 		parentNode[0].EvhNodes = append(parentNode[0].EvhNodes, childNode)
