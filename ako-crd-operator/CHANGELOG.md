@@ -5,11 +5,11 @@ All notable changes to this project will be documented in this file. The format 
 ## AKO-CRD-Operator-2.1.1
 
 ### Added:
- - Initial release of AKO CRD Operator for managing Avi-specific objects.
- - Support for HealthMonitor CRD of type HTTP, TCP, Ping. 
- - Support for ApplicationProfile CRD.
- - Support for PKIProfile CRD.
- - Support for RouteBackendExtension CRD for advanced backend configuration.
- - Support for referring PKIProfile CRD in RouteBackendExtension CRD.
+ - Initial release of AKO CRD Operator for managing Avi Controller specific objects.
+ - Support for [HealthMonitor CRD](../docs/crds/healthmonitor.md) of type HTTP, TCP, Ping. 
+ - Support for [ApplicationProfile CRD](../docs/crds/applicationprofile.md).
+ - Support for [PKIProfile CRD](../docs/crds/pkiprofile.md).
+ - Support for [RouteBackendExtension CRD](../docs/crds/routebackendextension.md) for advanced backend configuration.
+ - Support for referring [PKIProfile CRD](../docs/crds/pkiprofile.md) in [RouteBackendExtension CRD](../docs/crds/routebackendextension.md).
  - Multi-tenant support with namespace-scoped resources.
 
