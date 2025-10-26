@@ -34,21 +34,21 @@ AKO categorizes the CRDs in the following buckets:
 
 1. __Layer 7__: These CRD objects are used to express layer 7 traffic routing rules. Following are the list of CRDs currently available:
   
-    * [HostRule](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/crds/hostrule.md)
-    * [HTTPRule](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/crds/httprule.md)
-    * [L7Rule](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/crds/l7rule.md)
-    * [SSORule](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/crds/ssorule.md)
+    * [HostRule](hostrule.md)
+    * [HTTPRule](httprule.md)
+    * [L7Rule](l7rule.md)
+    * [SSORule](ssorule.md)
 
 2. __Layer 4__: These CRD objects are used to express layer 4 trafffic routing rules.
-    * [L4Rule] (https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/crds/l4rule.md)
+    * [L4Rule](l4rule.md)
 
 3. __Infrastructure__: These CRD objects are used to control Avi's infrastructure components like Ingress Class, SE group properties etc. 
 
-    * [AviInfraSetting](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/crds/avinfrasetting.md)
+    * [AviInfraSetting](avinfrasetting.md)
 
 4. __AKO CRD Operator__: These CRD objects are managed by the AKO CRD Operator:
 
-    * [HealthMonitor](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/crds/healthmonitor.md) - Configure TCP, PING, and HTTP health monitors directly on Avi.
-    * [ApplicationProfile](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/crds/applicationprofile.md) - Configure application profiles directly on Avi.
-    * [PKIProfile](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/crds/pkiprofile.md) - Configure PKI profiles directly on Avi.
-    * [RouteBackendExtension](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/crds/routebackendextension.md) - Configure backend properties like load balancing algorithms, persistence, health monitors, PKIProfile, etc.
+    * [HealthMonitor](healthmonitor.md) - Configure TCP, PING, and HTTP health monitors directly on Avi.
+    * [ApplicationProfile](applicationprofile.md) - Configure application profiles directly on Avi.
+    * [PKIProfile](pkiprofile.md) - Configure PKI profiles directly on Avi.
+    * [RouteBackendExtension](routebackendextension.md) - Configure backend properties like load balancing algorithms, persistence, health monitors, PKIProfile, etc.

@@ -6,10 +6,10 @@ All notable changes to this project will be documented in this file. The format 
 
 ### Added:
  - Initial release of AKO CRD Operator for managing Avi-specific objects.
- - Support for [HealthMonitor CRD](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/crds/healthmonitor.md) of type HTTP,TCP,Ping. 
- - Support for [ApplicationProfile CRD](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/crds/applicationprofile.md).
- - Support for [PKIProfile CRD](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/crds/pkiprofile.md).
- - Support for [RouteBackendExtension CRD](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/crds/routebackendextension.md) for advanced backend configuration.
- - Support for referring [PKIProfile CRD](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/crds/pkiprofile.md) in [RouteBackendExtension CRD](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/crds/routebackendextension.md).
+ - Support for HealthMonitor CRD of type HTTP, TCP, Ping. 
+ - Support for ApplicationProfile CRD.
+ - Support for PKIProfile CRD.
+ - Support for RouteBackendExtension CRD for advanced backend configuration.
+ - Support for referring PKIProfile CRD in RouteBackendExtension CRD.
  - Multi-tenant support with namespace-scoped resources.
 
