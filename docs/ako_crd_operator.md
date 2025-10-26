@@ -52,7 +52,7 @@ Configure advanced backend settings.
 
 ### Using Helm
 
-The AKO CRD Operator is bundled with AKO as a dependency and can be installed with AKO. It can be configured via values.yaml provided with AKO.
+The AKO CRD Operator is bundled with AKO as a dependency and can be installed with AKO. It can be configured via values.yaml provided with AKO. For more information, see the [AKO Installation Guide](install/helm.md).
 
 ## Status and Conditions
 
