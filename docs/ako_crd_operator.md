@@ -24,13 +24,14 @@ Configure health monitoring for backend services with support for:
 - PING Health Monitors
 - HTTP Health Monitors
 
-[HealthMonitor Documentation](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/crds/healthmonitor.md)
+[HealthMonitor Documentation](crds/healthmonitor.md)
 
 ### 2. ApplicationProfile
 
-Define application profiles corresponding to Avi.
+Define application profiles corresponding to Avi with support for type
+- HTTP
 
-[ApplicationProfile Documentation](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/crds/applicationprofile.md)
+[ApplicationProfile Documentation](crds/applicationprofile.md)
 
 ### 3. PKIProfile
 
@@ -39,7 +40,13 @@ Manage PKI profiles for certificate validation:
 - Enable secure backend communication
 - Certificate validation for TLS connections
 
-[PKIProfile Documentation](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/crds/pkiprofile.md)
+[PKIProfile Documentation](crds/pkiprofile.md)
+
+### 4. RouteBackendExtension
+
+Configure advanced backend settings.
+
+[RouteBackendExtension Documentation](crds/routebackendextension.md)
 
 ## Installation and Configuration
 
@@ -59,13 +66,12 @@ The AKO CRD Operator updates the status of each CRD object with detailed informa
 - **BackendObjectName**: Name of the object on Avi Controller
 - **Tenant**: Avi tenant where the object is created
 - **Controller**: Set to "ako-crd-operator"
-
-### Conditions
-
-The operator uses Kubernetes Conditions API to report status:
-
-- **Programmed**: Indicates whether the object has been successfully created/updated on Avi Controller
-  - **Reasons**: Created, Updated, CreationFailed, UpdateFailed, DeletionFailed
+- **Conditions**: List of status conditions using Kubernetes Conditions API
+  - **type**: Condition type (e.g., "Programmed")
+  - **status**: Condition status ("True" or "False")
+  - **reason**: Reason for the condition (e.g., Created, Updated, CreationFailed, UpdateFailed, DeletionFailed)
+  - **message**: Human-readable message describing the condition
+  - **lastTransitionTime**: Timestamp when the condition last changed
 
 Example status:
 
@@ -111,23 +117,6 @@ kubectl describe healthmonitor <name> -n <namespace>
 kubectl get events -n <namespace> --field-selector involvedObject.name=<name>
 ```
 
-### Common Issues
-
-1. **Object not created on Avi Controller**
-   - Check operator logs for errors
-   - Verify Avi Controller credentials
-   - Ensure network connectivity to Avi Controller
-
-2. **Status shows CreationFailed**
-   - Check CRD spec for validation errors
-   - Verify tenant and cloud configuration on Avi Controller
-   - Check operator logs for detailed error messages
-
-3. **Object stuck in deletion**
-   - Check if object is referenced by other Avi objects
-   - Verify operator has permissions to delete objects
-   - Check finalizers on the CRD object
-
 ## Upgrade
 
 AKO CRD Operator is a dependency of AKO and can be upgraded when upgrading AKO.
@@ -157,12 +146,3 @@ Continue with normal AKO uninstallation.
 ## Changelog
 
 See [CHANGELOG.md](../ako-crd-operator/CHANGELOG.md) for version history and release notes.
-
-## Additional Resources
-
-- [HealthMonitor CRD Documentation](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/crds/healthmonitor.md)
-- [ApplicationProfile CRD Documentation](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/crds/applicationprofile.md)
-- [PKIProfile CRD Documentation](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/crds/pkiprofile.md)
-- [RouteBackendExtension CRD Documentation](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/crds/routebackendextension.md)
-- [CRD Overview](https://github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/blob/master/docs/crds/overview.md)
-
