@@ -65,8 +65,10 @@ func annotateNamespaceWithVpcNetworkConfigCR(t *testing.T, ns, vpcNetConfigCR st
 			t.Fatalf("Failed to convert version from string to int: %v", err)
 		}
 		namespace.ResourceVersion = strconv.Itoa(n + 1)
-		anns := namespace.Annotations
-		anns["nsx.vmware.com/vpc_network_config"] = vpcNetConfigCR
+		if namespace.Annotations == nil {
+			namespace.Annotations = make(map[string]string)
+		}
+		namespace.Annotations["nsx.vmware.com/vpc_network_config"] = vpcNetConfigCR
 		_, err = kubeClient.CoreV1().Namespaces().Update(context.TODO(), namespace, metav1.UpdateOptions{})
 		if err != nil {
 			t.Fatalf("Error occurred while Updating namespace: %v", err)
@@ -95,8 +97,10 @@ func annotateNamespaceWithCloud(t *testing.T, ns, cloudName string) {
 			t.Fatalf("Failed to convert version from string to int: %v", err)
 		}
 		namespace.ResourceVersion = strconv.Itoa(n + 1)
-		anns := namespace.Annotations
-		anns["ako.vmware.com/wcp-cloud-name"] = cloudName
+		if namespace.Annotations == nil {
+			namespace.Annotations = make(map[string]string)
+		}
+		namespace.Annotations["ako.vmware.com/wcp-cloud-name"] = cloudName
 		_, err = kubeClient.CoreV1().Namespaces().Update(context.TODO(), namespace, metav1.UpdateOptions{})
 		if err != nil {
 			t.Fatalf("Error occurred while Updating namespace: %v", err)
@@ -125,8 +129,10 @@ func annotateNamespaceWithSEG(t *testing.T, ns, segName string) {
 			t.Fatalf("Failed to convert version from string to int: %v", err)
 		}
 		namespace.ResourceVersion = strconv.Itoa(n + 1)
-		anns := namespace.Annotations
-		anns["ako.vmware.com/wcp-se-group"] = segName
+		if namespace.Annotations == nil {
+			namespace.Annotations = make(map[string]string)
+		}
+		namespace.Annotations["ako.vmware.com/wcp-se-group"] = segName
 		_, err = kubeClient.CoreV1().Namespaces().Update(context.TODO(), namespace, metav1.UpdateOptions{})
 		if err != nil {
 			t.Fatalf("Error occurred while Updating namespace: %v", err)

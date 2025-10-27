@@ -1,0 +1,35 @@
+{
+    "count": 2,
+    "results": [
+        {
+            "url": "https://10.79.168.231/api/tenant/admin",
+            "uuid": "admin",
+            "name": "admin",
+            "_last_modified": "1605099759106883",
+            "local": true,
+            "macro_in_progress": 0,
+            "tenant_force_delete_in_progress": false,
+            "attrs": [
+                {
+                    "key": "path",
+                    "value": "/orgs/default/projects/default"
+                }
+            ]
+        },
+        {
+            "url": "https://10.79.168.231/api/tenant/test-project",
+            "uuid": "test-project",
+            "name": "test-project",
+            "_last_modified": "1605099759106883",
+            "local": true,
+            "macro_in_progress": 0,
+            "tenant_force_delete_in_progress": false,
+            "attrs": [
+                {
+                    "key": "path",
+                    "value": "/orgs/default/projects/test-project"
+                }
+            ]
+      }
+    ]
+  }
