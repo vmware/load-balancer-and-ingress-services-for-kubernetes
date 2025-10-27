@@ -758,6 +758,88 @@ func ValidateGatewayListeners(t *testing.T, actual, expected *gatewayv1.Listener
 	ValidateConditions(t, actual.Conditions, expected.Conditions)
 }
 
+func ValidateGatewayStatusWithRetry(t *testing.T, actualStatus, expectedStatus *gatewayv1.GatewayStatus) bool {
+	// validate the ip address
+	if len(expectedStatus.Addresses) > 0 {
+		if len(actualStatus.Addresses) != 1 {
+			return false
+		}
+		if actualStatus.Addresses[0] != expectedStatus.Addresses[0] {
+			return false
+		}
+	}
+
+	// validate listeners length
+	if len(actualStatus.Listeners) != len(expectedStatus.Listeners) {
+		return false
+	}
+
+	// validate gateway conditions
+	if !ValidateConditionsWithRetry(t, actualStatus.Conditions, expectedStatus.Conditions) {
+		return false
+	}
+
+	// validate each listener
+	for _, actualListenerStatus := range actualStatus.Listeners {
+		matched := false
+		for _, expectedListenerStatus := range expectedStatus.Listeners {
+			if actualListenerStatus.Name == expectedListenerStatus.Name {
+				if !ValidateGatewayListenersWithRetry(t, &actualListenerStatus, &expectedListenerStatus) {
+					return false
+				}
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return false
+		}
+	}
+
+	return true
+}
+
+func ValidateGatewayListenersWithRetry(t *testing.T, actual, expected *gatewayv1.ListenerStatus) bool {
+	if actual.Name != expected.Name {
+		return false
+	}
+	if actual.AttachedRoutes != expected.AttachedRoutes {
+		return false
+	}
+	// Compare SupportedKinds manually
+	if len(actual.SupportedKinds) != len(expected.SupportedKinds) {
+		return false
+	}
+	for i, actualKind := range actual.SupportedKinds {
+		if actualKind.Group != expected.SupportedKinds[i].Group {
+			return false
+		}
+		if actualKind.Kind != expected.SupportedKinds[i].Kind {
+			return false
+		}
+	}
+	return ValidateConditionsWithRetry(t, actual.Conditions, expected.Conditions)
+}
+
+func ValidateConditionsWithRetry(t *testing.T, actualConditions, expectedConditions []metav1.Condition) bool {
+	for _, actualCondition := range actualConditions {
+		for _, expectedCondition := range expectedConditions {
+			if actualCondition.Type == expectedCondition.Type {
+				if actualCondition.Message != expectedCondition.Message {
+					return false
+				}
+				if actualCondition.Reason != expectedCondition.Reason {
+					return false
+				}
+				if actualCondition.Status != expectedCondition.Status {
+					return false
+				}
+			}
+		}
+	}
+	return true
+}
+
 func ValidateConditions(t *testing.T, actualConditions, expectedConditions []metav1.Condition) {
 	g := gomega.NewGomegaWithT(t)
 

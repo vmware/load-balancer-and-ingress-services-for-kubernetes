@@ -236,11 +236,14 @@ func TestGatewayTransitionFromNormalToDedicatedMode(t *testing.T) {
 		Listeners: tests.GetListenerStatusV1(ports, []int32{0}, true, false),
 	}
 
-	gateway, err = tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
-	if err != nil || gateway == nil {
-		t.Fatalf("Couldn't get the gateway, err: %+v", err)
-	}
-	tests.ValidateGatewayStatus(t, &gateway.Status, expectedStatus)
+	g.Eventually(func() bool {
+		gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Fatalf("Couldn't get the gateway, err: %+v", err)
+		}
+		return tests.ValidateGatewayStatusWithRetry(t, &gateway.Status, expectedStatus)
+	}, 30*time.Second).Should(gomega.Equal(true))
+
 	tests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	tests.TeardownGatewayClass(t, gatewayClassName)
 }
@@ -285,7 +288,7 @@ func TestGatewayTransitionFromDedicatedToNormalMode(t *testing.T) {
 	}, 30*time.Second).Should(gomega.Equal(true))
 
 	vsUUIDMap := map[string]string{
-		"VSUUID": fmt.Sprintf("virtualservice-ako-gw-%s--%s-%s-L7-dedicated-EVH-random-uuid", lib.GetClusterName(), DEFAULT_NAMESPACE, gatewayName),
+		"VSUUID": fmt.Sprintf("virtualservice-ako-gw-%s--%s-%s-EVH-random-uuid", lib.GetClusterName(), DEFAULT_NAMESPACE, gatewayName),
 	}
 	messageBytes, err := json.Marshal(vsUUIDMap)
 	if err != nil {
@@ -312,11 +315,14 @@ func TestGatewayTransitionFromDedicatedToNormalMode(t *testing.T) {
 		Listeners: tests.GetListenerStatusV1(ports, []int32{0}, true, false),
 	}
 
-	gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
-	if err != nil || gateway == nil {
-		t.Fatalf("Couldn't get the gateway, err: %+v", err)
-	}
-	tests.ValidateGatewayStatus(t, &gateway.Status, expectedStatus)
+	g.Eventually(func() bool {
+		gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Fatalf("Couldn't get the gateway, err: %+v", err)
+		}
+		return tests.ValidateGatewayStatusWithRetry(t, &gateway.Status, expectedStatus)
+	}, 30*time.Second).Should(gomega.Equal(true))
+
 	tests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	tests.TeardownGatewayClass(t, gatewayClassName)
 }
