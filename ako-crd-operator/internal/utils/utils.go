@@ -457,6 +457,81 @@ func initializeClusterConfig(ctx context.Context, kubeClient kubernetes.Interfac
 	return nil
 }
 
+// GetObjectUUIDFromAvi retrieves the UUID of an object from Avi Controller when UUID is not present in status
+// This is a common function used by all controllers to handle deletion when UUID or tenant is missing
+func GetObjectUUIDFromAvi(ctx context.Context, aviClient interface {
+	AviSessionGet(uri string, response interface{}, options ...session.ApiOptionsParams) error
+}, k8sClient client.Client, namespace, objectName, objectURL, statusTenant string) (uuid, tenant string, err error) {
+	log := utils.LoggerFromContext(ctx)
+
+	// Determine tenant to use
+	tenant = statusTenant
+	if tenant == "" {
+		tenant, err = GetTenantInNamespace(ctx, k8sClient, namespace)
+		if err != nil {
+			log.Errorf("error getting tenant in namespace %s: %s", namespace, err.Error())
+			tenant = lib.GetTenant()
+		}
+	}
+
+	// Construct object name and query Avi Controller
+	name := crdlib.GetObjectName(namespace, objectName)
+	resp := map[string]interface{}{}
+	if err := aviClient.AviSessionGet(utils.GetUriEncoded(fmt.Sprintf("%s?name=%s", objectURL, name)), &resp, session.SetOptTenant(tenant)); err != nil {
+		if aviError, ok := err.(session.AviError); ok {
+			if aviError.HttpStatusCode == 404 {
+				log.Info("Object not found on Avi Controller")
+				return "", tenant, nil // Return empty UUID to indicate object doesn't exist
+			}
+		}
+		log.Errorf("error getting object from Avi Controller: %s", err.Error())
+		return "", tenant, err
+	}
+
+	// Extract UUID from response
+	uuid, err = ExtractUUID(resp)
+	if err != nil {
+		if strings.Contains(err.Error(), "'results' array is empty") {
+			return "", tenant, nil
+		}
+		log.Errorf("error extracting UUID from response: %s", err.Error())
+		return "", tenant, err
+	}
+
+	return uuid, tenant, nil
+}
+
+// ExtractUUID extracts the UUID from Avi Controller response object
+func ExtractUUID(resp map[string]interface{}) (string, error) {
+	// Extract the results array
+	results, ok := resp["results"].([]interface{})
+	if !ok {
+		// resp could be from POST call
+		if uuid, ok := resp["uuid"].(string); ok {
+			return uuid, nil
+		}
+		return "", fmt.Errorf("'results' not found or not an array")
+	}
+
+	// Check if the results array is empty
+	if len(results) == 0 {
+		return "", fmt.Errorf("'results' array is empty")
+	}
+
+	// Extract the first element from the results array (which is a map)
+	firstResult, ok := results[0].(map[string]interface{})
+	if !ok {
+		return "", fmt.Errorf("first element in 'results' is not a map")
+	}
+
+	// Extract the UUID from the first result
+	uuid, ok := firstResult["uuid"].(string)
+	if !ok {
+		return "", fmt.Errorf("'uuid' not found or not a string")
+	}
+	return uuid, nil
+}
+
 // validateAviSecret validates the AVI secret by creating an AVI client
 func validateAviSecret(ctx context.Context, kubeClient kubernetes.Interface, controllerIP string, logger *utils.AviLogger) error {
 	logger.Info("Validating AVI secret")

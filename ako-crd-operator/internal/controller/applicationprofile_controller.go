@@ -143,8 +143,7 @@ func (r *ApplicationProfileReconciler) Reconcile(ctx context.Context, req ctrl.R
 			}
 			return ctrl.Result{RequeueAfter: crdlib.RequeueInterval}, nil
 		}
-		r.EventRecorder.Event(ap, corev1.EventTypeNormal, "Deleted", "ApplicationProfile deleted successfully from Avi Controller")
-		log.Info("successfully deleted applicationprofile")
+		log.Info("successfully deleted application profile object")
 		return ctrl.Result{}, nil
 	}
 	if err := r.ReconcileIfRequired(ctx, ap); err != nil {
@@ -188,33 +187,46 @@ func (r *ApplicationProfileReconciler) SetupWithManager(mgr ctrl.Manager) error 
 // The boolean indicates whether the finalizer should be removed (true) or kept (false)
 func (r *ApplicationProfileReconciler) DeleteObject(ctx context.Context, ap *akov1alpha1.ApplicationProfile) (error, bool) {
 	log := utils.LoggerFromContext(ctx)
-	if ap.Status.UUID != "" && ap.Status.Tenant != "" {
-		if err := r.AviClient.AviSessionDelete(utils.GetUriEncoded(fmt.Sprintf("%s/%s", crdlib.ApplicationProfileURL, ap.Status.UUID)), nil, nil, session.SetOptTenant(ap.Status.Tenant)); err != nil {
-			// Handle 404 as success case - object doesn't exist, which is the desired state for delete
-			if aviError, ok := err.(session.AviError); ok {
-				switch aviError.HttpStatusCode {
-				case 404:
-					log.Info("ApplicationProfile not found on Avi Controller (404), treating as successful deletion")
-					return nil, true
-				case 403:
-					log.Errorf("ApplicationProfile cannot be deleted. %s", aviError.Error())
-					if statusErr := r.StatusManager.SetStatus(ctx, ap, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionFalse, akov1alpha1.ObjectReasonDeletionSkipped, controllerutils.ParseAviErrorMessage(*aviError.Message)); statusErr != nil {
-						return statusErr, false
-					}
-					return nil, false
-				}
-			}
-			log.Errorf("error deleting application profile: %s", err.Error())
-			if statusErr := r.StatusManager.SetStatus(ctx, ap, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionFalse, akov1alpha1.ObjectReasonDeletionFailed, fmt.Sprintf("Failed to delete ApplicationProfile from Avi Controller: %v", err)); statusErr != nil {
-				return statusErr, false
-			}
-			r.EventRecorder.Event(ap, corev1.EventTypeWarning, "DeletionFailed", fmt.Sprintf("Failed to delete ApplicationProfile from Avi Controller: %v", err))
+	var UUID, tenant string
+	var err error
+	UUID = ap.Status.UUID
+	tenant = ap.Status.Tenant
+	if UUID == "" {
+		// try getting the application profile from avi controller using name and namespace
+		UUID, tenant, err = controllerutils.GetObjectUUIDFromAvi(ctx, r.AviClient, r.Client, ap.Namespace, ap.Name, crdlib.ApplicationProfileURL, tenant)
+		if err != nil {
+			log.Errorf("error getting application profile: %s", err.Error())
 			return err, false
 		}
-	} else {
-		r.EventRecorder.Event(ap, corev1.EventTypeWarning, "DeletionSkipped", "UUID not present, ApplicationProfile may not have been created on Avi Controller")
-		log.Warn("error deleting application profile. uuid not present. possibly avi application profile object not created")
+		if UUID == "" {
+			log.Info("ApplicationProfile not found on Avi Controller")
+			return nil, true
+		}
 	}
+	if err := r.AviClient.AviSessionDelete(utils.GetUriEncoded(fmt.Sprintf("%s/%s", crdlib.ApplicationProfileURL, UUID)), nil, nil, session.SetOptTenant(tenant)); err != nil {
+		// Handle 404 as success case - object doesn't exist, which is the desired state for delete
+		if aviError, ok := err.(session.AviError); ok {
+			switch aviError.HttpStatusCode {
+			case 404:
+				log.Info("ApplicationProfile not found on Avi Controller (404), treating as successful deletion")
+				return nil, true
+			case 403:
+				log.Errorf("ApplicationProfile cannot be deleted. %s", aviError.Error())
+				if statusErr := r.StatusManager.SetStatus(ctx, ap, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionFalse, akov1alpha1.ObjectReasonDeletionSkipped, controllerutils.ParseAviErrorMessage(*aviError.Message)); statusErr != nil {
+					return statusErr, false
+				}
+				return nil, false
+			}
+		}
+		log.Errorf("error deleting application profile: %s", err.Error())
+		if statusErr := r.StatusManager.SetStatus(ctx, ap, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionFalse, akov1alpha1.ObjectReasonDeletionFailed, fmt.Sprintf("Failed to delete ApplicationProfile from Avi Controller: %v", err)); statusErr != nil {
+			return statusErr, false
+		}
+		r.EventRecorder.Event(ap, corev1.EventTypeWarning, "DeletionFailed", fmt.Sprintf("Failed to delete ApplicationProfile from Avi Controller: %v", err))
+		return err, false
+	}
+	r.EventRecorder.Event(ap, corev1.EventTypeNormal, "Deleted", "ApplicationProfile deleted successfully from Avi Controller")
+	log.Info("successfully deleted application profile from Avi Controller")
 	return nil, true
 }
 
@@ -261,7 +273,7 @@ func (r *ApplicationProfileReconciler) ReconcileIfRequired(ctx context.Context, 
 			log.Errorf("error creating application profile: %s", err.Error())
 			return err
 		}
-		uuid, err := extractUUID(resp)
+		uuid, err := controllerutils.ExtractUUID(resp)
 		if err != nil {
 			if statusErr := r.StatusManager.SetStatus(ctx, ap, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionFalse, akov1alpha1.ObjectReasonUUIDExtractionFailed, fmt.Sprintf("Failed to extract UUID: %v", err)); statusErr != nil {
 				return statusErr
@@ -324,7 +336,7 @@ func (r *ApplicationProfileReconciler) createApplicationProfile(ctx context.Cont
 					log.Errorf("error getting application profile %s", err.Error())
 					return nil, err
 				}
-				uuid, err := extractUUID(resp)
+				uuid, err := controllerutils.ExtractUUID(resp)
 				if err != nil {
 					log.Errorf("error extracting UUID from application profile: %s", err.Error())
 					return nil, err

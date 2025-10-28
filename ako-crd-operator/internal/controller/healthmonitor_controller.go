@@ -18,7 +18,6 @@ package controller
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -32,7 +31,6 @@ import (
 	crdlib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/lib"
 	avisession "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/session"
 	controllerutils "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/utils"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -154,6 +152,7 @@ func (r *HealthMonitorReconciler) Reconcile(ctx context.Context, req ctrl.Reques
 			}
 			return ctrl.Result{RequeueAfter: crdlib.RequeueInterval}, nil
 		}
+		log.Info("successfully deleted healthmonitor object")
 		return ctrl.Result{}, nil
 	}
 	if err := r.ReconcileIfRequired(ctx, hm); err != nil {
@@ -267,30 +266,14 @@ func (r *HealthMonitorReconciler) DeleteObject(ctx context.Context, hm *akov1alp
 	tenant = hm.Status.Tenant
 	if UUID == "" {
 		// try getting the healthmonitor from avi controller using name and namespace
-		resp := map[string]interface{}{}
-		if tenant == "" {
-			tenant, err = controllerutils.GetTenantInNamespace(ctx, r.Client, hm.Namespace)
-			if err != nil {
-				log.Errorf("error getting tenant in namespace %s: %s", hm.Namespace, err.Error())
-				tenant = lib.GetTenant()
-			}
-		}
-		name := crdlib.GetObjectName(hm.Namespace, hm.Name)
-		if err := r.AviClient.AviSessionGet(utils.GetUriEncoded(fmt.Sprintf("%s?name=%s", crdlib.HealthMonitorURL, name)), &resp, session.SetOptTenant(tenant)); err != nil {
-			if aviError, ok := err.(session.AviError); ok {
-				switch aviError.HttpStatusCode {
-				case 404:
-					log.Info("HealthMonitor not found on Avi Controller")
-					return nil, true
-				}
-			}
+		UUID, tenant, err = controllerutils.GetObjectUUIDFromAvi(ctx, r.AviClient, r.Client, hm.Namespace, hm.Name, crdlib.HealthMonitorURL, tenant)
+		if err != nil {
 			log.Errorf("error getting healthmonitor: %s", err.Error())
 			return err, false
 		}
-		UUID, err = extractUUID(resp)
-		if err != nil {
-			log.Errorf("error extracting UUID from healthmonitor: %s", err.Error())
-			return err, false
+		if UUID == "" {
+			log.Info("HealthMonitor not found on Avi Controller")
+			return nil, true
 		}
 	}
 	if err := r.AviClient.AviSessionDelete(fmt.Sprintf("%s/%s", crdlib.HealthMonitorURL, UUID), nil, nil, session.SetOptTenant(tenant)); err != nil {
@@ -315,8 +298,8 @@ func (r *HealthMonitorReconciler) DeleteObject(ctx context.Context, hm *akov1alp
 		return err, false
 	}
 	r.EventRecorder.Event(hm, corev1.EventTypeNormal, "Deleted", "HealthMonitor deleted successfully from Avi Controller")
-	log.Info("successfully deleted healthmonitor")
-	return err, true
+	log.Info("successfully deleted healthmonitor from Avi Controller")
+	return nil, true
 }
 
 // TODO: Make this function generic
@@ -371,7 +354,7 @@ func (r *HealthMonitorReconciler) ReconcileIfRequired(ctx context.Context, hm *a
 			log.Errorf("error creating healthmonitor: %s", err.Error())
 			return err
 		}
-		uuid, err := extractUUID(resp)
+		uuid, err := controllerutils.ExtractUUID(resp)
 		if err != nil {
 			if statusErr := r.StatusManager.SetStatus(ctx, hm, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionFalse, akov1alpha1.ObjectReasonUUIDExtractionFailed, fmt.Sprintf("Failed to extract UUID: %v", err)); statusErr != nil {
 				return statusErr
@@ -436,7 +419,7 @@ func (r *HealthMonitorReconciler) createHealthMonitor(ctx context.Context, hmReq
 					log.Errorf("error getting healthmonitor: %s", err.Error())
 					return nil, err
 				}
-				uuid, err := extractUUID(resp)
+				uuid, err := controllerutils.ExtractUUID(resp)
 				if err != nil {
 					log.Errorf("error extracting UUID from healthmonitor: %s", err.Error())
 					return nil, err
@@ -453,37 +436,6 @@ func (r *HealthMonitorReconciler) createHealthMonitor(ctx context.Context, hmReq
 	}
 	log.Info("healthmonitor successfully created")
 	return resp, nil
-}
-
-// extractUUID extracts the UUID from resp object
-func extractUUID(resp map[string]interface{}) (string, error) {
-	// Extract the results array
-	results, ok := resp["results"].([]interface{})
-	if !ok {
-		// resp could be from POST call
-		if uuid, ok := resp["uuid"].(string); ok {
-			return uuid, nil
-		}
-		return "", errors.New("'results' not found or not an array")
-	}
-
-	// Check if the results array is empty
-	if len(results) == 0 {
-		return "", errors.New("'results' array is empty")
-	}
-
-	// Extract the first element from the results array (which is a map)
-	firstResult, ok := results[0].(map[string]interface{})
-	if !ok {
-		return "", errors.New("first element in 'results' is not a map")
-	}
-
-	// Extract the UUID from the first result
-	uuid, ok := firstResult["uuid"].(string)
-	if !ok {
-		return "", errors.New("'uuid' not found or not a string")
-	}
-	return uuid, nil
 }
 
 func (r *HealthMonitorReconciler) resolveRefsAndCheckDependencies(ctx context.Context, namespace string, hm *akov1alpha1.HealthMonitor, hmReq *HealthMonitorRequest) (bool, uint32, error) {
