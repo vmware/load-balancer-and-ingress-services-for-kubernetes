@@ -32,6 +32,7 @@ import (
 	crdlib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/lib"
 	avisession "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/session"
 	controllerutils "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
@@ -260,35 +261,62 @@ func (r *HealthMonitorReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // The boolean indicates whether the finalizer should be removed (true) or kept (false)
 func (r *HealthMonitorReconciler) DeleteObject(ctx context.Context, hm *akov1alpha1.HealthMonitor) (error, bool) {
 	log := utils.LoggerFromContext(ctx)
-	if hm.Status.UUID != "" && hm.Status.Tenant != "" {
-		if err := r.AviClient.AviSessionDelete(fmt.Sprintf("%s/%s", crdlib.HealthMonitorURL, hm.Status.UUID), nil, nil, session.SetOptTenant(hm.Status.Tenant)); err != nil {
-			// Handle 404 as success case - object doesn't exist, which is the desired state for delete
+	var UUID, tenant string
+	var err error
+	UUID = hm.Status.UUID
+	tenant = hm.Status.Tenant
+	if UUID == "" {
+		// try getting the healthmonitor from avi controller using name and namespace
+		resp := map[string]interface{}{}
+		if tenant == "" {
+			tenant, err = controllerutils.GetTenantInNamespace(ctx, r.Client, hm.Namespace)
+			if err != nil {
+				log.Errorf("error getting tenant in namespace %s: %s", hm.Namespace, err.Error())
+				tenant = lib.GetTenant()
+			}
+		}
+		name := crdlib.GetObjectName(hm.Namespace, hm.Name)
+		if err := r.AviClient.AviSessionGet(utils.GetUriEncoded(fmt.Sprintf("%s?name=%s", crdlib.HealthMonitorURL, name)), &resp, session.SetOptTenant(tenant)); err != nil {
 			if aviError, ok := err.(session.AviError); ok {
 				switch aviError.HttpStatusCode {
 				case 404:
-					log.Info("HealthMonitor not found on Avi Controller (404), treating as successful deletion")
+					log.Info("HealthMonitor not found on Avi Controller")
 					return nil, true
-				case 403:
-					log.Errorf("HealthMonitor cannot be deleted. %s", aviError.Error())
-					if statusErr := r.StatusManager.SetStatus(ctx, hm, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionFalse, akov1alpha1.ObjectReasonDeletionSkipped, controllerutils.ParseAviErrorMessage(*aviError.Message)); statusErr != nil {
-						return statusErr, false
-					}
-					return nil, false
 				}
 			}
-			log.Errorf("error deleting healthmonitor: %s", err.Error())
-			if statusErr := r.StatusManager.SetStatus(ctx, hm, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionFalse, akov1alpha1.ObjectReasonDeletionFailed, fmt.Sprintf("Failed to delete Health Monitor from Avi Controller: %v", err)); statusErr != nil {
-				return statusErr, false
-			}
+			log.Errorf("error getting healthmonitor: %s", err.Error())
 			return err, false
 		}
-	} else {
-		r.EventRecorder.Event(hm, corev1.EventTypeWarning, "DeletionSkipped", "UUID not present, HealthMonitor may not have been created on Avi Controller")
-		log.Warn("error deleting healthmonitor. uuid not present. possibly avi healthmonitor object not created")
+		UUID, err = extractUUID(resp)
+		if err != nil {
+			log.Errorf("error extracting UUID from healthmonitor: %s", err.Error())
+			return err, false
+		}
+	}
+	if err := r.AviClient.AviSessionDelete(fmt.Sprintf("%s/%s", crdlib.HealthMonitorURL, UUID), nil, nil, session.SetOptTenant(tenant)); err != nil {
+		// Handle 404 as success case - object doesn't exist, which is the desired state for delete
+		if aviError, ok := err.(session.AviError); ok {
+			switch aviError.HttpStatusCode {
+			case 404:
+				log.Info("HealthMonitor not found on Avi Controller (404), treating as successful deletion")
+				return nil, true
+			case 403:
+				log.Errorf("HealthMonitor cannot be deleted. %s", aviError.Error())
+				if statusErr := r.StatusManager.SetStatus(ctx, hm, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionFalse, akov1alpha1.ObjectReasonDeletionSkipped, controllerutils.ParseAviErrorMessage(*aviError.Message)); statusErr != nil {
+					return statusErr, false
+				}
+				return nil, false
+			}
+		}
+		log.Errorf("error deleting healthmonitor: %s", err.Error())
+		if statusErr := r.StatusManager.SetStatus(ctx, hm, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionFalse, akov1alpha1.ObjectReasonDeletionFailed, fmt.Sprintf("Failed to delete Health Monitor from Avi Controller: %v", err)); statusErr != nil {
+			return statusErr, false
+		}
+		return err, false
 	}
 	r.EventRecorder.Event(hm, corev1.EventTypeNormal, "Deleted", "HealthMonitor deleted successfully from Avi Controller")
 	log.Info("successfully deleted healthmonitor")
-	return nil, true
+	return err, true
 }
 
 // TODO: Make this function generic
