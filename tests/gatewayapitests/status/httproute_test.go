@@ -39,6 +39,28 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 )
 
+func createRuleToVSUUIDMessage(t *testing.T, httpRouteName, namespace, gatewayName string) string {
+	key := lib.HTTPRoute + "/" + namespace + "/" + httpRouteName
+	routeModel, err := nodes.NewRouteModel(key, lib.HTTPRoute, httpRouteName, namespace)
+	if err != nil {
+		t.Fatalf("Couldn't get the HTTPRoute, err: %+v", err)
+	}
+
+	routeConfig := routeModel.ParseRouteConfig(key)
+	routeRule := routeConfig.Rules[0]
+
+	childVSUUID := fmt.Sprintf("virtualservice-%s-random-uuid", akogatewayapilib.GetChildName(namespace, gatewayName, routeModel.GetNamespace(), routeModel.GetName(), utils.Stringify(routeRule.Matches)))
+	ruleName := utils.Stringify(utils.Hash(utils.Stringify(routeRule.Matches)))
+	ruleToVSUUID := map[string]string{
+		ruleName: childVSUUID,
+	}
+	messageBytes, err := json.Marshal(ruleToVSUUID)
+	if err != nil {
+		t.Fatalf("Couldn't marshal the ruleToVSUUID, err: %+v", err)
+	}
+	return string(messageBytes)
+}
+
 /* Positive test cases
  * - HTTPRoute with valid configurations (both parent reference and hostnames)
  * - HTTPRoute with valid rules (TODO: end-to-end code is required to check this)
@@ -91,24 +113,7 @@ func TestHTTPRouteWithValidConfig(t *testing.T) {
 			apimeta.FindStatusCondition(httpRoute.Status.Parents[1].Conditions, string(gatewayv1.RouteConditionResolvedRefs)) != nil
 	}, 30*time.Second).Should(gomega.Equal(true))
 
-	key := lib.HTTPRoute + "/" + namespace + "/" + httpRouteName
-	routeModel, err := nodes.NewRouteModel(key, lib.HTTPRoute, httpRouteName, namespace)
-	if err != nil {
-		t.Fatalf("Couldn't get the HTTPRoute, err: %+v", err)
-	}
-	routeConfig := routeModel.ParseRouteConfig(key)
-	routeRule := routeConfig.Rules[0]
-
-	childVSUUID := fmt.Sprintf("virtualservice-%s-random-uuid", akogatewayapilib.GetChildName(namespace, gatewayName, routeModel.GetNamespace(), routeModel.GetName(), utils.Stringify(routeRule.Matches)))
-	ruleName := utils.Stringify(utils.Hash(utils.Stringify(routeRule.Matches)))
-	ruleToVSUUID := map[string]string{
-		ruleName: childVSUUID,
-	}
-	messageBytes, err := json.Marshal(ruleToVSUUID)
-	if err != nil {
-		t.Fatalf("Couldn't marshal the ruleToVSUUID, err: %+v", err)
-	}
-	message := string(messageBytes)
+	message := createRuleToVSUUIDMessage(t, httpRouteName, namespace, gatewayName)
 
 	conditionMap := make(map[string][]metav1.Condition)
 	for _, port := range ports {
@@ -189,23 +194,7 @@ func TestHTTPRouteWithAtleastOneParentReferenceValid(t *testing.T) {
 			apimeta.IsStatusConditionFalse(httpRoute.Status.Parents[1].Conditions, string(gatewayv1.RouteConditionAccepted))
 	}, 30*time.Second).Should(gomega.Equal(true))
 
-	key := lib.HTTPRoute + "/" + namespace + "/" + httpRouteName
-	routeModel, err := nodes.NewRouteModel(key, lib.HTTPRoute, httpRouteName, namespace)
-	if err != nil {
-		t.Fatalf("Couldn't get the HTTPRoute, err: %+v", err)
-	}
-	routeConfig := routeModel.ParseRouteConfig(key)
-	routeRule := routeConfig.Rules[0]
-	childVSUUID := fmt.Sprintf("virtualservice-%s-random-uuid", akogatewayapilib.GetChildName(namespace, gatewayName, routeModel.GetNamespace(), routeModel.GetName(), utils.Stringify(routeRule.Matches)))
-	ruleName := utils.Stringify(utils.Hash(utils.Stringify(routeRule.Matches)))
-	ruleToVSUUID := map[string]string{
-		ruleName: childVSUUID,
-	}
-	messageBytes, err := json.Marshal(ruleToVSUUID)
-	if err != nil {
-		t.Fatalf("Couldn't marshal the ruleToVSUUID, err: %+v", err)
-	}
-	message := string(messageBytes)
+	message := createRuleToVSUUIDMessage(t, httpRouteName, namespace, gatewayName)
 
 	conditionMap := make(map[string][]metav1.Condition)
 	conditionMap[fmt.Sprintf("%s-%d", gatewayName, 8080)] = []metav1.Condition{
@@ -327,23 +316,7 @@ func TestHTTPRouteTransitionFromInvalidToValid(t *testing.T) {
 		return apimeta.IsStatusConditionTrue(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted))
 	}, 30*time.Second).Should(gomega.Equal(true))
 
-	key := lib.HTTPRoute + "/" + namespace + "/" + httpRouteName
-	routeModel, err := nodes.NewRouteModel(key, lib.HTTPRoute, httpRouteName, namespace)
-	if err != nil {
-		t.Fatalf("Couldn't get the HTTPRoute, err: %+v", err)
-	}
-	routeConfig := routeModel.ParseRouteConfig(key)
-	routeRule := routeConfig.Rules[0]
-	childVSUUID := fmt.Sprintf("virtualservice-%s-random-uuid", akogatewayapilib.GetChildName(namespace, gatewayName, routeModel.GetNamespace(), routeModel.GetName(), utils.Stringify(routeRule.Matches)))
-	ruleName := utils.Stringify(utils.Hash(utils.Stringify(routeRule.Matches)))
-	ruleToVSUUID := map[string]string{
-		ruleName: childVSUUID,
-	}
-	messageBytes, err := json.Marshal(ruleToVSUUID)
-	if err != nil {
-		t.Fatalf("Couldn't marshal the ruleToVSUUID, err: %+v", err)
-	}
-	message := string(messageBytes)
+	message := createRuleToVSUUIDMessage(t, httpRouteName, namespace, gatewayName)
 
 	conditionMap[fmt.Sprintf("%s-%d", gatewayName, 8080)] = []metav1.Condition{
 		{
@@ -414,23 +387,7 @@ func TestHTTPRouteTransitionFromValidToInvalid(t *testing.T) {
 		return apimeta.IsStatusConditionTrue(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted))
 	}, 30*time.Second).Should(gomega.Equal(true))
 
-	key := lib.HTTPRoute + "/" + namespace + "/" + httpRouteName
-	routeModel, err := nodes.NewRouteModel(key, lib.HTTPRoute, httpRouteName, namespace)
-	if err != nil {
-		t.Fatalf("Couldn't get the HTTPRoute, err: %+v", err)
-	}
-	routeConfig := routeModel.ParseRouteConfig(key)
-	routeRule := routeConfig.Rules[0]
-	childVSUUID := fmt.Sprintf("virtualservice-%s-random-uuid", akogatewayapilib.GetChildName(namespace, gatewayName, routeModel.GetNamespace(), routeModel.GetName(), utils.Stringify(routeRule.Matches)))
-	ruleName := utils.Stringify(utils.Hash(utils.Stringify(routeRule.Matches)))
-	ruleToVSUUID := map[string]string{
-		ruleName: childVSUUID,
-	}
-	messageBytes, err := json.Marshal(ruleToVSUUID)
-	if err != nil {
-		t.Fatalf("Couldn't marshal the ruleToVSUUID, err: %+v", err)
-	}
-	message := string(messageBytes)
+	message := createRuleToVSUUIDMessage(t, httpRouteName, namespace, gatewayName)
 	conditionMap := make(map[string][]metav1.Condition)
 	conditionMap[fmt.Sprintf("%s-%d", gatewayName, 8080)] = []metav1.Condition{
 		{
@@ -1182,23 +1139,7 @@ func TestHTTPRouteWithInvalidBackendKind(t *testing.T) {
 		return apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted)) != nil
 	}, 30*time.Second).Should(gomega.Equal(true))
 
-	key := lib.HTTPRoute + "/" + namespace + "/" + httpRouteName
-	routeModel, err := nodes.NewRouteModel(key, lib.HTTPRoute, httpRouteName, namespace)
-	if err != nil {
-		t.Fatalf("Couldn't get the HTTPRoute, err: %+v", err)
-	}
-	routeConfig := routeModel.ParseRouteConfig(key)
-	routeRule := routeConfig.Rules[0]
-	childVSUUID := fmt.Sprintf("virtualservice-%s-random-uuid", akogatewayapilib.GetChildName(namespace, gatewayName, routeModel.GetNamespace(), routeModel.GetName(), utils.Stringify(routeRule.Matches)))
-	ruleName := utils.Stringify(utils.Hash(utils.Stringify(routeRule.Matches)))
-	ruleToVSUUID := map[string]string{
-		ruleName: childVSUUID,
-	}
-	messageBytes, err := json.Marshal(ruleToVSUUID)
-	if err != nil {
-		t.Fatalf("Couldn't marshal the ruleToVSUUID, err: %+v", err)
-	}
-	message := string(messageBytes)
+	message := createRuleToVSUUIDMessage(t, httpRouteName, namespace, gatewayName)
 	conditionMap := make(map[string][]metav1.Condition)
 
 	for _, port := range ports {
@@ -1279,23 +1220,7 @@ func TestHTTPRouteWithValidAndInvalidBackendKind(t *testing.T) {
 		return apimeta.FindStatusCondition(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted)) != nil
 	}, 30*time.Second).Should(gomega.Equal(true))
 
-	key := lib.HTTPRoute + "/" + namespace + "/" + httpRouteName
-	routeModel, err := nodes.NewRouteModel(key, lib.HTTPRoute, httpRouteName, namespace)
-	if err != nil {
-		t.Fatalf("Couldn't get the HTTPRoute, err: %+v", err)
-	}
-	routeConfig := routeModel.ParseRouteConfig(key)
-	routeRule := routeConfig.Rules[0]
-	childVSUUID := fmt.Sprintf("virtualservice-%s-random-uuid", akogatewayapilib.GetChildName(namespace, gatewayName, routeModel.GetNamespace(), routeModel.GetName(), utils.Stringify(routeRule.Matches)))
-	ruleName := utils.Stringify(utils.Hash(utils.Stringify(routeRule.Matches)))
-	ruleToVSUUID := map[string]string{
-		ruleName: childVSUUID,
-	}
-	messageBytes, err := json.Marshal(ruleToVSUUID)
-	if err != nil {
-		t.Fatalf("Couldn't marshal the ruleToVSUUID, err: %+v", err)
-	}
-	message := string(messageBytes)
+	message := createRuleToVSUUIDMessage(t, httpRouteName, namespace, gatewayName)
 
 	conditionMap := make(map[string][]metav1.Condition)
 
@@ -2237,23 +2162,7 @@ func verifyHTTPRouteStatus(t *testing.T, g *gomega.GomegaWithT, httpRouteName, g
 		return hr.Status.Parents[0].Conditions[1].Reason == condition.Reason
 	}, 30*time.Second).Should(gomega.Equal(true))
 
-	key := lib.HTTPRoute + "/" + namespace + "/" + httpRouteName
-	routeModel, err := nodes.NewRouteModel(key, lib.HTTPRoute, httpRouteName, namespace)
-	if err != nil {
-		t.Fatalf("Couldn't get the HTTPRoute, err: %+v", err)
-	}
-	routeConfig := routeModel.ParseRouteConfig(key)
-	routeRule := routeConfig.Rules[0]
-	childVSUUID := fmt.Sprintf("virtualservice-%s-random-uuid", akogatewayapilib.GetChildName(namespace, gatewayName, routeModel.GetNamespace(), routeModel.GetName(), utils.Stringify(routeRule.Matches)))
-	ruleName := utils.Stringify(utils.Hash(utils.Stringify(routeRule.Matches)))
-	ruleToVSUUID := map[string]string{
-		ruleName: childVSUUID,
-	}
-	messageBytes, err := json.Marshal(ruleToVSUUID)
-	if err != nil {
-		t.Fatalf("Couldn't marshal the ruleToVSUUID, err: %+v", err)
-	}
-	message := string(messageBytes)
+	message := createRuleToVSUUIDMessage(t, httpRouteName, namespace, gatewayName)
 	conditionMap := make(map[string][]metav1.Condition)
 	conditions := []metav1.Condition{
 		{

@@ -742,11 +742,6 @@ func syncGatewayAPIObjectStatuses() {
 
 		vsSvcMetadataObj := vsCacheObj.ServiceMetadataObj
 
-		// Only process Gateway API objects
-		if vsSvcMetadataObj.Gateway == "" {
-			continue
-		}
-
 		if strings.HasSuffix(vsCacheObj.Name, lib.EVHSuffix) {
 			IPAddrs := getIPAddrsFromCache(vsCacheObj, aviObjCache)
 			gatewayStatusOptions = append(gatewayStatusOptions,
@@ -826,7 +821,16 @@ func getIPAddrsFromCache(vsCacheObj *avicache.AviVsCache, aviObjCache *avicache.
 		if found {
 			vsvipCacheObj, ok := vsvipCache.(*avicache.AviVSVIPCache)
 			if ok {
-				IPAddrs = append(IPAddrs, vsvipCacheObj.Vips...)
+				if len(vsvipCacheObj.Fips) != 0 {
+					IPAddrs = append(IPAddrs, vsvipCacheObj.Fips...)
+				} else {
+					if len(vsvipCacheObj.Vips) != 0 {
+						IPAddrs = append(IPAddrs, vsvipCacheObj.Vips...)
+					}
+					if len(vsvipCacheObj.V6IPs) != 0 {
+						IPAddrs = append(IPAddrs, vsvipCacheObj.V6IPs...)
+					}
+				}
 			}
 		}
 	}
