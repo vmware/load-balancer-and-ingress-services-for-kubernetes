@@ -247,7 +247,7 @@ func GetPositiveConditions(ports []int32) *gatewayv1.GatewayStatus {
 	expectedStatus.Listeners[0].Conditions[1].Message = "Reference is valid"
 	return expectedStatus
 }
-func GetListenerStatusV1(ports []int32, attachedRoutes []int32, getResolvedRefCondition bool, getProgrammedCondition bool) []gatewayv1.ListenerStatus {
+func GetListenerStatusV1(ports []int32, attachedRoutes []int32, getResolvedRefCondition bool, getProgrammedCondition bool, programmedConditionMessage ...string) []gatewayv1.ListenerStatus {
 	listeners := make([]gatewayv1.ListenerStatus, 0, len(ports))
 	for i, port := range ports {
 		listener := gatewayv1.ListenerStatus{
@@ -275,10 +275,15 @@ func GetListenerStatusV1(ports []int32, attachedRoutes []int32, getResolvedRefCo
 			listener.Conditions = append(listener.Conditions, *resolvedRefCondition)
 		}
 		if getProgrammedCondition {
+			message := "Virtual service configured/updated"
+			if len(programmedConditionMessage) > 0 {
+				message = programmedConditionMessage[0]
+			}
+
 			programmedCondition := &metav1.Condition{
 				Type:               string(gatewayv1.ListenerConditionProgrammed),
 				Status:             metav1.ConditionTrue,
-				Message:            "Virtual service configured/updated",
+				Message:            message,
 				ObservedGeneration: 1,
 				Reason:             string(gatewayv1.ListenerReasonProgrammed),
 			}
@@ -753,6 +758,88 @@ func ValidateGatewayListeners(t *testing.T, actual, expected *gatewayv1.Listener
 	ValidateConditions(t, actual.Conditions, expected.Conditions)
 }
 
+func ValidateGatewayStatusWithRetry(t *testing.T, actualStatus, expectedStatus *gatewayv1.GatewayStatus) bool {
+	// validate the ip address
+	if len(expectedStatus.Addresses) > 0 {
+		if len(actualStatus.Addresses) != 1 {
+			return false
+		}
+		if actualStatus.Addresses[0] != expectedStatus.Addresses[0] {
+			return false
+		}
+	}
+
+	// validate listeners length
+	if len(actualStatus.Listeners) != len(expectedStatus.Listeners) {
+		return false
+	}
+
+	// validate gateway conditions
+	if !ValidateConditionsWithRetry(t, actualStatus.Conditions, expectedStatus.Conditions) {
+		return false
+	}
+
+	// validate each listener
+	for _, actualListenerStatus := range actualStatus.Listeners {
+		matched := false
+		for _, expectedListenerStatus := range expectedStatus.Listeners {
+			if actualListenerStatus.Name == expectedListenerStatus.Name {
+				if !ValidateGatewayListenersWithRetry(t, &actualListenerStatus, &expectedListenerStatus) {
+					return false
+				}
+				matched = true
+				break
+			}
+		}
+		if !matched {
+			return false
+		}
+	}
+
+	return true
+}
+
+func ValidateGatewayListenersWithRetry(t *testing.T, actual, expected *gatewayv1.ListenerStatus) bool {
+	if actual.Name != expected.Name {
+		return false
+	}
+	if actual.AttachedRoutes != expected.AttachedRoutes {
+		return false
+	}
+	// Compare SupportedKinds manually
+	if len(actual.SupportedKinds) != len(expected.SupportedKinds) {
+		return false
+	}
+	for i, actualKind := range actual.SupportedKinds {
+		if actualKind.Group != expected.SupportedKinds[i].Group {
+			return false
+		}
+		if actualKind.Kind != expected.SupportedKinds[i].Kind {
+			return false
+		}
+	}
+	return ValidateConditionsWithRetry(t, actual.Conditions, expected.Conditions)
+}
+
+func ValidateConditionsWithRetry(t *testing.T, actualConditions, expectedConditions []metav1.Condition) bool {
+	for _, actualCondition := range actualConditions {
+		for _, expectedCondition := range expectedConditions {
+			if actualCondition.Type == expectedCondition.Type {
+				if actualCondition.Message != expectedCondition.Message {
+					return false
+				}
+				if actualCondition.Reason != expectedCondition.Reason {
+					return false
+				}
+				if actualCondition.Status != expectedCondition.Status {
+					return false
+				}
+			}
+		}
+	}
+	return true
+}
+
 func ValidateConditions(t *testing.T, actualConditions, expectedConditions []metav1.Condition) {
 	g := gomega.NewGomegaWithT(t)
 
@@ -777,6 +864,39 @@ func ValidateHTTPRouteStatus(t *testing.T, actualStatus, expectedStatus *gateway
 		g.Expect(actualRouteParentStatus.ParentRef).To(gomega.Equal(expectedRouteParentStatus.ParentRef))
 		ValidateConditions(t, actualRouteParentStatus.Conditions, expectedRouteParentStatus.Conditions)
 	}
+}
+
+func ValidateHTTPRouteStatusWithRetry(t *testing.T, actualStatus, expectedStatus *gatewayv1.HTTPRouteStatus) bool {
+	if len(actualStatus.Parents) != len(expectedStatus.Parents) {
+		return false
+	}
+	for i := range actualStatus.Parents {
+		if actualStatus.Parents[i].ControllerName != expectedStatus.Parents[i].ControllerName {
+			return false
+		}
+		if actualStatus.Parents[i].ParentRef.Name != expectedStatus.Parents[i].ParentRef.Name ||
+			*actualStatus.Parents[i].ParentRef.Namespace != *expectedStatus.Parents[i].ParentRef.Namespace ||
+			*actualStatus.Parents[i].ParentRef.SectionName != *expectedStatus.Parents[i].ParentRef.SectionName {
+			return false
+		}
+		for _, actualCondition := range actualStatus.Parents[i].Conditions {
+			for _, expectedCondition := range expectedStatus.Parents[i].Conditions {
+				if actualCondition.Type != expectedCondition.Type {
+					continue
+				}
+				if actualCondition.Status != expectedCondition.Status {
+					return false
+				}
+				if actualCondition.Reason != expectedCondition.Reason {
+					return false
+				}
+				if actualCondition.Message != expectedCondition.Message {
+					return false
+				}
+			}
+		}
+	}
+	return true
 }
 
 func CreateHealthMonitorCRD(t *testing.T, name, namespace, uuid string) {

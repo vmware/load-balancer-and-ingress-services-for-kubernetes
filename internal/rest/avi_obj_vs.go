@@ -565,11 +565,12 @@ func (rest *RestOperations) StatusUpdateForVS(restMethod utils.RestMethod, vsCac
 	switch serviceMetadataObj.ServiceMetadataMapping("VS") {
 	case lib.GatewayVS:
 		updateOptions := status.UpdateOptions{
-			Vip:             IPAddrs,
-			ServiceMetadata: serviceMetadataObj,
-			Key:             key,
-			VSName:          vsCacheObj.Name,
-			Tenant:          vsCacheObj.Tenant,
+			Vip:                IPAddrs,
+			ServiceMetadata:    serviceMetadataObj,
+			Key:                key,
+			VirtualServiceUUID: vsCacheObj.Uuid,
+			VSName:             vsCacheObj.Name,
+			Tenant:             vsCacheObj.Tenant,
 		}
 		statusOption := status.StatusOptions{
 			ObjType: lib.Gateway,
@@ -582,6 +583,11 @@ func (rest *RestOperations) StatusUpdateForVS(restMethod utils.RestMethod, vsCac
 		}
 		utils.AviLog.Infof("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.Gateway, utils.Stringify(statusOption))
 		status.PublishToStatusQueue(updateOptions.ServiceMetadata.Gateway, statusOption)
+		if utils.IsVCFCluster() {
+			// Call StatusUpdateForPool to trigger L4 LB Service Status Update for adding VS UUID annotation for v1alpha1pre1 Gateways
+			// In case of GatewayAPI, this call will be a no-op since GatewayAPI does not support L4 LB Service Status Update
+			rest.StatusUpdateForPool(restMethod, vsCacheObj, key)
+		}
 	case lib.ServiceTypeLBVS:
 		updateOptions := status.UpdateOptions{
 			Vip:                IPAddrs,
@@ -618,6 +624,22 @@ func (rest *RestOperations) StatusUpdateForVS(restMethod utils.RestMethod, vsCac
 		// }
 		// utils.AviLog.Infof("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.IngressName, utils.Stringify(statusOption))
 		// status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
+	case lib.HTTPRouteChildVS:
+		updateOptions := status.UpdateOptions{
+			ServiceMetadata:    serviceMetadataObj,
+			Key:                key,
+			VirtualServiceUUID: vsCacheObj.Uuid,
+			VSName:             vsCacheObj.Name,
+			Tenant:             vsCacheObj.Tenant,
+		}
+		statusOption := status.StatusOptions{
+			ObjType: utils.HTTPRoute,
+			Op:      lib.UpdateStatus,
+			Key:     key,
+			Options: &updateOptions,
+		}
+		utils.AviLog.Infof("key: %s Publishing HTTPRoute status to status queue, options: %v", key, utils.Stringify(statusOption))
+		status.PublishToStatusQueue(serviceMetadataObj.HTTPRoute, statusOption)
 	default:
 		rest.StatusUpdateForPool(restMethod, vsCacheObj, key)
 
@@ -854,6 +876,22 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 
 				status.HostRuleEventBroadcast(vsCacheObj.Name, vsCacheObj.ServiceMetadataObj.CRDStatus, lib.CRDMetadata{})
 				status.SSORuleEventBroadcast(vsCacheObj.Name, vsCacheObj.ServiceMetadataObj.CRDStatus, lib.CRDMetadata{})
+			case lib.HTTPRouteChildVS:
+				updateOptions := status.UpdateOptions{
+					ServiceMetadata:    vsCacheObj.ServiceMetadataObj,
+					Key:                key,
+					VirtualServiceUUID: vsCacheObj.Uuid,
+					VSName:             vsCacheObj.Name,
+					Tenant:             vsCacheObj.Tenant,
+				}
+				statusOption := status.StatusOptions{
+					ObjType: utils.HTTPRoute,
+					Op:      lib.DeleteStatus,
+					Key:     key,
+					Options: &updateOptions,
+				}
+				utils.AviLog.Infof("key: %s Publishing HTTPRoute status to status queue, options: %v", key, utils.Stringify(statusOption))
+				status.PublishToStatusQueue(vsCacheObj.ServiceMetadataObj.HTTPRoute, statusOption)
 			default:
 				// insecure ingress status updates in regular AKO.
 				for _, poolKey := range vsCacheObj.PoolKeyCollection {

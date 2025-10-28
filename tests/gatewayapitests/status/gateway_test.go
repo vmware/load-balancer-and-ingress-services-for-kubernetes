@@ -16,6 +16,8 @@ package status
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"os"
 	"sync"
 	"testing"
@@ -151,6 +153,14 @@ func TestGatewayWithValidListenersAndGatewayClass(t *testing.T) {
 		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionProgrammed)) != nil
 	}, 40*time.Second).Should(gomega.Equal(true))
 
+	vsUUIDMap := map[string]string{
+		"VSUUID": fmt.Sprintf("virtualservice-ako-gw-%s--%s-%s-EVH-random-uuid", lib.GetClusterName(), DEFAULT_NAMESPACE, gatewayName),
+	}
+	messageBytes, err := json.Marshal(vsUUIDMap)
+	if err != nil {
+		t.Fatalf("Couldn't marshal the vsUUIDMap, err: %+v", err)
+	}
+	programmedConditionMessage := string(messageBytes)
 	expectedStatus := &gatewayv1.GatewayStatus{
 		Conditions: []metav1.Condition{
 			{
@@ -163,12 +173,12 @@ func TestGatewayWithValidListenersAndGatewayClass(t *testing.T) {
 			{
 				Type:               string(gatewayv1.GatewayConditionProgrammed),
 				Status:             metav1.ConditionTrue,
-				Message:            "Virtual service configured/updated",
+				Message:            programmedConditionMessage,
 				ObservedGeneration: 1,
 				Reason:             string(gatewayv1.GatewayReasonProgrammed),
 			},
 		},
-		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}, true, true),
+		Listeners: tests.GetListenerStatusV1(ports, []int32{0, 0}, true, true, programmedConditionMessage),
 	}
 
 	gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
@@ -1401,6 +1411,7 @@ func TestGatewayWithUnsupportedProtocolAndHostnameInListeners(t *testing.T) {
 	tests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	tests.TeardownGatewayClass(t, gatewayClassName)
 }
+
 func TestSecretCreateDelete(t *testing.T) {
 
 	gatewayName := "gateway-12"

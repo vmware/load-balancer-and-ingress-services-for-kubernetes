@@ -139,8 +139,6 @@ func (o *gateway) Delete(key string, option status.StatusOptions) {
 
 	o.UpdateStatus(key, gw, &status.Status{GatewayStatus: gatewayStatus})
 	utils.AviLog.Infof("key: %s, msg: Successfully reset the address status of gateway: %s", key, gw.Name)
-
-	// TODO: Add annotation delete code here
 }
 
 func (o *gateway) Update(key string, option status.StatusOptions) {
@@ -181,6 +179,18 @@ func (o *gateway) Update(key string, option status.StatusOptions) {
 		conditionType = string(gatewayv1.GatewayConditionProgrammed)
 		reason = string(gatewayv1.GatewayReasonProgrammed)
 		message = "Virtual service configured/updated"
+		// Add VS UUID to the message if available
+		if option.Options.VirtualServiceUUID != "" {
+			messageMap := map[string]string{
+				"VSUUID": option.Options.VirtualServiceUUID,
+			}
+			messageBytes, err := json.Marshal(messageMap)
+			if err != nil {
+				utils.AviLog.Warnf("key: %s, msg: failed to marshal the message: %v", key, err)
+				return
+			}
+			message = string(messageBytes)
+		}
 	}
 	condition.
 		Type(conditionType).
@@ -211,8 +221,6 @@ func (o *gateway) Update(key string, option status.StatusOptions) {
 		}
 	}
 	o.Patch(key, gw, &status.Status{GatewayStatus: gatewaystatus})
-
-	// TODO: Annotation update code here
 }
 
 func (o *gateway) BulkUpdate(key string, options []status.StatusOptions) {
@@ -221,17 +229,37 @@ func (o *gateway) BulkUpdate(key string, options []status.StatusOptions) {
 	for _, option := range options {
 		nsName := option.Options.ServiceMetadata.Gateway
 		if gw, ok := gwMap[nsName]; ok {
-			gatewaystatus := &gatewayv1.GatewayStatus{}
+			gatewaystatus := akogatewayapiobjects.GatewayApiLister().GetGatewayToGatewayStatusMapping(gw.Namespace + "/" + gw.Name)
+			if gatewaystatus == nil {
+				gatewaystatus = gw.Status.DeepCopy()
+			}
 			addressType := gatewayv1.IPAddressType
-			gatewaystatus.Addresses = append(gatewaystatus.Addresses, gatewayv1.GatewayStatusAddress{
-				Type:  &addressType,
-				Value: option.Options.Vip[0],
-			})
+			ipAddrs := []gatewayv1.GatewayStatusAddress{}
+			for _, vip := range option.Options.Vip {
+				ipAddrs = append(ipAddrs, gatewayv1.GatewayStatusAddress{
+					Type:  &addressType,
+					Value: vip,
+				})
+			}
+			gatewaystatus.Addresses = ipAddrs
+			// Add VS UUID to the message if available
+			message := "Virtual service configured/updated"
+			if option.Options.VirtualServiceUUID != "" {
+				messageMap := map[string]string{
+					"VSUUID": option.Options.VirtualServiceUUID,
+				}
+				messageBytes, err := json.Marshal(messageMap)
+				if err != nil {
+					utils.AviLog.Warnf("key: %s, msg: failed to marshal the message: %v", key, err)
+					return
+				}
+				message = string(messageBytes)
+			}
 			apimeta.SetStatusCondition(&gatewaystatus.Conditions, metav1.Condition{
 				Type:               string(gatewayv1.GatewayConditionProgrammed),
 				Status:             metav1.ConditionTrue,
 				Reason:             string(gatewayv1.GatewayReasonProgrammed),
-				Message:            "Virtual service configured/updated",
+				Message:            message,
 				ObservedGeneration: gw.ObjectMeta.Generation + 1,
 			})
 
@@ -284,6 +312,9 @@ func (o *gateway) Patch(key string, obj runtime.Object, status *status.Status, r
 	}
 
 	gw := obj.(*gatewayv1.Gateway)
+
+	akogatewayapiobjects.GatewayApiLister().UpdateGatewayToGatewayStatusMapping(gw.Namespace+"/"+gw.Name, status.GatewayStatus)
+
 	if o.isStatusEqual(&gw.Status, status.GatewayStatus) {
 		return nil
 	}
@@ -303,6 +334,7 @@ func (o *gateway) Patch(key string, obj runtime.Object, status *status.Status, r
 	}
 
 	utils.AviLog.Infof("key: %s, msg: Successfully updated the gateway %s/%s status %+v", key, gw.Namespace, gw.Name, utils.Stringify(status))
+
 	return nil
 }
 
