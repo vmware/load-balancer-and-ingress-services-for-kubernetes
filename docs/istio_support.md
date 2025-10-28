@@ -34,6 +34,33 @@ AKO prioritizes istio pkiprofile over any other pkiprofile reference added using
 
 Try enabling injection for the ako namespace eg. `kubectl label namespace avi-system istio-injection=enabled --overwrite`
 
+### Helm installation fails with "Not found: istio-certs" volume error
+
+When installing AKO with `istioEnabled: true` in values.yaml, you may encounter this error:
+```
+Error: INSTALLATION FAILED: 1 error occurred:
+	* StatefulSet.apps "ako" is invalid: spec.template.spec.containers[0].volumeMounts[1].name: Not found: "istio-certs"
+```
+
+**Workaround:** Manually add the `istio-certs` volume to the StatefulSet YAML:
+
+Edit the StatefulSet YAML and add the `istio-certs` volume to the `spec.template.spec.volumes` section:
+```yaml
+spec:
+  template:
+    spec:
+      volumes:
+      - name: istio-certs
+        emptyDir:
+          medium: Memory
+      # ... other volumes
+```
+
+Then install with the modified Helm chart:
+```bash
+helm install ako ./helm/ako -f values.yaml
+```
+
 ### `istio-secret` is not created
 
 Check AKO clusterrole has permissions to create/update secrets in ako namespace.

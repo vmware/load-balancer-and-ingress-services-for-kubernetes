@@ -43,11 +43,18 @@ spec:
       serviceAccountName: ako-sa
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
-      {{ if .Values.persistentVolumeClaim }}
+      {{ if or .Values.persistentVolumeClaim .Values.AKOSettings.istioEnabled }}
       volumes:
+      {{ if .Values.persistentVolumeClaim }}
       - name: ako-pv-storage
         persistentVolumeClaim:
           claimName: {{ .Values.persistentVolumeClaim }}
+      {{ end }}
+      {{ if .Values.AKOSettings.istioEnabled }}
+      - name: istio-certs
+        emptyDir:
+          medium: Memory
+      {{ end }}
       {{ end }}
       imagePullSecrets:
         {{- toYaml .Values.image.pullSecrets | nindent 8 }}
