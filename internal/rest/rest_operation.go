@@ -23,6 +23,7 @@ import (
 	"github.com/vmware/alb-sdk/go/clients"
 	avimodels "github.com/vmware/alb-sdk/go/models"
 	"github.com/vmware/alb-sdk/go/session"
+	corev1 "k8s.io/api/core/v1"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -317,6 +318,22 @@ func (l *leader) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, 
 				} else {
 					utils.AviLog.Debugf("key: %s, msg: Error in rest operation for VsVip Put request.", key)
 				}
+			} else if aviErr.HttpStatusCode == 500 && op.Model == "SSLKeyAndCertificate" {
+				// Raise event for SSL certificate import errors related to common_name
+				errorMsg := ""
+				if aviErr.Message != nil {
+					errorMsg = *aviErr.Message
+				}
+				if strings.Contains(errorMsg, lib.SSLCertImportError) && strings.Contains(errorMsg, lib.SSLCertCommonNameError) {
+					lib.AKOControlConfig().PodEventf(
+						corev1.EventTypeWarning,
+						lib.SSLImportError,
+						"Failed to import SSL certificate '%s' with error: %s",
+						op.ObjName,
+						errorMsg,
+					)
+				}
+				utils.AviLog.Warnf("key: %s, msg: SSL certificate import error for '%s': %s", key, op.ObjName, errorMsg)
 			} else if aviErr.HttpStatusCode == 404 && op.Method == utils.RestDelete {
 				utils.AviLog.Warnf("key: %s, msg: Error during rest operation: %v, object of type %s not found in the controller. Ignoring err: %v", key, op.Method, op.Model, op.Err)
 				continue
