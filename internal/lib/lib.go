@@ -722,6 +722,11 @@ func GetProxyEnabledApplicationProfileName() string {
 	return Encode(GetClusterName()+"-proxy-applicationprofile", ApplicationProfile)
 }
 
+// One TCP half Open connection HM per cluster
+func GetTcpHalfOpenHealthMonitorName() string {
+	return Encode(GetClusterName()+"-tcphalfopen-healthmonitor", HealthMonitor)
+}
+
 func GetVPCMode() bool {
 	if vpcMode, _ := strconv.ParseBool(os.Getenv(utils.VPC_MODE)); vpcMode {
 		return true

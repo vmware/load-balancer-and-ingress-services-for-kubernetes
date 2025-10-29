@@ -599,29 +599,29 @@ func GetLockSet() *LockSet {
 	return &lockSet
 }
 
-func ProxyEnabledAppProfileGet(client *clients.AviClient) (error, []models.ApplicationProfile) {
+func ProxyEnabledAppProfileGet(client *clients.AviClient) ([]models.ApplicationProfile, error) {
 	var appProfs []models.ApplicationProfile
 	uri := fmt.Sprintf("/api/applicationprofile/?name=%s", GetProxyEnabledApplicationProfileName())
 	result, err := AviGetCollectionRaw(client, uri)
 	if err != nil {
 		utils.AviLog.Warnf("Application profile Get uri %v returned err %v", uri, err)
-		return err, appProfs
+		return appProfs, err
 	}
 	elems := make([]json.RawMessage, result.Count)
 	err = json.Unmarshal(result.Results, &elems)
 	if err != nil {
 		utils.AviLog.Warnf("Failed to unmarshal application profile result, err: %v", err)
-		return err, appProfs
+		return appProfs, err
 	}
 	for i := 0; i < len(elems); i++ {
 		appProf := models.ApplicationProfile{}
 		if err = json.Unmarshal(elems[i], &appProf); err != nil {
 			utils.AviLog.Warnf("Failed to unmarshal application profile data, err: %v", err)
-			return err, appProfs
+			return appProfs, err
 		}
 		appProfs = append(appProfs, appProf)
 	}
-	return nil, appProfs
+	return appProfs, nil
 }
 
 func ProxyEnabledAppProfileCU(client *clients.AviClient) error {
@@ -638,7 +638,7 @@ func ProxyEnabledAppProfileCU(client *clients.AviClient) error {
 		TCPAppProfile: &tcpAppProfile,
 	}
 	resp := models.ApplicationProfileAPIResponse{}
-	err, appProfs := ProxyEnabledAppProfileGet(client)
+	appProfs, err := ProxyEnabledAppProfileGet(client)
 	if err == nil && len(appProfs) == 1 {
 		appProf := appProfs[0]
 		if appProf.TCPAppProfile != nil &&
@@ -663,6 +663,31 @@ func ProxyEnabledAppProfileCU(client *clients.AviClient) error {
 	}
 	utils.AviLog.Infof("Proxy enabled application profile %s created/updated", name)
 	return nil
+}
+
+func TcpHalfOpenHealthMonitorGet(client *clients.AviClient) ([]models.HealthMonitor, error) {
+	var tcpHalfOpenHMs []models.HealthMonitor
+	uri := fmt.Sprintf("/api/healthmonitor/?name=%s", GetTcpHalfOpenHealthMonitorName())
+	result, err := AviGetCollectionRaw(client, uri)
+	if err != nil {
+		utils.AviLog.Warnf("Health Monitor Get uri %v returned err %v", uri, err)
+		return tcpHalfOpenHMs, err
+	}
+	elems := make([]json.RawMessage, result.Count)
+	err = json.Unmarshal(result.Results, &elems)
+	if err != nil {
+		utils.AviLog.Warnf("Failed to unmarshal health monitor result, err: %v", err)
+		return tcpHalfOpenHMs, err
+	}
+	for i := 0; i < len(elems); i++ {
+		hMon := models.HealthMonitor{}
+		if err = json.Unmarshal(elems[i], &hMon); err != nil {
+			utils.AviLog.Warnf("Failed to unmarshal health monitor data, err: %v", err)
+			return tcpHalfOpenHMs, err
+		}
+		tcpHalfOpenHMs = append(tcpHalfOpenHMs, hMon)
+	}
+	return tcpHalfOpenHMs, nil
 }
 
 func Uuid4() string {
