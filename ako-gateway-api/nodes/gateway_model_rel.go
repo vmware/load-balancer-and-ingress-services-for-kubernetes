@@ -324,6 +324,29 @@ outerLoop:
 	return gwNsNameList, true
 }
 
+// GetOldGatewaysForHTTPRouteCleanup returns the list of old gateways that are no longer referenced by an HTTPRoute.
+// These gateways need to be reconciled to clean up their stale child VSes and pools.
+func GetOldGatewaysForHTTPRouteCleanup(namespace, name, key string, currentGateways []string) []string {
+	routeTypeNsName := lib.HTTPRoute + "/" + namespace + "/" + name
+	var oldGatewaysToCleanup []string
+
+	// Get the old gateways from cache
+	found, oldGateways := akogatewayapiobjects.GatewayApiLister().GetRouteToGateway(routeTypeNsName)
+	if !found {
+		return oldGatewaysToCleanup
+	}
+
+	// Find gateways that are in the old list but not in the current list
+	for _, oldGwNsName := range oldGateways {
+		if !utils.HasElem(currentGateways, oldGwNsName) {
+			utils.AviLog.Infof("key: %s, msg: Found old gateway %s for cleanup reconciliation", key, oldGwNsName)
+			oldGatewaysToCleanup = append(oldGatewaysToCleanup, oldGwNsName)
+		}
+	}
+
+	return oldGatewaysToCleanup
+}
+
 func HTTPRouteChanges(namespace, name, key string) ([]string, bool) {
 	routeTypeNsName := lib.HTTPRoute + "/" + namespace + "/" + name
 	hrObj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Lister().HTTPRoutes(namespace).Get(name)

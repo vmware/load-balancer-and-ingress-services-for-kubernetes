@@ -37,6 +37,8 @@ func DequeueIngestion(key string, fullsync bool) {
 	if !valid {
 		return
 	}
+	// For HTTPRoute updates, capture old gateways BEFORE schema.GetGateways updates the mapping
+	var oldGatewaysForCleanup []string
 	if objType == lib.HTTPRoute {
 		httpRoute, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().HTTPRouteInformer.Lister().HTTPRoutes(namespace).Get(name)
 		if err == nil {
@@ -44,6 +46,19 @@ func DequeueIngestion(key string, fullsync bool) {
 			if !IsHTTPRouteValid(key, httpRoute) {
 				return
 			}
+			// Get current gateways from the HTTPRoute spec
+			var currentGateways []string
+			for _, parentRef := range httpRoute.Spec.ParentRefs {
+				parentNs := namespace
+				if parentRef.Namespace != nil {
+					parentNs = string(*parentRef.Namespace)
+				}
+				gwNsName := parentNs + "/" + string(parentRef.Name)
+				currentGateways = append(currentGateways, gwNsName)
+			}
+
+			// Get old gateways that need cleanup before the mapping is updated
+			oldGatewaysForCleanup = GetOldGatewaysForHTTPRouteCleanup(namespace, name, key, currentGateways)
 		}
 	}
 
@@ -164,6 +179,48 @@ func DequeueIngestion(key string, fullsync bool) {
 			nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
 		}
 	}
+
+	// For HTTPRoute updates, process old gateways for cleanup only
+	if objType == lib.HTTPRoute {
+		utils.AviLog.Infof("key: %s, msg: Checking for old gateways to cleanup. Current gateways: %v, Old gateways: %v", key, gatewayNsNameList, oldGatewaysForCleanup)
+		if len(oldGatewaysForCleanup) > 0 {
+			utils.AviLog.Infof("key: %s, msg: Processing old gateways for cleanup: %v", key, oldGatewaysForCleanup)
+			for _, oldGatewayNsName := range oldGatewaysForCleanup {
+				parentNs, _, parentName := lib.ExtractTypeNameNamespace(oldGatewayNsName)
+				tenant := objects.SharedNamespaceTenantLister().GetTenantInNamespace(oldGatewayNsName)
+				if tenant == "" {
+					tenant = lib.GetTenant()
+				}
+				modelName := lib.GetModelName(tenant, akogatewayapilib.GetGatewayParentName(parentNs, parentName))
+
+				modelFound, modelIntf := objects.SharedAviGraphLister().Get(modelName)
+				if !modelFound || modelIntf == nil {
+					utils.AviLog.Debugf("key: %s, msg: no model found for old gateway: %s", key, modelName)
+					continue
+				}
+
+				model := &AviObjectGraph{modelIntf.(*nodes.AviObjectGraph)}
+				routeTypeNsName := lib.HTTPRoute + "/" + namespace + "/" + name
+				utils.AviLog.Infof("key: %s, msg: cleaning up route %s from old gateway %s", key, routeTypeNsName, oldGatewayNsName)
+
+				// Process deletion for this route on the old gateway
+				routeModel, err := NewRouteModel(key, lib.HTTPRoute, name, namespace)
+				if err != nil {
+					utils.AviLog.Warnf("key: %s, msg: error getting route model for cleanup: %v", key, err)
+					continue
+				}
+				model.ProcessRouteDeletion(key, oldGatewayNsName, routeModel, fullsync)
+
+				// Save the model changes
+				modelChanged := saveAviModel(modelName, model.AviObjectGraph, key)
+				if modelChanged && !fullsync {
+					sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
+					nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
+				}
+			}
+		}
+	}
+
 	utils.AviLog.Infof("key: %s, msg: finished graph Sync", key)
 }
 func handleSecrets(gatewayNamespace string, gatewayName string, key string, object *AviObjectGraph) bool {
