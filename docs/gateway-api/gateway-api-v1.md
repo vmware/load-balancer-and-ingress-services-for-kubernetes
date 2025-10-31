@@ -28,7 +28,7 @@ A GatewayClass `avi-lb` with `controllerName` as `ako.vmware.com/avi-lb` will ge
 
 ### Named Route Rules Support
 
-Starting from **AKO 2.1.1**, AKO supports Gateway API v1.3 which introduces the [Named Route Rules](https://gateway-api.sigs.k8s.io/reference/spec/#httprouterule) field (`HTTPRoute → rules → name`). When this field is specified, AKO uses the rule name instead of the jsonified match in the naming convention for ChildVS, Pool, and PoolGroup.
+Starting from **AKO 2.1.1**, AKO supports Gateway API v1.3+ which introduces the [Named Route Rules](https://gateway-api.sigs.k8s.io/reference/spec/#httprouterule) field (`HTTPRoute → rules → name`). When this field is specified, AKO uses the rule name instead of the jsonified match in the naming convention for ChildVS, Pool, and PoolGroup.
 
 **Key Behaviors:**
 - The `rule → name` field is **optional** and must be **unique** within an HTTPRoute if set.
