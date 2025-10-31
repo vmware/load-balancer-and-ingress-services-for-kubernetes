@@ -248,16 +248,26 @@ func GetNamePrefix() string {
 	return NamePrefix
 }
 
+// EncodeWithPrefix encodes the given string with the given prefix
+// if prefix is not provided, it uses the NamePrefix value
+func EncodeWithPrefix(s, objType string, prefix ...string) string {
+	namePrefix := GetNamePrefix()
+	if len(prefix) > 0 {
+		namePrefix = prefix[0]
+	}
+	hash := sha1.Sum([]byte(s))
+	encodedStr := namePrefix + hex.EncodeToString(hash[:])
+	//Added this check to be safe side if encoded name becomes greater than limit set
+	CheckObjectNameLength(encodedStr, objType)
+	return encodedStr
+}
+
 func Encode(s, objType string) string {
 	if !IsEvhEnabled() || utils.IsWCP() {
 		CheckObjectNameLength(s, objType)
 		return s
 	}
-	hash := sha1.Sum([]byte(s))
-	encodedStr := GetNamePrefix() + hex.EncodeToString(hash[:])
-	//Added this check to be safe side if encoded name becomes greater than limit set
-	CheckObjectNameLength(encodedStr, objType)
-	return encodedStr
+	return EncodeWithPrefix(s, objType)
 }
 
 func IsNameEncoded(name string) bool {
