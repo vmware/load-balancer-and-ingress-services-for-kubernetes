@@ -16,8 +16,6 @@ package lib
 
 import (
 	"context"
-	"crypto/sha1"
-	"encoding/hex"
 	"fmt"
 	"math"
 	"strings"
@@ -513,22 +511,10 @@ func IsApplicationProfileProcessed(obj interface{}, namespace, name string) bool
 	return false
 }
 
-func Encode(s, objType string) string {
-	if !lib.IsEvhEnabled() || utils.IsWCP() {
-		lib.CheckObjectNameLength(s, objType)
-		return s
-	}
-	hash := sha1.Sum([]byte(s))
-	NamePrefix := CRDOperatorPrefix + lib.GetClusterName() + "--"
-	encodedStr := NamePrefix + hex.EncodeToString(hash[:])
-	//Added this check to be safe side if encoded name becomes greater than limit set
-	lib.CheckObjectNameLength(encodedStr, objType)
-	return encodedStr
-}
-
 // getPKIProfileName generates PKI profile name using clustername-namespace-name format
 // to match the naming convention used by the ako-crd-operator
 func getPKIProfileName(namespace, objectName string) string {
 	name := namespace + "-" + objectName
-	return Encode(name, lib.EVHVS)
+	namePrefix := CRDOperatorPrefix + lib.GetClusterName() + "--"
+	return lib.EncodeWithPrefix(name, lib.EVHVS, namePrefix)
 }

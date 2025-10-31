@@ -66,7 +66,7 @@ func GetChildName(parentNs, parentName, routeNs, routeName, matchName string) st
 	if matchName != "" {
 		name = fmt.Sprintf("%s-%s", name, utils.Stringify(utils.Hash(matchName)))
 	}
-	return lib.Encode(name, lib.EVHVS)
+	return lib.EncodeWithPrefix(name, lib.EVHVS)
 }
 
 func GetPoolName(parentNs, parentName, routeNs, routeName, matchName, backendNs, backendName, backendPort string) string {
@@ -75,7 +75,7 @@ func GetPoolName(parentNs, parentName, routeNs, routeName, matchName, backendNs,
 		name = fmt.Sprintf("%s%s-", name, utils.Stringify(utils.Hash(matchName)))
 	}
 	name = fmt.Sprintf("%s%s-%s-%s", name, backendNs, backendName, backendPort)
-	return lib.Encode(name, lib.Pool)
+	return lib.EncodeWithPrefix(name, lib.Pool)
 }
 
 func GetPoolGroupName(parentNs, parentName, routeNs, routeName, matchName string) string {
@@ -83,7 +83,7 @@ func GetPoolGroupName(parentNs, parentName, routeNs, routeName, matchName string
 	if matchName != "" {
 		name = fmt.Sprintf("%s-%s", name, utils.Stringify(utils.Hash(matchName)))
 	}
-	return lib.Encode(name, lib.PG)
+	return lib.EncodeWithPrefix(name, lib.PG)
 }
 
 func GetPersistenceProfileName(parentNs, parentName, routeNs, routeName, matchName, sessionPersistenceType string) string {
@@ -91,12 +91,12 @@ func GetPersistenceProfileName(parentNs, parentName, routeNs, routeName, matchNa
 	if matchName != "" {
 		name = fmt.Sprintf("%s-%s", name, utils.Stringify(utils.Hash(matchName)))
 	}
-	return lib.Encode(name, lib.ApplicationPersistenceProfile)
+	return lib.EncodeWithPrefix(name, lib.ApplicationPersistenceProfile)
 }
 
 func GetHttpPolicySetName(parentNs, parentName, routeNs, routeName string) string {
 	name := parentNs + "-" + parentName + "-" + routeNs + "-" + routeName + "-httproute"
-	return lib.Encode(name, lib.HTTPPS)
+	return lib.EncodeWithPrefix(name, lib.HTTPPS)
 }
 
 func GetDedicatedPoolName(poolGroupName, backendNs, backendName string, backendPort int32, backendIndex int) string {
@@ -106,7 +106,7 @@ func GetDedicatedPoolName(poolGroupName, backendNs, backendName string, backendP
 	} else {
 		name = fmt.Sprintf("%s-backend-%d", poolGroupName, backendIndex)
 	}
-	return lib.Encode(name, lib.Pool)
+	return lib.EncodeWithPrefix(name, lib.Pool)
 }
 
 func CheckGatewayClassController(controllerName string) bool {
@@ -221,7 +221,7 @@ func GetDefaultHTTPPSName() string {
 
 func GetTLSKeyCertNodeName(gatewayNameSpace, gatewayName, secretNameSpace, secretName string) string {
 	namePrefix := gatewayNameSpace + "-" + gatewayName + "-" + secretNameSpace + "-" + secretName
-	return lib.Encode(namePrefix, lib.TLSKeyCert)
+	return lib.EncodeWithPrefix(namePrefix, lib.TLSKeyCert)
 }
 
 func CreateVCFGatewayClass() error {
