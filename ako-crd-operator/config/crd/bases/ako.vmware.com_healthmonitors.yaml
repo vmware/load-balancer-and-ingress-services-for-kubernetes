@@ -217,6 +217,10 @@ spec:
             - message: If auth_type is set, secret_ref must be set in authentication
               rule: (!has(self.http_monitor) || !has(self.http_monitor.auth_type)
                 || has(self.authentication.secret_ref))
+            - message: monitor_port is immutable
+              rule: has(oldSelf.monitor_port) == has(self.monitor_port)
+            - message: is_federated is immutable
+              rule: has(oldSelf.is_federated) == has(self.is_federated)
           status:
             description: Status defines the observed state of HealthMonitor
             properties:
