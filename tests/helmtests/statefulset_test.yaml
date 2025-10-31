@@ -23,7 +23,7 @@ tests:
       featureGates:
         GatewayAPI: true
       GatewayAPI:
-        image: 
+        image:
           repository: "127.0.0.1:5000/ako/ako-gateway-api"
           pullPolicy: "Always"
       akoGatewayLogFile: "gw-api-ut.log"
@@ -126,3 +126,146 @@ tests:
               configMapKeyRef:
                 key: vpcMode
                 name: avi-k8s-config
+  - it: StatefulSet should render istio-certs volume and annotations when Istio is enabled
+    set:
+      featureGates:
+        GatewayAPI: true
+      AKOSettings:
+        istioEnabled: true
+      GatewayAPI:
+        image:
+          repository: "127.0.0.1:5000/ako/ako-gateway-api"
+          pullPolicy: "Always"
+      akoGatewayLogFile: "gw-api-istio.log"
+    asserts:
+      - isKind:
+          of: StatefulSet
+      - hasDocuments:
+          count: 1
+      # Check Istio annotations are present
+      - isNotEmpty:
+          path: spec.template.metadata.annotations
+      - equal:
+          path: spec.template.metadata.annotations["sidecar.istio.io/inject"]
+          value: "true"
+      - isNotEmpty:
+          path: spec.template.metadata.annotations["sidecar.istio.io/userVolume"]
+      - isNotEmpty:
+          path: spec.template.metadata.annotations["sidecar.istio.io/userVolumeMount"]
+      # Check istio-certs volume is defined
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: istio-certs
+            emptyDir:
+              medium: Memory
+      # Check both containers are present
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: ako
+      - equal:
+          path: spec.template.spec.containers[1].name
+          value: ako-gateway-api
+      # Check istio-certs volume mount in AKO container only
+      - isNotEmpty:
+          path: spec.template.spec.containers[0].volumeMounts
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: istio-certs
+            mountPath: /etc/istio-output-certs/
+      # Note: GatewayAPI container doesn't mount istio-certs volume
+      # Only AKO container mounts the istio-certs volume
+      # Check both containers have ISTIO_ENABLED env var
+      - contains:
+          path: spec.template.spec.containers[0].env
+          content:
+            name: ISTIO_ENABLED
+            valueFrom:
+              configMapKeyRef:
+                key: istioEnabled
+                name: avi-k8s-config
+      - contains:
+          path: spec.template.spec.containers[1].env
+          content:
+            name: ISTIO_ENABLED
+            valueFrom:
+              configMapKeyRef:
+                key: istioEnabled
+                name: avi-k8s-config
+  - it: StatefulSet should render istio-certs volume with sizeLimit when Istio is enabled and persistentVolumeClaim is specified
+    set:
+      featureGates:
+        GatewayAPI: true
+      AKOSettings:
+        istioEnabled: true
+      persistentVolumeClaim: "ako-pvc"
+      GatewayAPI:
+        image:
+          repository: "127.0.0.1:5000/ako/ako-gateway-api"
+          pullPolicy: "Always"
+      akoGatewayLogFile: "gw-api-istio.log"
+    asserts:
+      - isKind:
+          of: StatefulSet
+      - hasDocuments:
+          count: 1
+      # Check both volumes are present
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: ako-pv-storage
+            persistentVolumeClaim:
+              claimName: ako-pvc
+      - contains:
+          path: spec.template.spec.volumes
+          content:
+            name: istio-certs
+            emptyDir:
+              medium: Memory
+      # Check both containers are present
+      - equal:
+          path: spec.template.spec.containers[0].name
+          value: ako
+      - equal:
+          path: spec.template.spec.containers[1].name
+          value: ako-gateway-api
+      # Check istio-certs volume mount in AKO container only
+      - isNotEmpty:
+          path: spec.template.spec.containers[0].volumeMounts
+      - lengthEqual:
+          path: spec.template.spec.containers[0].volumeMounts
+          count: 2
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: ako-pv-storage
+            mountPath: /log
+      - contains:
+          path: spec.template.spec.containers[0].volumeMounts
+          content:
+            name: istio-certs
+            mountPath: /etc/istio-output-certs/
+      # Check GatewayAPI container has PVC volume mount but not istio-certs
+      - contains:
+          path: spec.template.spec.containers[1].volumeMounts
+          content:
+            name: ako-pv-storage
+            mountPath: /log
+      # Note: GatewayAPI container doesn't mount istio-certs volume
+      # Only AKO container mounts the istio-certs volume
+  - it: StatefulSet should not render istio-certs volume when Istio is disabled
+    set:
+      AKOSettings:
+        istioEnabled: false
+    asserts:
+      - isKind:
+          of: StatefulSet
+      - hasDocuments:
+          count: 1
+      # Check Istio annotations are not present
+      - isNull:
+          path: spec.template.metadata.annotations
+      # Check istio-certs volume is not present
+      - isNull:
+          path: spec.template.spec.volumes
