@@ -4,7 +4,6 @@ package session
 
 import (
 	"context"
-	"errors"
 	"os"
 	"sync"
 	"testing"
@@ -181,23 +180,6 @@ func TestCreateAviClients(t *testing.T) {
 			wantStatus:     utils.AVIAPI_CONNECTED,
 			wantVersion:    utils.MaxAviVersion,
 			wantClientPool: true,
-		},
-		{
-			name: "error: factory returns error",
-			ctrlProperties: map[string]string{
-				utils.ENV_CTRL_USERNAME:  "admin",
-				utils.ENV_CTRL_PASSWORD:  "password123",
-				utils.ENV_CTRL_AUTHTOKEN: "",
-				utils.ENV_CTRL_CADATA:    "ca-data",
-			},
-			setupControllerIP: func() { lib.SetControllerIP("10.1.1.1") },
-			prepareMock: func(mockFactory *mock.MockAviRestClientPoolFactory) {
-				mockFactory.EXPECT().NewAviRestClientPool(
-					1, "10.1.1.1", "admin", "password123", "", "", "ca-data", "admin", "", gomock.Any(),
-				).Return(nil, "", errors.New("connection failed"))
-			},
-			wantStatus:     utils.AVIAPI_DISCONNECTED,
-			wantClientPool: false,
 		},
 		{
 			name: "error: missing username",
@@ -586,14 +568,9 @@ func TestCreateAviClients_VersionHandling(t *testing.T) {
 			wantVersion:          "22.1.3",
 			wantStatus:           utils.AVIAPI_CONNECTED,
 		},
-		{
-			name:                 "version set even on error",
-			initialVersion:       "",
-			factoryReturnError:   errors.New("connection failed"),
-			factoryReturnVersion: "22.1.3",
-			wantVersion:          "22.1.3",
-			wantStatus:           utils.AVIAPI_DISCONNECTED,
-		},
+		// Note: The "version set even on error" test case has been removed because
+		// the code now calls log.Fatalf() when the factory returns an error, which
+		// causes os.Exit() and cannot be tested with standard Go testing patterns.
 	}
 
 	for _, tt := range tests {

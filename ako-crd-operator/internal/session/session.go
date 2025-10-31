@@ -148,6 +148,7 @@ func (s *Session) CreateAviClients(ctx context.Context, numClient int) {
 	)
 	if err != nil {
 		s.status = utils.AVIAPI_DISCONNECTED
+		log.Fatalf("Failed to create Avi clients. error: %s", err.Error())
 	} else {
 		s.status = utils.AVIAPI_CONNECTED
 		// set the controller version in avisession obj
