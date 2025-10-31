@@ -474,10 +474,9 @@ func (o *AviObjectGraph) DeletePoolForHostname(vsName, hostname string, routeIgr
 
 		// Remove these hosts from the overall FQDN list
 		vsNode[0].RemoveFQDNsFromModel(hosts, key)
-		// TODO: uncomment after fixing race condition in get/delete in fqdntoaliases mapping
-		// if len(vsNode[0].VSVIPRefs) != 0 {
-		// 	objects.SharedCRDLister().UpdateFQDNToAliasesMappings(hostname, vsNode[0].VSVIPRefs[0].FQDNs)
-		// }
+		if len(vsNode[0].VSVIPRefs) != 0 {
+			objects.SharedCRDLister().UpdateFQDNToAliasesMappings(hostname, vsNode[0].VSVIPRefs[0].FQDNs)
+		}
 	}
 	if removeRedir && !keepSni {
 		var hostnames []string
@@ -803,10 +802,9 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 				DeleteDedicatedVSNode(vsNode[0], sniHostToRemove, key)
 			}
 			vsNode[0].RemoveFQDNsFromModel(sniHostToRemove, key)
-			// TODO: uncomment after fixing race condition in get/delete in fqdntoaliases mapping
-			// if len(vsNode[0].VSVIPRefs) != 0 {
-			// 	objects.SharedCRDLister().UpdateFQDNToAliasesMappings(sniHost, vsNode[0].VSVIPRefs[0].FQDNs)
-			// }
+			if len(vsNode[0].VSVIPRefs) != 0 {
+				objects.SharedCRDLister().UpdateFQDNToAliasesMappings(sniHost, vsNode[0].VSVIPRefs[0].FQDNs)
+			}
 		}
 	}
 }
