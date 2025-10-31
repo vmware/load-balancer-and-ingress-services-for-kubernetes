@@ -241,7 +241,7 @@ func TestPKIProfileController(t *testing.T) {
 				},
 			},
 			prepare: func(mockAviClient *mock.MockAviClientInterface) {
-				mockAviClient.EXPECT().AviSessionDelete(fmt.Sprintf("%s/%s", crdlib.PKIProfileURL, "123"), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
+				mockAviClient.EXPECT().AviSessionDelete(fmt.Sprintf("%s/%s", crdlib.PKIProfileURL, "123"), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 			},
 			want: &akov1alpha1.PKIProfile{
 				ObjectMeta: metav1.ObjectMeta{
@@ -271,6 +271,167 @@ func TestPKIProfileController(t *testing.T) {
 				},
 			},
 			wantErr: false,
+		},
+		{
+			name: "success: delete pkiprofile with empty UUID (object not found on AVI)",
+			pki: &akov1alpha1.PKIProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "test",
+					Namespace:         "default",
+					Finalizers:        []string{"pkiprofile.ako.vmware.com/finalizer"},
+					DeletionTimestamp: &metav1.Time{Time: time.Now()},
+				},
+				Status: akov1alpha1.PKIProfileStatus{
+					UUID: "",
+				},
+				Spec: akov1alpha1.PKIProfileSpec{
+					CACerts: []*akov1alpha1.SSLCertificate{{Certificate: func() *string {
+						s := testCertificate
+						return &s
+					}()}},
+				},
+			},
+			prepare: func(mockAviClient *mock.MockAviClientInterface) {
+				// Mock GetObjectUUIDFromAvi call - return 404 (not found)
+				mockAviClient.EXPECT().AviSessionGet(
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+				).Return(session.AviError{
+					HttpStatusCode: 404,
+				}).AnyTimes()
+			},
+			want: &akov1alpha1.PKIProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "test",
+					Finalizers:        []string{},
+					Namespace:         "default",
+					ResourceVersion:   "1000",
+					DeletionTimestamp: &metav1.Time{Time: time.Now()},
+				},
+				Status: akov1alpha1.PKIProfileStatus{
+					UUID:               "",
+					Controller:         crdlib.AKOCRDController,
+					ObservedGeneration: 0,
+					Conditions: []metav1.Condition{
+						{
+							Type:   string(akov1alpha1.ObjectConditionProgrammed),
+							Status: metav1.ConditionTrue,
+							Reason: "DeletionSkipped",
+						},
+					},
+				},
+				Spec: akov1alpha1.PKIProfileSpec{
+					CACerts: []*akov1alpha1.SSLCertificate{{Certificate: func() *string {
+						s := testCertificate
+						return &s
+					}()}},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "success: delete pkiprofile with empty UUID (object found on AVI)",
+			pki: &akov1alpha1.PKIProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "test",
+					Namespace:         "default",
+					Finalizers:        []string{"pkiprofile.ako.vmware.com/finalizer"},
+					DeletionTimestamp: &metav1.Time{Time: time.Now()},
+				},
+				Status: akov1alpha1.PKIProfileStatus{
+					UUID: "",
+				},
+				Spec: akov1alpha1.PKIProfileSpec{
+					CACerts: []*akov1alpha1.SSLCertificate{{Certificate: func() *string {
+						s := testCertificate
+						return &s
+					}()}},
+				},
+			},
+			prepare: func(mockAviClient *mock.MockAviClientInterface) {
+				// Mock GetObjectUUIDFromAvi call - return object with UUID
+				responseBody := map[string]interface{}{
+					"results": []interface{}{map[string]interface{}{"uuid": "fetched-uuid-123"}},
+				}
+				mockAviClient.EXPECT().AviSessionGet(
+					fmt.Sprintf("%s?name=%s", crdlib.PKIProfileURL, "ako-crd-operator-test-cluster--738bb014438bdbfe7f14e44b60f97b07e22e4dc0"),
+					gomock.Any(),
+					gomock.Any(),
+				).Do(func(url string, response interface{}, params ...interface{}) {
+					if resp, ok := response.(*map[string]interface{}); ok {
+						*resp = responseBody
+					}
+				}).Return(nil).Times(1)
+
+				// Mock the actual delete call with fetched UUID
+				mockAviClient.EXPECT().AviSessionDelete(
+					crdlib.PKIProfileURL+"/fetched-uuid-123",
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+				).Return(nil).Times(1)
+			},
+			want: &akov1alpha1.PKIProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "test",
+					Finalizers:        []string{},
+					Namespace:         "default",
+					ResourceVersion:   "1000",
+					DeletionTimestamp: &metav1.Time{Time: time.Now()},
+				},
+				Status: akov1alpha1.PKIProfileStatus{
+					UUID:               "",
+					Controller:         crdlib.AKOCRDController,
+					ObservedGeneration: 0,
+					Conditions: []metav1.Condition{
+						{
+							Type:   string(akov1alpha1.ObjectConditionProgrammed),
+							Status: metav1.ConditionTrue,
+							Reason: "DeletionSkipped",
+						},
+					},
+				},
+				Spec: akov1alpha1.PKIProfileSpec{
+					CACerts: []*akov1alpha1.SSLCertificate{{Certificate: func() *string {
+						s := testCertificate
+						return &s
+					}()}},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "error: delete pkiprofile with empty UUID but AVI GET fails",
+			pki: &akov1alpha1.PKIProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "test",
+					Namespace:         "default",
+					Finalizers:        []string{"pkiprofile.ako.vmware.com/finalizer"},
+					DeletionTimestamp: &metav1.Time{Time: time.Now()},
+					ResourceVersion:   "1000",
+				},
+				Status: akov1alpha1.PKIProfileStatus{
+					UUID:   "",
+					Tenant: "admin",
+				},
+				Spec: akov1alpha1.PKIProfileSpec{
+					CACerts: []*akov1alpha1.SSLCertificate{{Certificate: func() *string {
+						s := testCertificate
+						return &s
+					}()}},
+				},
+			},
+			prepare: func(mockAviClient *mock.MockAviClientInterface) {
+				// Mock GetObjectUUIDFromAvi call - return error
+				mockAviClient.EXPECT().AviSessionGet(
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+				).Return(errors.New("AVI connection error")).Times(1)
+			},
+			want:    nil,
+			wantErr: true,
 		},
 		{
 			name: "error: AVI client validation error during creation",
@@ -389,20 +550,24 @@ func TestPKIProfileController(t *testing.T) {
 				// Object was successfully deleted, skip further checks
 				return
 			}
+
+			// If we expect an error or want is nil, skip further checks
+			if tt.wantErr || tt.want == nil {
+				return
+			}
+
 			assert.NoError(t, err)
 
 			// Check finalizers
 			assert.Equal(t, tt.want.Finalizers, updatedPKI.Finalizers)
 
-			// Check status fields only if we don't expect an error
-			if !tt.wantErr {
-				assert.Equal(t, tt.want.Status.UUID, updatedPKI.Status.UUID)
-				assert.Equal(t, tt.want.Status.Controller, updatedPKI.Status.Controller)
-				assert.Equal(t, tt.want.Status.ObservedGeneration, updatedPKI.Status.ObservedGeneration)
-			}
+			// Check status fields
+			assert.Equal(t, tt.want.Status.UUID, updatedPKI.Status.UUID)
+			assert.Equal(t, tt.want.Status.Controller, updatedPKI.Status.Controller)
+			assert.Equal(t, tt.want.Status.ObservedGeneration, updatedPKI.Status.ObservedGeneration)
 
-			// Check conditions only if we don't expect an error
-			if !tt.wantErr && len(tt.want.Status.Conditions) > 0 && len(updatedPKI.Status.Conditions) > 0 {
+			// Check conditions
+			if len(tt.want.Status.Conditions) > 0 && len(updatedPKI.Status.Conditions) > 0 {
 				assert.Equal(t, len(tt.want.Status.Conditions), len(updatedPKI.Status.Conditions))
 				for i, expectedCondition := range tt.want.Status.Conditions {
 					if i < len(updatedPKI.Status.Conditions) {

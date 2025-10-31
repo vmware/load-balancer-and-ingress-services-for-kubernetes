@@ -134,8 +134,7 @@ func (r *PKIProfileReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			}
 			return ctrl.Result{RequeueAfter: crdlib.RequeueInterval}, nil
 		}
-		r.EventRecorder.Event(pki, corev1.EventTypeNormal, "Deleted", "PKIProfile deleted successfully from Avi Controller")
-		log.Info("successfully deleted PKIProfile")
+		log.Info("successfully deleted PKIProfile object")
 		return ctrl.Result{}, nil
 	}
 
@@ -187,34 +186,45 @@ func (r *PKIProfileReconciler) SetupWithManager(mgr ctrl.Manager) error {
 // The boolean indicates whether the finalizer should be removed (true) or kept (false)
 func (r *PKIProfileReconciler) DeleteObject(ctx context.Context, pki *akov1alpha1.PKIProfile) (error, bool) {
 	log := utils.LoggerFromContext(ctx)
-	if pki.Status.UUID != "" && pki.Status.Tenant != "" {
-		if err := r.AviClient.AviSessionDelete(utils.GetUriEncoded(fmt.Sprintf("%s/%s", crdlib.PKIProfileURL, pki.Status.UUID)), nil, nil, session.SetOptTenant(pki.Status.Tenant)); err != nil {
-			// Handle 404 as success case - object doesn't exist, which is the desired state for delete
-			if aviError, ok := err.(session.AviError); ok {
-				switch aviError.HttpStatusCode {
-				case 404:
-					log.Info("PKIProfile not found on Avi Controller (404), treating as successful deletion")
-					return nil, true
-				case 403:
-					log.Errorf("PKIProfile cannot be deleted. %s", aviError.Error())
-					if statusErr := r.SetStatus(ctx, pki, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionFalse, akov1alpha1.ObjectReasonDeletionSkipped, controllerutils.ParseAviErrorMessage(*aviError.Message)); statusErr != nil {
-						return statusErr, false
-					}
-					return nil, false
-				}
-			}
-			log.Errorf("error deleting pki profile: %s", err.Error())
-			if statusErr := r.SetStatus(ctx, pki, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionFalse, akov1alpha1.ObjectReasonDeletionFailed, fmt.Sprintf("Failed to delete PKIProfile from Avi Controller: %v", err)); statusErr != nil {
-				return statusErr, false
-			}
+	var UUID, tenant string
+	var err error
+	UUID = pki.Status.UUID
+	tenant = pki.Status.Tenant
+	if UUID == "" {
+		// try getting the pki profile from avi controller using name and namespace
+		UUID, tenant, err = controllerutils.GetObjectUUIDFromAvi(ctx, r.AviClient, r.Client, pki.Namespace, pki.Name, crdlib.PKIProfileURL, tenant)
+		if err != nil {
+			log.Errorf("error getting pki profile: %s", err.Error())
 			return err, false
 		}
-	} else {
-		log.Warn("error deleting pki profile. uuid not present. possibly avi pki profile object not created")
-		if err := r.SetStatus(ctx, pki, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionTrue, akov1alpha1.ObjectReasonDeletionSkipped, "UUID not present, PKIProfile may not have been created on Avi Controller"); err != nil {
-			return err, false
+		if UUID == "" {
+			log.Info("PKIProfile not found on Avi Controller")
+			return nil, true
 		}
 	}
+	if err := r.AviClient.AviSessionDelete(utils.GetUriEncoded(fmt.Sprintf("%s/%s", crdlib.PKIProfileURL, UUID)), nil, nil, session.SetOptTenant(tenant)); err != nil {
+		// Handle 404 as success case - object doesn't exist, which is the desired state for delete
+		if aviError, ok := err.(session.AviError); ok {
+			switch aviError.HttpStatusCode {
+			case 404:
+				log.Info("PKIProfile not found on Avi Controller (404), treating as successful deletion")
+				return nil, true
+			case 403:
+				log.Errorf("PKIProfile cannot be deleted. %s", aviError.Error())
+				if statusErr := r.SetStatus(ctx, pki, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionFalse, akov1alpha1.ObjectReasonDeletionSkipped, controllerutils.ParseAviErrorMessage(*aviError.Message)); statusErr != nil {
+					return statusErr, false
+				}
+				return nil, false
+			}
+		}
+		log.Errorf("error deleting pki profile: %s", err.Error())
+		if statusErr := r.SetStatus(ctx, pki, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionFalse, akov1alpha1.ObjectReasonDeletionFailed, fmt.Sprintf("Failed to delete PKIProfile from Avi Controller: %v", err)); statusErr != nil {
+			return statusErr, false
+		}
+		return err, false
+	}
+	r.EventRecorder.Event(pki, corev1.EventTypeNormal, "Deleted", "PKIProfile deleted successfully from Avi Controller")
+	log.Info("successfully deleted pki profile from Avi Controller")
 	return nil, true
 }
 
@@ -283,7 +293,7 @@ func (r *PKIProfileReconciler) ReconcileIfRequired(ctx context.Context, pki *ako
 			}
 			return err
 		}
-		uuid, err := extractUUID(resp)
+		uuid, err := controllerutils.ExtractUUID(resp)
 		if err != nil {
 			log.Errorf("error extracting UUID from pki profile: %s", err.Error())
 			if statusErr := r.SetStatus(ctx, pki, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionFalse, akov1alpha1.ObjectReasonUUIDExtractionFailed, fmt.Sprintf("Failed to extract UUID: %v", err)); statusErr != nil {
@@ -344,7 +354,7 @@ func (r *PKIProfileReconciler) createPKIProfile(ctx context.Context, pkiReq *mod
 					log.Errorf("error getting pki profile %s", err.Error())
 					return nil, err
 				}
-				uuid, err := extractUUID(resp)
+				uuid, err := controllerutils.ExtractUUID(resp)
 				if err != nil {
 					log.Errorf("error extracting UUID from pki profile: %s", err.Error())
 					return nil, err

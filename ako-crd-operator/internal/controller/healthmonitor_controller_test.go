@@ -321,10 +321,11 @@ func TestHealthMonitorController(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "success: delete healthmonitor with empty UUID",
+			name: "success: delete healthmonitor with empty UUID (object not found on AVI)",
 			hm: &akov1alpha1.HealthMonitor{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:              "test",
+					Namespace:         "default",
 					Finalizers:        []string{"healthmonitor.ako.vmware.com/finalizer"},
 					DeletionTimestamp: &metav1.Time{Time: time.Now().Truncate(time.Second)},
 				},
@@ -332,8 +333,83 @@ func TestHealthMonitorController(t *testing.T) {
 					UUID: "",
 				},
 			},
+			prepare: func(mockAviClient *mock.MockAviClientInterface) {
+				// Mock GetObjectUUIDFromAvi call - return 404 (not found)
+				mockAviClient.EXPECT().AviSessionGet(
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+				).Return(session.AviError{
+					HttpStatusCode: 404,
+				}).AnyTimes()
+			},
 			want:    nil,
 			wantErr: false,
+		},
+		{
+			name: "success: delete healthmonitor with empty UUID (object found on AVI)",
+			hm: &akov1alpha1.HealthMonitor{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "test",
+					Namespace:         "default",
+					Finalizers:        []string{"healthmonitor.ako.vmware.com/finalizer"},
+					DeletionTimestamp: &metav1.Time{Time: time.Now().Truncate(time.Second)},
+				},
+				Status: akov1alpha1.HealthMonitorStatus{
+					UUID: "",
+				},
+			},
+			prepare: func(mockAviClient *mock.MockAviClientInterface) {
+				// Mock GetObjectUUIDFromAvi call - return object with UUID
+				responseBody := map[string]interface{}{
+					"results": []interface{}{map[string]interface{}{"uuid": "fetched-uuid-123"}},
+				}
+				mockAviClient.EXPECT().AviSessionGet(
+					fmt.Sprintf("%s?name=%s", crdlib.HealthMonitorURL, "ako-crd-operator-test-cluster--738bb014438bdbfe7f14e44b60f97b07e22e4dc0"),
+					gomock.Any(),
+					gomock.Any(),
+				).Do(func(url string, response interface{}, params ...interface{}) {
+					if resp, ok := response.(*map[string]interface{}); ok {
+						*resp = responseBody
+					}
+				}).Return(nil).Times(1)
+
+				// Mock the actual delete call with fetched UUID
+				mockAviClient.EXPECT().AviSessionDelete(
+					crdlib.HealthMonitorURL+"/fetched-uuid-123",
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+				).Return(nil).Times(1)
+			},
+			want:    nil,
+			wantErr: false,
+		},
+		{
+			name: "error: delete healthmonitor with empty UUID but AVI GET fails",
+			hm: &akov1alpha1.HealthMonitor{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:              "test",
+					Namespace:         "default",
+					Finalizers:        []string{"healthmonitor.ako.vmware.com/finalizer"},
+					DeletionTimestamp: &metav1.Time{Time: time.Now().Truncate(time.Second)},
+					ResourceVersion:   "1000",
+				},
+				Status: akov1alpha1.HealthMonitorStatus{
+					UUID:   "",
+					Tenant: "admin",
+				},
+			},
+			prepare: func(mockAviClient *mock.MockAviClientInterface) {
+				// Mock GetObjectUUIDFromAvi call - return error
+				mockAviClient.EXPECT().AviSessionGet(
+					gomock.Any(),
+					gomock.Any(),
+					gomock.Any(),
+				).Return(errors.New("AVI connection error")).Times(1)
+			},
+			want:    nil,
+			wantErr: true,
 		},
 		{
 			name: "success: update healthmonitor with out-of-band changes (cache miss)",
@@ -902,6 +978,9 @@ func TestHealthMonitorControllerKubernetesError(t *testing.T) {
 						DeletionTimestamp: &metav1.Time{Time: time.Now().Truncate(time.Second)},
 						Finalizers:        []string{"healthmonitor.ako.vmware.com/finalizer"},
 					},
+					Status: akov1alpha1.HealthMonitorStatus{
+						UUID: "123", // Set UUID to avoid GetObjectUUIDFromAvi call
+					},
 				}
 
 				// Create namespace object with tenant annotation
@@ -919,6 +998,10 @@ func TestHealthMonitorControllerKubernetesError(t *testing.T) {
 					},
 				}
 				return builder, req
+			},
+			prepare: func(mockAviClient *mock.MockAviClientInterface) {
+				// Mock delete call
+				mockAviClient.EXPECT().AviSessionDelete(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil).AnyTimes()
 			},
 			wantErr: true,
 		},
@@ -1112,7 +1195,7 @@ func TestExtractUUID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := extractUUID(tt.resp)
+			got, err := controllerutils.ExtractUUID(tt.resp)
 			if tt.wantErr {
 				assert.Error(t, err)
 				if tt.errMsg != "" {
