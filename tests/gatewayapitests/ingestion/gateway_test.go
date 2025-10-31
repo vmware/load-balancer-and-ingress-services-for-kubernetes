@@ -796,17 +796,17 @@ func TestDedicatedGatewayWithTLS(t *testing.T) {
 	// Create HTTPS listener with TLS configuration
 	listeners := []gatewayv1.Listener{
 		{
-			Name:     "listener-https",
-			Port:     443,
-			Protocol: gatewayv1.HTTPSProtocolType,
-			TLS: &gatewayv1.GatewayTLSConfig{
-				Mode: func() *gatewayv1.TLSModeType {
-					mode := gatewayv1.TLSModeTerminate
-					return &mode
-				}(),
-				CertificateRefs: []gatewayv1.SecretObjectReference{
-					{
-						Name: gatewayv1.ObjectName(secretName),
+		Name:     "listener-https",
+		Port:     443,
+		Protocol: gatewayv1.HTTPSProtocolType,
+		TLS: &gatewayv1.ListenerTLSConfig{
+			Mode: func() *gatewayv1.TLSModeType {
+				mode := gatewayv1.TLSModeTerminate
+				return &mode
+			}(),
+			CertificateRefs: []gatewayv1.SecretObjectReference{
+				{
+					Name: gatewayv1.ObjectName(secretName),
 						Kind: func() *gatewayv1.Kind {
 							kind := gatewayv1.Kind("Secret")
 							return &kind
