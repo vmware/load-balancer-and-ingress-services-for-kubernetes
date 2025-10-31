@@ -3,7 +3,7 @@
 set -xe
 
 export GOLANG_SRC_REPO=avi-alb-docker-virtual.packages.vcfd.broadcom.net/golang:latest
-export PHOTON_SRC_REPO=photonos-docker-local.packages.vcfd.broadcom.net/photon5:latest
+export PHOTON_SRC_REPO=photonos-docker-local.packages.vcfd.broadcom.net/photon5-amd64:latest
 
 export PATH=$PATH:/usr/local/go/bin
 go version
