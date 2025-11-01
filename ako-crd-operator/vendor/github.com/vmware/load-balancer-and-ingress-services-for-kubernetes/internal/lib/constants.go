@@ -77,6 +77,7 @@ const (
 	ShardVSPrefix                              = "Shared-L7"
 	ShardEVHVSPrefix                           = "Shared-L7-EVH-"
 	AKOPrefix                                  = "ako-"
+	AKOGWPrefix                                = "ako-gw-"
 	DedicatedSuffix                            = "-L7-dedicated"
 	EVHSuffix                                  = "-EVH"
 	PassthroughPrefix                          = "Shared-Passthrough-"
@@ -243,6 +244,9 @@ const (
 	AKODeleteConfigUnset     = "AKODeleteConfigUnset"
 	AKODeleteConfigDone      = "AKODeleteConfigDone"
 	AKODeleteConfigTimeout   = "AKODeleteConfigTimeout"
+	SSLImportError           = "SSLImportError"
+	SSLCertImportError       = "Import error"
+	SSLCertCommonNameError   = "common_name"
 	AKOGatewayEventComponent = "avi-kubernetes-operator-gateway-api"
 	IngressAddEvent          = "IngressAddEvent"
 	IngressDeleteEvent       = "IngressDeleteEvent"
@@ -287,6 +291,7 @@ const (
 	AntreaTransportAddressAnnotation = "node.antrea.io/transport-addresses"
 	TenantAnnotation                 = "ako.vmware.com/tenant-name"
 	GwProxyProtocolEnableAnnotation  = "iaas.vmware.com/proxy-protocol-enabled"
+	VSUUIDAnnotation                 = "ako.vmware.com/vs-uuid"
 
 	// Specifies command used in namespace event handler
 	NsFilterAdd                    = "ADD"

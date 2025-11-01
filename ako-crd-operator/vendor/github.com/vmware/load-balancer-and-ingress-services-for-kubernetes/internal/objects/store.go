@@ -102,7 +102,6 @@ func (o *ObjectMapStore) Delete(objName string) bool {
 		return true
 	}
 	return false
-
 }
 
 func (o *ObjectMapStore) Get(objName string) (bool, interface{}) {

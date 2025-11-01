@@ -21,5 +21,5 @@ import (
 // object name format - ako-crd-operator-clustername--encoded value of namespace-objectName
 func GetObjectName(namespace, objectName string) string {
 	name := namespace + "-" + objectName
-	return lib.Encode(name, lib.EVHVS)
+	return lib.EncodeWithPrefix(name, lib.EVHVS)
 }

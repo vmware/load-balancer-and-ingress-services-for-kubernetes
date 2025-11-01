@@ -96,6 +96,7 @@ type ServiceMetadataObj struct {
 	PassthroughChildRef        string              `json:"passthrough_child_ref"`
 	Gateway                    string              `json:"gateway"`   // ns/name
 	HTTPRoute                  string              `json:"httproute"` // ns/name
+	HTTPRouteRuleName          string              `json:"httproute_rule_name"`
 	InsecureEdgeTermAllow      bool                `json:"insecureedgetermallow"`
 	IsMCIIngress               bool                `json:"is_mci_ingress"`
 	FQDNReusePolicy            string              `json:"fqdn_reuse_policy"`
@@ -110,10 +111,16 @@ const (
 	ServiceTypeLBVS      ServiceMetadataMappingObjType = "SERVICELB_VS"
 	GatewayPool          ServiceMetadataMappingObjType = "GATEWAY_POOL"
 	SNIInsecureOrEVHPool ServiceMetadataMappingObjType = "SNI_INSECURE_OR_EVH_POOL"
+	HTTPRouteChildVS     ServiceMetadataMappingObjType = "HTTP_ROUTE_CHILD_VS"
 )
 
 func (c ServiceMetadataObj) ServiceMetadataMapping(objType string) ServiceMetadataMappingObjType {
-	if c.Gateway != "" {
+	if objType == "VS" && c.HTTPRoute != "" && c.HTTPRouteRuleName != "" {
+		// Check for `HTTPRoute` and `HTTPRouteRuleName` in VS serviceMetadata. Present in case of
+		// 1) HTTPRoute VS
+		// This needs to be above Gateway check
+		return HTTPRouteChildVS
+	} else if c.Gateway != "" {
 		// Check for `Gateway` in VS serviceMetadata. Present in case of
 		// 1) Advl4 VS
 		// 2) SvcApi VS
@@ -241,16 +248,26 @@ func GetNamePrefix() string {
 	return NamePrefix
 }
 
+// EncodeWithPrefix encodes the given string with the given prefix
+// if prefix is not provided, it uses the NamePrefix value
+func EncodeWithPrefix(s, objType string, prefix ...string) string {
+	namePrefix := GetNamePrefix()
+	if len(prefix) > 0 {
+		namePrefix = prefix[0]
+	}
+	hash := sha1.Sum([]byte(s))
+	encodedStr := namePrefix + hex.EncodeToString(hash[:])
+	//Added this check to be safe side if encoded name becomes greater than limit set
+	CheckObjectNameLength(encodedStr, objType)
+	return encodedStr
+}
+
 func Encode(s, objType string) string {
 	if !IsEvhEnabled() || utils.IsWCP() {
 		CheckObjectNameLength(s, objType)
 		return s
 	}
-	hash := sha1.Sum([]byte(s))
-	encodedStr := GetNamePrefix() + hex.EncodeToString(hash[:])
-	//Added this check to be safe side if encoded name becomes greater than limit set
-	CheckObjectNameLength(encodedStr, objType)
-	return encodedStr
+	return EncodeWithPrefix(s, objType)
 }
 
 func IsNameEncoded(name string) bool {
@@ -279,7 +296,22 @@ func GetNSXTTransportZone() string {
 	return NsxTTzType
 }
 
-var nonDnsLabelRegex = regexp.MustCompile(`[^a-zA-Z0-9_-]+`)
+var nonDnsLabelRegex = regexp.MustCompile(`[^a-zA-Z0-9-]+`)
+
+// sanitizeTenantNameForDNS sanitizes tenant name to be DNS-compliant
+func sanitizeTenantNameForDNS(tenant string) string {
+	// Replace all non-valid DNS label characters with hyphens
+	sanitized := nonDnsLabelRegex.ReplaceAllString(tenant, "-")
+
+	// Remove multiple consecutive hyphens
+	consecutiveHyphens := regexp.MustCompile(`-+`)
+	sanitized = consecutiveHyphens.ReplaceAllString(sanitized, "-")
+
+	// Remove leading and trailing hyphens
+	sanitized = strings.Trim(sanitized, "-")
+
+	return sanitized
+}
 
 func GetFqdns(vsName, key, tenant string, subDomains []string, shardSize uint32) ([]string, string) {
 	var fqdns []string
@@ -297,8 +329,8 @@ func GetFqdns(vsName, key, tenant string, subDomains []string, shardSize uint32)
 	}
 
 	if subDomains != nil && autoFQDN && !VIPPerNamespace() {
-		//Replace all non valid dns label characters with - in tenant name
-		tenantNameWithValidChars := nonDnsLabelRegex.ReplaceAllString(tenant, "-")
+		// Sanitize tenant name to be DNS-compliant
+		tenantNameWithValidChars := sanitizeTenantNameForDNS(tenant)
 		// honour defaultSubDomain from values.yaml if specified
 		defaultSubDomain := GetDomain()
 		if defaultSubDomain != "" && utils.HasElem(subDomains, defaultSubDomain) {
@@ -1202,7 +1234,12 @@ func SetApiServerInstance(akoApiInstance api.ApiServerInterface) {
 }
 
 func ShutdownApi() {
-	akoApi.ShutDown()
+	if akoApi != nil {
+		akoApi.ShutDown()
+	} else {
+		// ako-infra doesn't have an API server, use Fatalf instead
+		utils.AviLog.Fatalf("AKO restart required due to Avi controller upgrade/reboot")
+	}
 }
 
 var clusterLabelChecksum uint32
@@ -2037,6 +2074,21 @@ func RefreshAuthToken(kc kubernetes.Interface) {
 	}
 }
 
+func GetControllerPropertiesFromLocalSystem() (map[string]string, error) {
+	ctrlProps := make(map[string]string)
+	ctrlProps[utils.ENV_CTRL_USERNAME] = os.Getenv("CTRL_USERNAME")
+	ctrlProps[utils.ENV_CTRL_PASSWORD] = os.Getenv("CTRL_PASSWORD")
+
+	cert, err := os.ReadFile(os.Getenv("ROOT_CA_CERT_PATH"))
+	if err != nil {
+		utils.AviLog.Errorf("Failed to read cert from %s, err: %+v", os.Getenv("ROOT_CA_CERT_PATH"), err)
+		return ctrlProps, err
+	}
+	ctrlProps[utils.ENV_CTRL_CADATA] = string(cert)
+
+	return ctrlProps, nil
+}
+
 func GetControllerPropertiesFromSecret(cs kubernetes.Interface) (map[string]string, error) {
 	ctrlProps := make(map[string]string)
 	aviSecret, err := cs.CoreV1().Secrets(utils.GetAKONamespace()).Get(context.TODO(), AviSecret, metav1.GetOptions{})
@@ -2365,27 +2417,64 @@ func GetAviInfraSettingName(projVpc string) string {
 	return hex.EncodeToString(hash[:])
 }
 
-var defaultNSXProject string
-
 func GetTenantForProject(project string, c *clients.AviClient) (string, error) {
-	if defaultNSXProject == "" {
-		uri := "api/tenant/admin"
-		response := models.Tenant{}
-		err := AviGet(c, uri, &response)
+	projectToTenantMap, err := GetNSXProjectToTenantMap(c)
+	if err != nil {
+		return "", err
+	}
+	tenant, ok := projectToTenantMap[project]
+	if !ok {
+		return "", fmt.Errorf("tenant not found for project %s", project)
+	}
+	return tenant, nil
+}
+
+func GetNSXProjectToTenantMap(c *clients.AviClient) (map[string]string, error) {
+	projectToTenantMap := make(map[string]string)
+
+	uri := "/api/tenant?fields=name,attrs"
+	for {
+		result, err := AviGetCollectionRaw(c, uri)
 		if err != nil {
-			return "", err
+			return nil, fmt.Errorf("failed to get tenants from Avi: %v", err)
 		}
-		for _, attr := range response.Attrs {
-			if *attr.Key == "path" {
-				projectSlice := strings.Split(*attr.Value, "/projects/")
-				defaultNSXProject = projectSlice[len(projectSlice)-1]
+
+		elems := make([]json.RawMessage, result.Count)
+		err = json.Unmarshal(result.Results, &elems)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal tenant results: %v", err)
+		}
+
+		for i := 0; i < len(elems); i++ {
+			tenant := models.Tenant{}
+			err = json.Unmarshal(elems[i], &tenant)
+			if err != nil || tenant.Name == nil {
+				continue
+			}
+
+			for _, attr := range tenant.Attrs {
+				if attr != nil && attr.Key != nil && attr.Value != nil && *attr.Key == "path" {
+					projectSlice := strings.Split(*attr.Value, "/projects/")
+					project := projectSlice[len(projectSlice)-1]
+					projectToTenantMap[project] = *tenant.Name
+					break
+				}
 			}
 		}
+
+		if result.Next == "" {
+			break
+		}
+
+		nextURI := strings.Split(result.Next, "/api/tenant")
+		if len(nextURI) > 1 {
+			uri = "/api/tenant" + nextURI[1]
+		} else {
+			break
+		}
 	}
-	if project == defaultNSXProject {
-		return "admin", nil
-	}
-	return project, nil
+
+	return projectToTenantMap, nil
 }
 
 func GetNSToSEGMap() (map[string]string, error) {
@@ -2455,7 +2544,7 @@ func IsHealthMonitorProcessedWithOptions(key, namespace, name string, clientSet 
 		}
 
 		switch conditionMap["type"] {
-		case "Ready":
+		case "Programmed":
 			processed = true
 			if conditionMap["status"] == "True" {
 				ready = true
