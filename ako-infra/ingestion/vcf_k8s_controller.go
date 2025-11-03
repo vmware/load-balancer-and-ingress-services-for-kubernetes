@@ -198,7 +198,7 @@ func (c *VCFK8sController) AddVKSCapabilityEventHandler(stopCh <-chan struct{}) 
 }
 
 func (c *VCFK8sController) startVKSInfrastructure(stopCh <-chan struct{}) {
-	// Check if VKS AVI client is available (indicates controller version >= 31.3.1)
+	// Check if VKS AVI client is available (indicates controller version >= 32.1.1)
 	if !avirest.IsVKSAviClientAvailable() {
 		utils.AviLog.Warnf("VKS: Cannot start VKS infrastructure - VKS AVI client not available. Controller version must be >= %s to support Management Service APIs", avirest.VKSAviVersion)
 		return
@@ -404,7 +404,7 @@ func (c *VCFK8sController) ValidBootstrapSecretData(controllerIP, secretName, se
 	avirest.InfraAviClientInstance(aviClient)
 	utils.AviLog.Infof("Successfully connected to AVI controller using secret provided by NCP")
 
-	// Check if controller version supports VKS Management Service APIs (>= 31.3.1)
+	// Check if controller version supports VKS Management Service APIs (>= 32.1.1)
 	if actualControllerVersion == "" {
 		if actualVersion, err := aviClient.AviSession.GetControllerVersion(); err != nil {
 			actualControllerVersion = ctrlVersion

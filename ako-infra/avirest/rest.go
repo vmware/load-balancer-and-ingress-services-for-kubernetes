@@ -26,8 +26,8 @@ import (
 )
 
 const (
-	// VKS Management Service APIs were introduced in 31.3.1
-	VKSAviVersion = "31.3.1"
+	// VKS Management Service APIs were introduced in 32.1.1
+	VKSAviVersion = "32.1.1"
 )
 
 var infraAviClientInstance *clients.AviClient
