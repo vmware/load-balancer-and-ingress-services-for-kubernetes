@@ -16,6 +16,7 @@ package lib
 
 import (
 	"crypto/rand"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -266,16 +267,14 @@ func CreateClusterUserWithRoles(aviClient *clients.AviClient, clusterName string
 
 	userName := fmt.Sprintf("%s-user", clusterName)
 
-	// Check if user already exists and delete it
-	// We recreate users to ensure fresh passwords and correct role assignments
-	existingUser, err := aviClient.User.GetByName(userName)
-	if err == nil && existingUser != nil {
-		utils.AviLog.Infof("User %s already exists (UUID: %s), deleting to recreate with fresh credentials",
-			userName, *existingUser.UUID)
+	existingUUID, err := getUserByName(aviClient, userName)
+	if err != nil {
+		utils.AviLog.Warnf("Error checking for existing user %s: %v, will attempt creation", userName, err)
+	} else if existingUUID != "" {
+		utils.AviLog.Infof("User %s already exists, deleting to recreate with fresh credentials", userName)
 
-		err = aviClient.User.Delete(*existingUser.UUID)
-		if err != nil {
-			utils.AviLog.Warnf("Failed to delete existing user %s: %v, attempting to continue", userName, err)
+		if err := deleteUserByUUID(aviClient, userName, existingUUID); err != nil {
+			utils.AviLog.Warnf("Failed to delete existing user %s: %v, continuing", userName, err)
 		} else {
 			utils.AviLog.Infof("Successfully deleted existing user %s", userName)
 		}
@@ -286,43 +285,46 @@ func CreateClusterUserWithRoles(aviClient *clients.AviClient, clusterName string
 		return nil, "", fmt.Errorf("failed to generate secure password: %v", err)
 	}
 
-	userAccess := []*models.UserRole{
-		{
-			RoleRef:   roles.AdminRole.UUID,
-			TenantRef: proto.String("/api/tenant/?name=admin"),
-		},
-		{
-			RoleRef:   roles.TenantRole.UUID,
-			TenantRef: proto.String(fmt.Sprintf("/api/tenant/?name=%s", operationalTenant)),
-		},
-		{
-			RoleRef:    roles.AllTenantsRole.UUID,
-			AllTenants: proto.Bool(true),
+	userPayload := map[string]interface{}{
+		"name":               userName,
+		"username":           userName,
+		"password":           password,
+		"default_tenant_ref": fmt.Sprintf("/api/tenant/?name=%s", operationalTenant),
+		"service_user":       true,
+		"access": []map[string]interface{}{
+			{
+				"role_ref":   fmt.Sprintf("/api/role/?name=%s", *roles.AdminRole.Name),
+				"tenant_ref": "/api/tenant/?name=admin",
+			},
+			{
+				"role_ref":   fmt.Sprintf("/api/role/?name=%s", *roles.TenantRole.Name),
+				"tenant_ref": fmt.Sprintf("/api/tenant/?name=%s", operationalTenant),
+			},
+			{
+				"role_ref":    fmt.Sprintf("/api/role/?name=%s", *roles.AllTenantsRole.Name),
+				"all_tenants": true,
+				"tenant_ref":  "/api/tenant/?name=admin",
+			},
 		},
 	}
 
-	user := &models.User{
-		Name:             &userName,
-		Username:         &userName,
-		Password:         &password,
-		DefaultTenantRef: proto.String(fmt.Sprintf("/api/tenant/?name=%s", operationalTenant)),
-		Access:           userAccess,
+	if err := createUser(aviClient, userPayload); err != nil {
+		return nil, "", err
 	}
 
-	utils.AviLog.Infof("Creating cluster user: %s (operational tenant: %s)", userName, operationalTenant)
-
-	_, err = aviClient.User.Create(user)
+	createdUUID, err := getUserByName(aviClient, userName)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to create cluster user %s: %v", userName, err)
+		return nil, "", fmt.Errorf("failed to retrieve created cluster service user %s: %v", userName, err)
 	}
 
-	createdUser, err := aviClient.User.GetByName(userName)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to retrieve created cluster user %s: %v", userName, err)
-	}
+	utils.AviLog.Infof("Created cluster service user: %s (service_user: true, roles: admin + %s-tenant + all-tenants)",
+		userName, operationalTenant)
 
-	utils.AviLog.Infof("Created cluster user with three-role access: %s (UUID: %s)", userName, *createdUser.UUID)
-	utils.AviLog.Infof("User access: admin tenant, operational tenant (%s), all-tenants (AllTenants=true)", operationalTenant)
+	createdUser := &models.User{
+		UUID:     &createdUUID,
+		Name:     &userName,
+		Username: &userName,
+	}
 
 	return createdUser, password, nil
 }
@@ -363,19 +365,17 @@ func DeleteClusterUser(aviClient *clients.AviClient, clusterName string) error {
 
 	userName := fmt.Sprintf("%s-user", clusterName)
 
-	user, err := aviClient.User.GetByName(userName)
+	userUUID, err := getUserByName(aviClient, userName)
 	if err != nil {
-		utils.AviLog.Warnf("Cluster user %s not found for deletion: %v", userName, err)
+		return fmt.Errorf("error checking for cluster user %s: %v", userName, err)
+	}
+
+	if userUUID == "" {
+		utils.AviLog.Infof("Cluster user %s not found, already deleted", userName)
 		return nil
 	}
 
-	err = aviClient.User.Delete(*user.UUID)
-	if err != nil {
-		return fmt.Errorf("failed to delete cluster user %s: %v", userName, err)
-	}
-
-	utils.AviLog.Infof("Deleted cluster user: %s", userName)
-	return nil
+	return deleteUserByUUID(aviClient, userName, userUUID)
 }
 
 func CleanupSharedRoles(aviClient *clients.AviClient) error {
@@ -412,6 +412,61 @@ func CleanupSharedRoles(aviClient *clients.AviClient) error {
 	}
 
 	utils.AviLog.Infof("Successfully cleaned up all shared VKS roles")
+	return nil
+}
+
+func getUserByName(aviClient *clients.AviClient, userName string) (string, error) {
+	uri := fmt.Sprintf("/api/user?name=%s&include_service_accounts=true&fields=uuid", userName)
+	result, err := AviGetCollectionRaw(aviClient, uri)
+	if err != nil {
+		return "", fmt.Errorf("failed to query user %s: %v", userName, err)
+	}
+
+	if result.Count == 0 {
+		return "", nil
+	}
+
+	var users []map[string]interface{}
+	if err := json.Unmarshal(result.Results, &users); err != nil {
+		return "", fmt.Errorf("failed to unmarshal user results: %v", err)
+	}
+
+	if len(users) == 0 {
+		utils.AviLog.Warnf("User %s query returned count=%d but empty results after unmarshal", userName, result.Count)
+		return "", nil
+	}
+
+	if uuid, ok := users[0]["uuid"].(string); ok {
+		return uuid, nil
+	}
+
+	return "", fmt.Errorf("user %s found but UUID field missing", userName)
+}
+
+func deleteUserByUUID(aviClient *clients.AviClient, userName, uuid string) error {
+	if uuid == "" {
+		return fmt.Errorf("cannot delete user %s: empty UUID", userName)
+	}
+
+	deleteURI := fmt.Sprintf("/api/user/%s", uuid)
+	err := aviClient.AviSession.Delete(deleteURI)
+	if err != nil {
+		return fmt.Errorf("failed to delete user %s (UUID: %s): %v", userName, uuid, err)
+	}
+
+	utils.AviLog.Infof("Deleted user: %s (UUID: %s)", userName, uuid)
+	return nil
+}
+
+func createUser(aviClient *clients.AviClient, userPayload map[string]interface{}) error {
+	var response interface{}
+	err := aviClient.AviSession.Post("api/user", userPayload, &response)
+	if err != nil {
+		if userName, ok := userPayload["username"].(string); ok {
+			return fmt.Errorf("failed to create user %s: %v", userName, err)
+		}
+		return fmt.Errorf("failed to create user: %v", err)
+	}
 	return nil
 }
 

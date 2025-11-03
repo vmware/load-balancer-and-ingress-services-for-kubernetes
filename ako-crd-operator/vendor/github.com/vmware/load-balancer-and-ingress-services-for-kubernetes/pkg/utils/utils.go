@@ -15,6 +15,7 @@
 package utils
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -607,6 +608,51 @@ func IsWCP() bool {
 		return true
 	}
 	return false
+}
+
+// IsSingleReplica checks if AKO is running with a single replica
+// by checking the actual StatefulSet replica count.
+// When running with a single replica, leader election is unnecessary
+// as there's no competition for leadership.
+func IsSingleReplica() bool {
+	// Get replica count from StatefulSet (dynamic)
+	if replicaCount, err := getStatefulSetReplicaCount(); err == nil {
+		return replicaCount == 1
+	}
+
+	// If we can't get the StatefulSet replica count, assume multi-replica
+	// to be safe and enable leader election
+	return false
+}
+
+// getStatefulSetReplicaCount retrieves the current replica count from the AKO StatefulSet
+func getStatefulSetReplicaCount() (int32, error) {
+	// Get the Kubernetes client from informers
+	informers := GetInformers()
+	if informers == nil {
+		return 0, fmt.Errorf("informers not initialized")
+	}
+
+	clientset := informers.ClientSet
+
+	// Get the AKO namespace
+	namespace := GetAKONamespace()
+
+	// Get the StatefulSet
+	statefulSet, err := clientset.AppsV1().StatefulSets(namespace).Get(context.TODO(), "ako", metav1.GetOptions{})
+	if err != nil {
+		AviLog.Warnf("Failed to get AKO StatefulSet: %v", err)
+		return 0, err
+	}
+
+	// Return the replica count
+	replicaCount := int32(1) // default
+	if statefulSet.Spec.Replicas != nil {
+		replicaCount = *statefulSet.Spec.Replicas
+	}
+
+	AviLog.Debugf("AKO StatefulSet replica count: %d", replicaCount)
+	return replicaCount, nil
 }
 
 // GetAKONamespace returns the namespace of AKO pod.
