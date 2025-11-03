@@ -1683,6 +1683,7 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 				RemoveEvhInModel(evhNode.Name, vsNode, key)
 				RemoveRedirectHTTPPolicyInModelForEvh(evhNode, hostsToRemove, key)
 			}
+			utils.AviLog.Warnf("key: %s, msg: certificate could not be built. Virtual service will not be built for the host %s.", key, hostsToRemove)
 			vsNode[0].RemoveFQDNsFromModel(hostsToRemove, key)
 			// TODO: uncomment after fixing race condition in get/delete in fqdntoaliases mapping
 			// if len(vsNode[0].VSVIPRefs) != 0 {
@@ -2043,6 +2044,7 @@ func (o *AviObjectGraph) ManipulateEvhNode(currentEvhNodeName, ingName, namespac
 		o.manipulateEVHVsNode(vsNode[0], ingName, namespace, hostname, pathSvc, infraSettingName, key, deleteHostMapEntry)
 		if len(vsNode[0].PoolGroupRefs) == 0 {
 			// Remove the evhhost mapping
+			utils.AviLog.Warnf("key: %s, msg: there are no poolgroup associated with host %s. Removing host mapping", key, hostname)
 			SharedHostNameLister().Delete(hostname)
 			vsNode[0].DeletSSLRefInDedicatedNode(key)
 			return false
@@ -2057,6 +2059,7 @@ func (o *AviObjectGraph) ManipulateEvhNode(currentEvhNodeName, ingName, namespac
 			if len(modelEvhNode.PoolGroupRefs) == 0 {
 				RemoveEvhInModel(currentEvhNodeName, vsNode, key)
 				// Remove the evhhost mapping
+				utils.AviLog.Warnf("key: %s, msg: there are no poolgroup associated with host %s. Removing host mapping", key, hostname)
 				SharedHostNameLister().Delete(hostname)
 				return false
 			}
