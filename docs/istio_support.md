@@ -44,16 +44,24 @@ Error: INSTALLATION FAILED: 1 error occurred:
 
 **Workaround:** Manually add the `istio-certs` volume to the StatefulSet YAML:
 
-Edit the StatefulSet YAML and add the `istio-certs` volume to the `spec.template.spec.volumes` section:
+Edit `helm/ako/templates/statefulset.yaml` and add the `istio-certs` volume to the `spec.template.spec.volumes` section. The complete block should look like:
 ```yaml
 spec:
   template:
     spec:
+      {{ if or .Values.persistentVolumeClaim .Values.AKOSettings.istioEnabled }}
       volumes:
+      {{ if .Values.persistentVolumeClaim }}
+      - name: ako-pv-storage
+        persistentVolumeClaim:
+          claimName: {{ .Values.persistentVolumeClaim }}
+      {{ end }}
+      {{ if .Values.AKOSettings.istioEnabled }}
       - name: istio-certs
         emptyDir:
           medium: Memory
-      # ... other volumes
+      {{ end }}
+      {{ end }}
 ```
 
 Then install with the modified Helm chart:
