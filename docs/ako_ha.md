@@ -36,36 +36,7 @@ Passive AKO does the following:
 
 ## Steps to run AKO in High Availability
 
-Step 1: Search the available charts for AKO
-
-```
-helm show chart oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 2.2.1
-
-Pulled: projects.packages.broadcom.com/ako/helm-charts/ako:2.2.1
-Digest: sha256:xxxxxxxx
-apiVersion: v2
-appVersion: 2.2.1
-dependencies:
-- condition: ako-crd-operator.enabled
-  name: ako-crd-operator
-  repository: oci://projects.packages.broadcom.com/ako/helm-charts
-  version: 2.2.1
-description: A helm chart for Avi Kubernetes Operator
-name: ako
-type: application
-version: 2.2.1
-```
-
-Step 2: Pull AKO helm chart
-```
-helm pull oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 2.2.1 --untar
-```
-
-Step 3: Update helm dependency after going into ako directory
-```
-cd ako
-helm dependency build
-```
+Pull AKO helm chart and update helm dependency if not done by following these [steps](install/helm.md)
 
 ### Transitioning from Single Replica to High Availability
 
