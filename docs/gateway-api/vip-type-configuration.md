@@ -155,7 +155,7 @@ spec:
 
 2. **Invalid Annotation Values**: If you provide an annotation value that is not supported (e.g., `internal` or `mixed`), AKO will ignore it and fall back to the default behavior (Public VIP allocation).
 
-3. **Annotation Updates**: You should not update the annotation value on an existing Gateway if VIP, associated with that Gateway, present on the AviController.
+3. **Annotation Updates**: You should not update the annotation value on an existing Gateway if VIP, associated with that Gateway, is present on the AviController.
 
 ### VPC Mode Prerequisites
 
@@ -167,7 +167,7 @@ Before using this feature, ensure VPC mode is properly configured:
      vpcMode: true
    ```
 
-2. Configure the NSX-T T1LR path:
+2. Configure the nsxtT1LR field with VPC path:
    ```yaml
    NetworkSettings:
      nsxtT1LR: "/orgs/<org-id>/projects/<project-id>/vpcs/<vpc-id>"
