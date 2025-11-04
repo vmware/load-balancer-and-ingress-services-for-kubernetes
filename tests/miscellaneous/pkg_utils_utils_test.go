@@ -18,6 +18,11 @@ import (
 	"encoding/json"
 	"testing"
 
+	corev1 "k8s.io/api/core/v1"
+	discovery "k8s.io/api/discovery/v1"
+	networkingv1 "k8s.io/api/networking/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
@@ -717,5 +722,760 @@ func TestStringifyJSON(t *testing.T) {
 	}
 	if decoded["bool"] != true {
 		t.Errorf("Stringify() bool value incorrect")
+	}
+}
+
+func TestContainsDuplicate(t *testing.T) {
+	tests := []struct {
+		name     string
+		arr      interface{}
+		expected bool
+	}{
+		{
+			name:     "String slice with duplicates",
+			arr:      []string{"a", "b", "c", "b"},
+			expected: true,
+		},
+		{
+			name:     "String slice without duplicates",
+			arr:      []string{"a", "b", "c"},
+			expected: false,
+		},
+		{
+			name:     "Int slice with duplicates",
+			arr:      []int{1, 2, 3, 2},
+			expected: true,
+		},
+		{
+			name:     "Int slice without duplicates",
+			arr:      []int{1, 2, 3},
+			expected: false,
+		},
+		{
+			name:     "Empty slice",
+			arr:      []string{},
+			expected: false,
+		},
+		{
+			name:     "Single element",
+			arr:      []string{"a"},
+			expected: false,
+		},
+		{
+			name:     "All duplicates",
+			arr:      []int{5, 5, 5},
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := utils.ContainsDuplicate(tt.arr)
+			if got != tt.expected {
+				t.Errorf("ContainsDuplicate() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestNewVersion(t *testing.T) {
+	tests := []struct {
+		name       string
+		version    string
+		wantErr    bool
+		wantLength int
+	}{
+		{
+			name:       "Simple version",
+			version:    "1.2.3",
+			wantErr:    false,
+			wantLength: 3,
+		},
+		{
+			name:       "Two part version",
+			version:    "1.0",
+			wantErr:    false,
+			wantLength: 2,
+		},
+		{
+			name:       "Four part version",
+			version:    "1.2.3.4",
+			wantErr:    false,
+			wantLength: 4,
+		},
+		{
+			name:       "Single digit",
+			version:    "1",
+			wantErr:    false,
+			wantLength: 1,
+		},
+		{
+			name:    "Invalid version with letter",
+			version: "1.2.a",
+			wantErr: true,
+		},
+		{
+			name:    "Empty string",
+			version: "",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := utils.NewVersion(tt.version)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("NewVersion() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr && got == nil {
+				t.Errorf("NewVersion() returned nil without error")
+			}
+		})
+	}
+}
+
+func TestVersionCompare(t *testing.T) {
+	tests := []struct {
+		name     string
+		version1 string
+		version2 string
+		expected int
+	}{
+		{
+			name:     "Equal versions",
+			version1: "1.2.3",
+			version2: "1.2.3",
+			expected: 0,
+		},
+		{
+			name:     "First version greater",
+			version1: "1.2.4",
+			version2: "1.2.3",
+			expected: 1,
+		},
+		{
+			name:     "First version less",
+			version1: "1.2.2",
+			version2: "1.2.3",
+			expected: -1,
+		},
+		{
+			name:     "Different lengths - first longer and greater",
+			version1: "1.2.3.1",
+			version2: "1.2.3",
+			expected: 1,
+		},
+		{
+			name:     "Different lengths - first shorter and less",
+			version1: "1.2",
+			version2: "1.2.3",
+			expected: -1,
+		},
+		{
+			name:     "Major version difference",
+			version1: "2.0.0",
+			version2: "1.9.9",
+			expected: 1,
+		},
+		{
+			name:     "Minor version difference",
+			version1: "1.3.0",
+			version2: "1.2.9",
+			expected: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v1, err := utils.NewVersion(tt.version1)
+			if err != nil {
+				t.Fatalf("Failed to create version1: %v", err)
+			}
+			v2, err := utils.NewVersion(tt.version2)
+			if err != nil {
+				t.Fatalf("Failed to create version2: %v", err)
+			}
+
+			got := v1.Compare(v2)
+			if got != tt.expected {
+				t.Errorf("Version.Compare() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestString(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    *string
+		expected string
+	}{
+		{
+			name:     "Non-nil string pointer",
+			input:    stringPtr("test"),
+			expected: "test",
+		},
+		{
+			name:     "Empty string pointer",
+			input:    stringPtr(""),
+			expected: "",
+		},
+		{
+			name:     "Nil string pointer",
+			input:    nil,
+			expected: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := utils.String(tt.input)
+			if got != tt.expected {
+				t.Errorf("String() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestCheckSubdomainOverlapping(t *testing.T) {
+	tests := []struct {
+		name      string
+		hostName1 string
+		hostName2 string
+		expected  bool
+	}{
+		{
+			name:      "Exact match",
+			hostName1: "example.com",
+			hostName2: "example.com",
+			expected:  true,
+		},
+		{
+			name:      "Wildcard in first hostname",
+			hostName1: "*.example.com",
+			hostName2: "api.example.com",
+			expected:  true,
+		},
+		{
+			name:      "Wildcard in second hostname",
+			hostName1: "api.example.com",
+			hostName2: "*.example.com",
+			expected:  true,
+		},
+		{
+			name:      "Both wildcards",
+			hostName1: "*.example.com",
+			hostName2: "*.example.com",
+			expected:  true,
+		},
+		{
+			name:      "Different subdomains",
+			hostName1: "api.example.com",
+			hostName2: "web.example.com",
+			expected:  false,
+		},
+		{
+			name:      "Different domains",
+			hostName1: "example.com",
+			hostName2: "example.org",
+			expected:  false,
+		},
+		{
+			name:      "Subdomain vs root domain",
+			hostName1: "api.example.com",
+			hostName2: "example.com",
+			expected:  true,
+		},
+		{
+			name:      "Multi-level subdomains matching",
+			hostName1: "api.v1.example.com",
+			hostName2: "web.v1.example.com",
+			expected:  false,
+		},
+		{
+			name:      "Multi-level with wildcard",
+			hostName1: "*.v1.example.com",
+			hostName2: "api.v1.example.com",
+			expected:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := utils.CheckSubdomainOverlapping(tt.hostName1, tt.hostName2)
+			if got != tt.expected {
+				t.Errorf("CheckSubdomainOverlapping(%s, %s) = %v, want %v",
+					tt.hostName1, tt.hostName2, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestGetUriEncoded(t *testing.T) {
+	tests := []struct {
+		name     string
+		uri      string
+		expected string
+	}{
+		{
+			name:     "URI without query parameters",
+			uri:      "https://example.com/path",
+			expected: "https://example.com/path",
+		},
+		{
+			name:     "URI with simple query parameters",
+			uri:      "https://example.com/path?key=value",
+			expected: "https://example.com/path?key=value",
+		},
+		{
+			name:     "URI with special characters in query",
+			uri:      "https://example.com/path?key=value with spaces",
+			expected: "https://example.com/path?key=value+with+spaces",
+		},
+		{
+			name:     "URI with multiple query parameters",
+			uri:      "https://example.com/path?key1=value1&key2=value2",
+			expected: "https://example.com/path?key1=value1&key2=value2",
+		},
+		{
+			name:     "URI with empty query value",
+			uri:      "https://example.com/path?key=",
+			expected: "https://example.com/path?key=",
+		},
+		{
+			name:     "Simple path without scheme",
+			uri:      "/path",
+			expected: "/path",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := utils.GetUriEncoded(tt.uri)
+			if got != tt.expected {
+				t.Errorf("GetUriEncoded() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestNewSet(t *testing.T) {
+	t.Run("Create empty set", func(t *testing.T) {
+		s := utils.NewSet[string]()
+		if s.Size() != 0 {
+			t.Errorf("NewSet() size = %v, want 0", s.Size())
+		}
+	})
+
+	t.Run("Create set with initial values", func(t *testing.T) {
+		s := utils.NewSet("a", "b", "c")
+		if s.Size() != 3 {
+			t.Errorf("NewSet() size = %v, want 3", s.Size())
+		}
+		if !s.Has("a") || !s.Has("b") || !s.Has("c") {
+			t.Errorf("NewSet() missing expected elements")
+		}
+	})
+
+	t.Run("Create set with duplicate values", func(t *testing.T) {
+		s := utils.NewSet("a", "b", "a")
+		if s.Size() != 2 {
+			t.Errorf("NewSet() with duplicates size = %v, want 2", s.Size())
+		}
+	})
+}
+
+func TestSetAdd(t *testing.T) {
+	t.Run("Add single element", func(t *testing.T) {
+		s := utils.NewSet[string]()
+		s.Add("a")
+		if !s.Has("a") {
+			t.Errorf("Set.Add() element not added")
+		}
+		if s.Size() != 1 {
+			t.Errorf("Set.Add() size = %v, want 1", s.Size())
+		}
+	})
+
+	t.Run("Add multiple elements", func(t *testing.T) {
+		s := utils.NewSet[string]()
+		s.Add("a", "b", "c")
+		if s.Size() != 3 {
+			t.Errorf("Set.Add() multiple elements size = %v, want 3", s.Size())
+		}
+	})
+
+	t.Run("Add duplicate element", func(t *testing.T) {
+		s := utils.NewSet("a")
+		s.Add("a")
+		if s.Size() != 1 {
+			t.Errorf("Set.Add() duplicate size = %v, want 1", s.Size())
+		}
+	})
+}
+
+func TestSetRemove(t *testing.T) {
+	t.Run("Remove existing element", func(t *testing.T) {
+		s := utils.NewSet("a", "b", "c")
+		s.Remove("b")
+		if s.Has("b") {
+			t.Errorf("Set.Remove() element still exists")
+		}
+		if s.Size() != 2 {
+			t.Errorf("Set.Remove() size = %v, want 2", s.Size())
+		}
+	})
+
+	t.Run("Remove non-existing element", func(t *testing.T) {
+		s := utils.NewSet("a", "b")
+		s.Remove("c")
+		if s.Size() != 2 {
+			t.Errorf("Set.Remove() non-existing changed size")
+		}
+	})
+
+	t.Run("Remove multiple elements", func(t *testing.T) {
+		s := utils.NewSet("a", "b", "c", "d")
+		s.Remove("a", "c")
+		if s.Size() != 2 {
+			t.Errorf("Set.Remove() multiple size = %v, want 2", s.Size())
+		}
+		if s.Has("a") || s.Has("c") {
+			t.Errorf("Set.Remove() elements still exist")
+		}
+	})
+}
+
+func TestSetHas(t *testing.T) {
+	s := utils.NewSet("a", "b", "c")
+
+	tests := []struct {
+		name     string
+		key      string
+		expected bool
+	}{
+		{
+			name:     "Existing element",
+			key:      "a",
+			expected: true,
+		},
+		{
+			name:     "Non-existing element",
+			key:      "d",
+			expected: false,
+		},
+		{
+			name:     "Empty string in set",
+			key:      "",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := s.Has(tt.key)
+			if got != tt.expected {
+				t.Errorf("Set.Has(%s) = %v, want %v", tt.key, got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestSetSize(t *testing.T) {
+	tests := []struct {
+		name     string
+		elements []string
+		expected int
+	}{
+		{
+			name:     "Empty set",
+			elements: []string{},
+			expected: 0,
+		},
+		{
+			name:     "Single element",
+			elements: []string{"a"},
+			expected: 1,
+		},
+		{
+			name:     "Multiple elements",
+			elements: []string{"a", "b", "c"},
+			expected: 3,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := utils.NewSet(tt.elements...)
+			got := s.Size()
+			if got != tt.expected {
+				t.Errorf("Set.Size() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestSetKeys(t *testing.T) {
+	t.Run("Get keys from set", func(t *testing.T) {
+		s := utils.NewSet("a", "b", "c")
+		keys := s.Keys()
+
+		if len(keys) != 3 {
+			t.Errorf("Set.Keys() length = %v, want 3", len(keys))
+		}
+
+		// Check all expected keys are present
+		keyMap := make(map[string]bool)
+		for _, k := range keys {
+			keyMap[k] = true
+		}
+
+		if !keyMap["a"] || !keyMap["b"] || !keyMap["c"] {
+			t.Errorf("Set.Keys() missing expected keys")
+		}
+	})
+
+	t.Run("Get keys from empty set", func(t *testing.T) {
+		s := utils.NewSet[string]()
+		keys := s.Keys()
+
+		if len(keys) != 0 {
+			t.Errorf("Set.Keys() empty set length = %v, want 0", len(keys))
+		}
+	})
+}
+
+func TestRemoveNamespaceName(t *testing.T) {
+	tests := []struct {
+		name     string
+		slice    []utils.NamespaceName
+		remove   utils.NamespaceName
+		expected []utils.NamespaceName
+	}{
+		{
+			name: "Remove existing element",
+			slice: []utils.NamespaceName{
+				{Namespace: "ns1", Name: "name1"},
+				{Namespace: "ns2", Name: "name2"},
+				{Namespace: "ns3", Name: "name3"},
+			},
+			remove: utils.NamespaceName{Namespace: "ns2", Name: "name2"},
+			expected: []utils.NamespaceName{
+				{Namespace: "ns1", Name: "name1"},
+				{Namespace: "ns3", Name: "name3"},
+			},
+		},
+		{
+			name: "Remove non-existing element",
+			slice: []utils.NamespaceName{
+				{Namespace: "ns1", Name: "name1"},
+				{Namespace: "ns2", Name: "name2"},
+			},
+			remove: utils.NamespaceName{Namespace: "ns3", Name: "name3"},
+			expected: []utils.NamespaceName{
+				{Namespace: "ns1", Name: "name1"},
+				{Namespace: "ns2", Name: "name2"},
+			},
+		},
+		{
+			name:     "Remove from empty slice",
+			slice:    []utils.NamespaceName{},
+			remove:   utils.NamespaceName{Namespace: "ns1", Name: "name1"},
+			expected: []utils.NamespaceName{},
+		},
+		{
+			name: "Remove first element",
+			slice: []utils.NamespaceName{
+				{Namespace: "ns1", Name: "name1"},
+				{Namespace: "ns2", Name: "name2"},
+			},
+			remove: utils.NamespaceName{Namespace: "ns1", Name: "name1"},
+			expected: []utils.NamespaceName{
+				{Namespace: "ns2", Name: "name2"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := utils.RemoveNamespaceName(tt.slice, tt.remove)
+
+			if len(got) != len(tt.expected) {
+				t.Errorf("RemoveNamespaceName() length = %v, want %v", len(got), len(tt.expected))
+				return
+			}
+
+			for i := range got {
+				if got[i] != tt.expected[i] {
+					t.Errorf("RemoveNamespaceName() = %v, want %v", got, tt.expected)
+					break
+				}
+			}
+		})
+	}
+}
+
+func TestHasElemWithName(t *testing.T) {
+	type TestStruct struct {
+		Name  string
+		Value int
+	}
+
+	tests := []struct {
+		name     string
+		slice    interface{}
+		elem     interface{}
+		expected int
+	}{
+		{
+			name: "Element exists",
+			slice: []TestStruct{
+				{Name: "first", Value: 1},
+				{Name: "second", Value: 2},
+				{Name: "third", Value: 3},
+			},
+			elem:     TestStruct{Name: "second", Value: 999},
+			expected: 1,
+		},
+		{
+			name: "Element does not exist",
+			slice: []TestStruct{
+				{Name: "first", Value: 1},
+				{Name: "second", Value: 2},
+			},
+			elem:     TestStruct{Name: "third", Value: 3},
+			expected: -1,
+		},
+		{
+			name:     "Empty slice",
+			slice:    []TestStruct{},
+			elem:     TestStruct{Name: "first", Value: 1},
+			expected: -1,
+		},
+		{
+			name: "First element match",
+			slice: []TestStruct{
+				{Name: "first", Value: 1},
+				{Name: "second", Value: 2},
+			},
+			elem:     TestStruct{Name: "first", Value: 999},
+			expected: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := utils.HasElemWithName(tt.slice, tt.elem)
+			if got != tt.expected {
+				t.Errorf("HasElemWithName() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestCrudHashKey(t *testing.T) {
+	tests := []struct {
+		name     string
+		objType  string
+		obj      interface{}
+		expected string
+	}{
+		{
+			name:    "EndpointSlice",
+			objType: "EndpointSlice",
+			obj: &discovery.EndpointSlice{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "default",
+					Name:      "my-endpoint-slice",
+				},
+			},
+			expected: "default:my-endpoint-slice",
+		},
+		{
+			name:    "Service",
+			objType: "Service",
+			obj: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "kube-system",
+					Name:      "my-service",
+				},
+			},
+			expected: "kube-system:my-service",
+		},
+		{
+			name:    "Ingress",
+			objType: "Ingress",
+			obj: &networkingv1.Ingress{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "app-namespace",
+					Name:      "my-ingress",
+				},
+			},
+			expected: "app-namespace:my-ingress",
+		},
+		{
+			name:     "Unknown type",
+			objType:  "UnknownType",
+			obj:      "some-object",
+			expected: ":",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := utils.CrudHashKey(tt.objType, tt.obj)
+			if got != tt.expected {
+				t.Errorf("CrudHashKey() = %v, want %v", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestObjKey(t *testing.T) {
+	tests := []struct {
+		name     string
+		obj      interface{}
+		expected string
+	}{
+		{
+			name: "Service object",
+			obj: &corev1.Service{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "default",
+					Name:      "my-service",
+				},
+			},
+			expected: "default/my-service",
+		},
+		{
+			name: "Pod object",
+			obj: &corev1.Pod{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "kube-system",
+					Name:      "my-pod",
+				},
+			},
+			expected: "kube-system/my-pod",
+		},
+		{
+			name: "Ingress object",
+			obj: &networkingv1.Ingress{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "app",
+					Name:      "my-ingress",
+				},
+			},
+			expected: "app/my-ingress",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := utils.ObjKey(tt.obj)
+			if got != tt.expected {
+				t.Errorf("ObjKey() = %v, want %v", got, tt.expected)
+			}
+		})
 	}
 }
