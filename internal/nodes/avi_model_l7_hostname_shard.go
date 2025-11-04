@@ -802,6 +802,7 @@ func (o *AviObjectGraph) BuildModelGraphForSNI(routeIgrObj RouteIngressModel, in
 			} else {
 				DeleteDedicatedVSNode(vsNode[0], sniHostToRemove, key)
 			}
+			utils.AviLog.Warnf("key: %s, msg: certificate could not be built. Virtual service will not be built for the host %s.", key, sniHostToRemove)
 			vsNode[0].RemoveFQDNsFromModel(sniHostToRemove, key)
 			// TODO: uncomment after fixing race condition in get/delete in fqdntoaliases mapping
 			// if len(vsNode[0].VSVIPRefs) != 0 {
