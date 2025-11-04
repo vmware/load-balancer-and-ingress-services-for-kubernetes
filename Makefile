@@ -272,12 +272,13 @@ namespacesynctests:
 	-coverprofile cover-9.out -coverpkg=./... > namespacesynctests.log 2>&1 && echo "namespacesynctests passed") || (echo "namespacesynctests failed" && cat namespacesynctests.log && exit 1)
 
 .PHONY: misc 
-temp:
+misc:
 	@> misc.log
 	(sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/temp -failfast > misc.log 2>&1 && echo "misc passed") || (echo "misc failed" && cat misc.log && exit 1)
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/miscellaneous -failfast -timeout 0 \
+	-coverprofile cover-31.out -coverpkg=./... > misc.log 2>&1 && echo "misc passed") || (echo "misc failed" && cat misc.log && exit 1)
 
 .PHONY: npltests 
 npltests:

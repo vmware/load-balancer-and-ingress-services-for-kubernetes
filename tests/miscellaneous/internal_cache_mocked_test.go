@@ -27,13 +27,14 @@ import (
 	"github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/alb-sdk/go/models"
 	"github.com/vmware/alb-sdk/go/session"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	k8sfake "k8s.io/client-go/kubernetes/fake"
+
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	k8sfake "k8s.io/client-go/kubernetes/fake"
 )
 
 // Test setup helpers
@@ -63,25 +64,6 @@ func setupMockAviServer(t *testing.T, mockResponses map[string]interface{}) *htt
 		w.Write([]byte(`{"count": 0, "results": []}`))
 	}))
 	return server
-}
-
-func setupMockK8sClient(t *testing.T) *k8sfake.Clientset {
-	client := k8sfake.NewSimpleClientset()
-
-	// Add AKO ConfigMap
-	aviCM := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: "avi-system",
-			Name:      "avi-k8s-config",
-		},
-		Data: map[string]string{
-			"cloudName":   "Default-Cloud",
-			"clusterName": "test-cluster",
-		},
-	}
-	client.CoreV1().ConfigMaps("avi-system").Create(context.TODO(), aviCM, metav1.CreateOptions{})
-
-	return client
 }
 
 func createMockAviClient(t *testing.T, serverURL string) *clients.AviClient {

@@ -28,7 +28,7 @@ func TestSharedCtrlProp(t *testing.T) {
 
 		// Verify instances are not nil
 		if instance1 == nil || instance2 == nil {
-			t.Errorf("SharedCtrlProp() returned nil")
+			t.Fatal("SharedCtrlProp() returned nil")
 		}
 
 		// Verify the underlying cache is shared by adding data through one instance
@@ -560,4 +560,3 @@ func TestCtrlPropCacheConcurrency(t *testing.T) {
 		cache.AviCacheDelete("concurrent-key")
 	})
 }
-

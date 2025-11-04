@@ -63,7 +63,7 @@ func TestNewWorkQueue(t *testing.T) {
 			}
 
 			if queue == nil {
-				t.Error("NewWorkQueue() returned nil")
+				t.Fatal("NewWorkQueue() returned nil")
 			}
 
 			if queue.NumWorkers != tt.expectedWorkers {

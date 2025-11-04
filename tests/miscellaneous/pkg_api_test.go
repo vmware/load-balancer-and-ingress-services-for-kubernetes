@@ -81,7 +81,7 @@ func TestNewServer(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			server := api.NewServer(tt.port, tt.models, tt.prometheusEnabled, nil)
 			if server == nil {
-				t.Error("NewServer() returned nil")
+				t.Fatal("NewServer() returned nil")
 			}
 			if server.Handler == nil {
 				t.Error("NewServer() did not set Handler")
