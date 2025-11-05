@@ -14,5 +14,5 @@ spec:
     tcp_request: GET /health HTTP/1.1
     tcp_response: "OK"
     maintenance_response: "Maintenance"
-    tcp_half
+    tcp_half_open: false
   is_federated: false

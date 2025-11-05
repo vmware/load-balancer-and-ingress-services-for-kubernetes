@@ -12,22 +12,22 @@ metadata:
   namespace: default
 spec:
   type: HEALTH_MONITOR_HTTP
-  sendInterval: 10
-  receiveTimeout: 4
-  successfulChecks: 2
-  failedChecks: 2
-  monitorPort: 80
-  isFederated: false
-  httpMonitor:
-    httpRequest: "GET /health HTTP/1.1"
-    httpResponseCode:
+  send_interval: 10
+  receive_timeout: 4
+  successful_checks: 2
+  failed_checks: 2
+  monitor_port: 80
+  is_federated: false
+  http_monitor:
+    http_request: "GET /health HTTP/1.1"
+    http_response_code:
       - HTTP_2XX
-    httpResponse: "OK"
-    exactHttpRequest: false
-    maintenanceCode:
+    http_response: "OK"
+    exact_http_request: false
+    maintenance_code:
       - 503
-    maintenanceResponse: "Maintenance"
-    responseSize: 2048
+    maintenance_response: "Maintenance"
+    response_size: 2048
 ```
 
 #### Health Monitor Types
@@ -50,10 +50,10 @@ The following parameters are common across all health monitor types:
 
 ##### Send Interval
 
-The `sendInterval` defines the frequency, in seconds, that health checks are sent to backend servers.
+The `send_interval` defines the frequency, in seconds, that health checks are sent to backend servers.
 
 ```yaml
-  sendInterval: 10
+  send_interval: 10
 ```
 
 - Valid range: 1-3600 seconds
@@ -61,10 +61,10 @@ The `sendInterval` defines the frequency, in seconds, that health checks are sen
 
 ##### Receive Timeout
 
-The `receiveTimeout` is the timeout for receiving a health check response, in seconds.
+The `receive_timeout` is the timeout for receiving a health check response, in seconds.
 
 ```yaml
-  receiveTimeout: 4
+  receive_timeout: 4
 ```
 
 - Valid range: 1-2400 seconds
@@ -72,10 +72,10 @@ The `receiveTimeout` is the timeout for receiving a health check response, in se
 
 ##### Successful Checks
 
-The `successfulChecks` is the number of consecutive successful health checks required before marking a server as UP.
+The `successful_checks` is the number of consecutive successful health checks required before marking a server as UP.
 
 ```yaml
-  successfulChecks: 2
+  successful_checks: 2
 ```
 
 - Valid range: 1-50
@@ -83,10 +83,10 @@ The `successfulChecks` is the number of consecutive successful health checks req
 
 ##### Failed Checks
 
-The `failedChecks` is the number of consecutive failed health checks required before marking a server as DOWN.
+The `failed_checks` is the number of consecutive failed health checks required before marking a server as DOWN.
 
 ```yaml
-  failedChecks: 2
+  failed_checks: 2
 ```
 
 - Valid range: 1-50
@@ -94,10 +94,10 @@ The `failedChecks` is the number of consecutive failed health checks required be
 
 ##### Monitor Port
 
-The `monitorPort` specifies the port to use for the health check. If not specified, the service port is used.
+The `monitor_port` specifies the port to use for the health check. If not specified, the service port is used.
 
 ```yaml
-  monitorPort: 8080
+  monitor_port: 8080
 ```
 
 - Valid range: 0-65535
@@ -105,76 +105,76 @@ The `monitorPort` specifies the port to use for the health check. If not specifi
 
 #### TCP Health Monitor Configuration
 
-For TCP-based health monitors (`HEALTH_MONITOR_TCP`), additional configuration can be specified under the `tcpMonitor` section:
+For TCP-based health monitors (`HEALTH_MONITOR_TCP`), additional configuration can be specified under the `tcp_monitor` section:
 
 ```yaml
   type: HEALTH_MONITOR_TCP
-  tcpMonitor:
-    tcpRequest: "GET /health HTTP/1.1"
-    tcpResponse: "OK"
-    maintenanceResponse: "Maintenance"
-    tcpHalfOpen: false
+  tcp_monitor:
+    tcp_request: "GET /health HTTP/1.1"
+    tcp_response: "OK"
+    maintenance_response: "Maintenance"
+    tcp_half_open: false
 ```
 
 ##### TCP Request
 
-The `tcpRequest` is the data to send as part of the TCP health check.
+The `tcp_request` is the data to send as part of the TCP health check.
 
 - Maximum length: 1024 characters
 - Optional
 
 ##### TCP Response
 
-The `tcpResponse` is the expected response from the server to consider the health check successful.
+The `tcp_response` is the expected response from the server to consider the health check successful.
 
 - Maximum length: 512 characters
 - Optional
 
 ##### Maintenance Response
 
-The `maintenanceResponse` is the response that indicates the server is in maintenance mode.
+The `maintenance_response` is the response that indicates the server is in maintenance mode.
 
 - Maximum length: 512 characters
 - Optional
 
 ##### TCP Half Open
 
-The `tcpHalfOpen` flag determines if the TCP monitor should use TCP half-open (SYN-only) checks.
+The `tcp_half_open` flag determines if the TCP monitor should use TCP half-open (SYN-only) checks.
 
 ```yaml
-  tcpHalfOpen: true
+  tcp_half_open: true
 ```
 
-**Note**: When `tcpHalfOpen` is set to true, the `tcpRequest`, `tcpResponse`, and `maintenanceResponse` fields must not be set.
+**Note**: When `tcp_half_open` is set to true, the `tcp_request`, `tcp_response`, and `maintenance_response` fields must not be set.
 
 #### HTTP Health Monitor Configuration
 
-For HTTP-based health monitors, configuration is specified under the `httpMonitor` section:
+For HTTP-based health monitors, configuration is specified under the `http_monitor` section:
 
 ```yaml
   type: HEALTH_MONITOR_HTTP
-  httpMonitor:
-    httpRequest: "GET /health HTTP/1.1"
-    httpResponseCode:
+  http_monitor:
+    http_request: "GET /health HTTP/1.1"
+    http_response_code:
       - HTTP_2XX
       - HTTP_3XX
-    httpResponse: "healthy"
-    exactHttpRequest: false
-    maintenanceCode:
+    http_response: "healthy"
+    exact_http_request: false
+    maintenance_code:
       - 503
       - 500
-    maintenanceResponse: "Maintenance"
-    authType: AUTH_BASIC
-    httpRequestBody: '{"check": "health"}'
-    responseSize: 4096
+    maintenance_response: "Maintenance"
+    auth_type: AUTH_BASIC
+    http_request_body: '{"check": "health"}'
+    response_size: 4096
 ```
 
 ##### HTTP Request
 
-The `httpRequest` specifies the HTTP request to send for the health check.
+The `http_request` specifies the HTTP request to send for the health check.
 
 ```yaml
-  httpRequest: "GET /health HTTP/1.1"
+  http_request: "GET /health HTTP/1.1"
 ```
 
 - Maximum length: 1024 characters
@@ -182,10 +182,10 @@ The `httpRequest` specifies the HTTP request to send for the health check.
 
 ##### HTTP Response Code
 
-The `httpResponseCode` specifies the list of HTTP response code ranges that indicate a successful health check.
+The `http_response_code` specifies the list of HTTP response code ranges that indicate a successful health check.
 
 ```yaml
-  httpResponseCode:
+  http_response_code:
     - HTTP_2XX
     - HTTP_3XX
 ```
@@ -202,10 +202,10 @@ Valid values are:
 
 ##### HTTP Response
 
-The `httpResponse` is a keyword to match in the response body to consider the health check successful.
+The `http_response` is a keyword to match in the response body to consider the health check successful.
 
 ```yaml
-  httpResponse: "OK"
+  http_response: "OK"
 ```
 
 - Maximum length: 512 characters
@@ -213,21 +213,21 @@ The `httpResponse` is a keyword to match in the response body to consider the he
 
 ##### Exact HTTP Request
 
-The `exactHttpRequest` flag determines if the entire HTTP request should match exactly as specified.
+The `exact_http_request` flag determines if the entire HTTP request should match exactly as specified.
 
 ```yaml
-  exactHttpRequest: true
+  exact_http_request: true
 ```
 
 - Default: false
-- **Note**: If `authType` is set, `exactHttpRequest` must be set to false.
+- **Note**: If `auth_type` is set, `exact_http_request` must be set to false.
 
 ##### Maintenance Code
 
-The `maintenanceCode` specifies HTTP response codes that indicate the server is in maintenance mode.
+The `maintenance_code` specifies HTTP response codes that indicate the server is in maintenance mode.
 
 ```yaml
-  maintenanceCode:
+  maintenance_code:
     - 503
     - 500
 ```
@@ -238,45 +238,44 @@ The `maintenanceCode` specifies HTTP response codes that indicate the server is 
 
 ##### Maintenance Response
 
-The `maintenanceResponse` specifies body content to match that indicates the server is in maintenance mode.
+The `maintenance_response` specifies body content to match that indicates the server is in maintenance mode.
 
 ```yaml
-  maintenanceResponse: "Under Maintenance"
+  maintenance_response: "Under Maintenance"
 ```
 
-- Maximum length: 512 characters
 - Optional
 
 ##### Authentication Type
 
-The `authType` specifies the authentication method to use for HTTP health checks.
+The `auth_type` specifies the authentication method to use for HTTP health checks.
 
 ```yaml
-  authType: AUTH_BASIC
+  auth_type: AUTH_BASIC
 ```
 
 Valid values:
 - `AUTH_BASIC`: HTTP Basic Authentication
 - `AUTH_NTLM`: NTLM Authentication
 
-**Note**: When `authType` is set, the `authentication.secretRef` field must also be configured.
+**Note**: When `auth_type` is set, the `authentication.secret_ref` field must also be configured.
 
 ##### HTTP Request Body
 
-The `httpRequestBody` specifies the request body to send with the HTTP health check.
+The `http_request_body` specifies the request body to send with the HTTP health check.
 
 ```yaml
-  httpRequestBody: '{"check": "health"}'
+  http_request_body: '{"check": "health"}'
 ```
 
 - Optional
 
 ##### Response Size
 
-The `responseSize` specifies the expected maximum size of the HTTP response in bytes.
+The `response_size` specifies the expected maximum size of the HTTP response in bytes.
 
 ```yaml
-  responseSize: 4096
+  response_size: 4096
 ```
 
 - Valid range: 2048-16384 bytes
@@ -288,7 +287,7 @@ For HTTP monitors that require authentication, specify the credentials reference
 
 ```yaml
   authentication:
-    secretRef: healthmonitor-secret
+    secret_ref: healthmonitor-secret
 ```
 
 The referenced secret must contain `username` and `password` fields:
@@ -305,14 +304,14 @@ data:
   password: <base64-encoded-password>
 ```
 
-**Note**: The secret must exist in the same namespace as the HealthMonitor resource. When `authType` is specified in `httpMonitor`, this field is mandatory.
+**Note**: The secret must exist in the same namespace as the HealthMonitor resource. When `auth_type` is specified in `http_monitor`, this field is mandatory.
 
 #### Federation Support
 
-The `isFederated` field determines the replication scope of the health monitor object.
+The `is_federated` field determines the replication scope of the health monitor object.
 
 ```yaml
-  isFederated: false
+  is_federated: false
 ```
 
 - When set to `false` (default): The health monitor is visible only within the controller-cluster and its associated service engines
@@ -332,14 +331,14 @@ metadata:
   namespace: default
 spec:
   type: HEALTH_MONITOR_TCP
-  sendInterval: 15
-  receiveTimeout: 5
-  successfulChecks: 2
-  failedChecks: 3
-  monitorPort: 80
-  tcpMonitor:
-    tcpHalfOpen: true
-  isFederated: false
+  send_interval: 15
+  receive_timeout: 5
+  successful_checks: 2
+  failed_checks: 3
+  monitor_port: 80
+  tcp_monitor:
+    tcp_half_open: true
+  is_federated: false
 ```
 
 #### TCP Health Monitor with Request/Response
@@ -352,16 +351,16 @@ metadata:
   namespace: default
 spec:
   type: HEALTH_MONITOR_TCP
-  sendInterval: 10
-  receiveTimeout: 4
-  successfulChecks: 2
-  failedChecks: 2
-  monitorPort: 8080
-  tcpMonitor:
-    tcpRequest: "GET /health HTTP/1.1"
-    tcpResponse: "OK"
-    maintenanceResponse: "Maintenance"
-  isFederated: false
+  send_interval: 10
+  receive_timeout: 4
+  successful_checks: 2
+  failed_checks: 2
+  monitor_port: 8080
+  tcp_monitor:
+    tcp_request: "GET /health HTTP/1.1"
+    tcp_response: "OK"
+    maintenance_response: "Maintenance"
+  is_federated: false
 ```
 
 #### HTTP Health Monitor with Basic Authentication
@@ -374,24 +373,24 @@ metadata:
   namespace: default
 spec:
   type: HEALTH_MONITOR_HTTP
-  sendInterval: 10
-  receiveTimeout: 5
-  successfulChecks: 2
-  failedChecks: 3
-  monitorPort: 443
+  send_interval: 10
+  receive_timeout: 5
+  successful_checks: 2
+  failed_checks: 3
+  monitor_port: 443
   authentication:
-    secretRef: healthmonitor-secret
-  httpMonitor:
-    httpRequest: "GET /api/health HTTP/1.1"
-    httpResponseCode:
+    secret_ref: healthmonitor-secret
+  http_monitor:
+    http_request: "GET /api/health HTTP/1.1"
+    http_response_code:
       - HTTP_2XX
-    httpResponse: "healthy"
-    exactHttpRequest: false
-    authType: AUTH_BASIC
-    maintenanceCode:
+    http_response: "healthy"
+    exact_http_request: false
+    auth_type: AUTH_BASIC
+    maintenance_code:
       - 503
-    maintenanceResponse: "Under Maintenance"
-  isFederated: false
+    maintenance_response: "Under Maintenance"
+  is_federated: false
 ```
 
 #### PING Health Monitor
@@ -404,11 +403,11 @@ metadata:
   namespace: default
 spec:
   type: HEALTH_MONITOR_PING
-  sendInterval: 10
-  receiveTimeout: 4
-  successfulChecks: 2
-  failedChecks: 2
-  isFederated: false
+  send_interval: 10
+  receive_timeout: 4
+  successful_checks: 2
+  failed_checks: 2
+  is_federated: false
 ```
 
 ### Status Messages
@@ -541,8 +540,8 @@ For more information about L4Rule, see the [L4Rule documentation](./l4rule.md).
 The following fields are immutable after the HealthMonitor is created:
 
 - `type`: The health monitor type cannot be changed
-- `monitorPort`: The monitor port cannot be modified
-- `isFederated`: The federation setting cannot be changed
+- `monitor_port`: The monitor port cannot be modified
+- `is_federated`: The federation setting cannot be changed
 
 To modify these fields, the HealthMonitor must be deleted and recreated.
 
@@ -557,15 +556,15 @@ When a HealthMonitor is deleted:
 
 The HealthMonitor CRD enforces the following validation rules:
 
-1. **Authentication Requirement**: If `httpMonitor.authType` is set, `authentication.secretRef` must be configured.
+1. **Authentication Requirement**: If `http_monitor.auth_type` is set, `authentication.secret_ref` must be configured.
 
-2. **TCP Half-Open Constraints**: When `tcpMonitor.tcpHalfOpen` is true, the fields `tcpRequest`, `tcpResponse`, and `maintenanceResponse` must not be set.
+2. **TCP Half-Open Constraints**: When `tcp_monitor.tcp_half_open` is true, the fields `tcp_request`, `tcp_response`, and `maintenance_response` must not be set.
 
-3. **Exact HTTP Request with Auth**: If `httpMonitor.authType` is set, `httpMonitor.exactHttpRequest` must be false.
+3. **Exact HTTP Request with Auth**: If `http_monitor.auth_type` is set, `http_monitor.exact_http_request` must be false.
 
-4. **Response Code Requirement**: For HTTP monitors, at least one value must be specified in `httpMonitor.httpResponseCode`.
+4. **Response Code Requirement**: For HTTP monitors, at least one value must be specified in `http_monitor.http_response_code`.
 
-5. **Maintenance Code Range**: Values in `httpMonitor.maintenanceCode` must be between 101 and 599.
+5. **Maintenance Code Range**: Values in `http_monitor.maintenance_code` must be between 101 and 599.
 
 #### Prerequisites
 
