@@ -353,12 +353,17 @@ func (c *VCFK8sController) ValidBootstrapSecretData(controllerIP, secretName, se
 	caData := string(ncpSecret.Data["certificateAuthorityData"])
 	lib.SetControllerIP(controllerIP)
 
+	// Set X-Avi-UserAgent header for rate limiting identification
+	userHeaders := utils.SharedCtrlProp().GetCtrlUserHeader()
+	userHeaders[utils.XAviUserAgentHeader] = "AKO"
+
 	transport, isSecure := utils.GetHTTPTransportWithCert(caData)
 	options := []func(*session.AviSession) error{
 		session.SetAuthToken(string(authToken)),
 		session.DisableControllerStatusCheckOnFailure(true),
 		session.SetTransport(transport),
 		session.SetTimeout(120 * time.Second),
+		session.SetUserHeader(userHeaders),
 	}
 	if !isSecure {
 		options = append(options, session.SetInsecure)

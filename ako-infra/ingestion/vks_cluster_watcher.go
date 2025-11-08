@@ -560,6 +560,15 @@ func (w *VKSClusterWatcher) cleanupAviObjects(ctx context.Context, clusterName, 
 		}
 	}
 
+	// Delete VSVIP objects at the end (after both ako- and ako-gw- objects)
+	// VSVIP objects use cluster name in markers, not the ako-/ako-gw- prefix
+	utils.AviLog.Infof("Cleaning up VSVIP objects for cluster %s", clusterNameWithUID)
+	if err := w.deleteVSVIPObjects(clusterAviClient, clusterNameWithUID); err != nil {
+		errorMsg := fmt.Sprintf("failed to cleanup VSVIP for cluster %s: %v", clusterNameWithUID, err)
+		utils.AviLog.Warnf("%s", errorMsg)
+		errors = append(errors, errorMsg)
+	}
+
 	if len(errors) > 0 {
 		return fmt.Errorf("cleanup failures: %s", strings.Join(errors, "; "))
 	}
@@ -586,6 +595,10 @@ func (w *VKSClusterWatcher) createCleanupAviClient(controllerIP, username, passw
 		}
 	}
 
+	// Set X-Avi-UserAgent header for rate limiting identification
+	userHeaders := utils.SharedCtrlProp().GetCtrlUserHeader()
+	userHeaders[utils.XAviUserAgentHeader] = "AKO"
+
 	transport, isSecure := utils.GetHTTPTransportWithCert(caData)
 	options := []func(*session.AviSession) error{
 		session.SetPassword(password),
@@ -594,6 +607,7 @@ func (w *VKSClusterWatcher) createCleanupAviClient(controllerIP, username, passw
 		session.SetTimeout(120 * time.Second),
 		session.SetVersion(ctrlVersion),
 		session.SetTenant(tenant),
+		session.SetUserHeader(userHeaders),
 	}
 
 	if !isSecure {
@@ -614,14 +628,6 @@ func (w *VKSClusterWatcher) deleteAviObjects(aviClient *clients.AviClient, creat
 	utils.AviLog.Infof("Cleaning up VirtualServices for %s", createdBy)
 	if err := w.deleteVirtualServices(aviClient, createdBy); err != nil {
 		errorMsg := fmt.Sprintf("failed to cleanup virtualservices: %v", err)
-		utils.AviLog.Warnf("%s", errorMsg)
-		errors = append(errors, errorMsg)
-	}
-
-	// VSVIP requires special handling with label-based query since it doesn't have created_by field
-	utils.AviLog.Infof("Cleaning up VSVIP objects for %s", createdBy)
-	if err := w.deleteVSVIPObjects(aviClient, createdBy); err != nil {
-		errorMsg := fmt.Sprintf("failed to cleanup VSVIP: %v", err)
 		utils.AviLog.Warnf("%s", errorMsg)
 		errors = append(errors, errorMsg)
 	}
@@ -653,11 +659,7 @@ func (w *VKSClusterWatcher) deleteAviObjects(aviClient *clients.AviClient, creat
 
 // deleteVSVIPObjects deletes VSVIP objects using label-based query
 // VSVIP objects don't have created_by field, they use markers/labels with clustername key
-func (w *VKSClusterWatcher) deleteVSVIPObjects(aviClient *clients.AviClient, createdBy string) error {
-	// Extract cluster name from createdBy (format: "ako-<clustername>" or "ako-gw-<clustername>")
-	clusterName := strings.TrimPrefix(createdBy, lib.AKOPrefix)
-	clusterName = strings.TrimPrefix(clusterName, lib.AKOGWPrefix)
-
+func (w *VKSClusterWatcher) deleteVSVIPObjects(aviClient *clients.AviClient, clusterName string) error {
 	apiPath := "/api/vsvip"
 	utils.AviLog.Infof("Cleaning up VSVIP objects for cluster %s using label-based query", clusterName)
 
@@ -691,7 +693,7 @@ func (w *VKSClusterWatcher) deleteVSVIPObjects(aviClient *clients.AviClient, cre
 // fetchVSVIPObjectsByLabel fetches VSVIP objects using label-based query
 func (w *VKSClusterWatcher) fetchVSVIPObjectsByLabel(aviClient *clients.AviClient, apiPath, clusterName, fields string) ([]map[string]interface{}, error) {
 	var allObjects []map[string]interface{}
-	baseURI := fmt.Sprintf("%s?markers.key=clustername&markers.values=%s&fields=%s&page_size=100", apiPath, clusterName, fields)
+	baseURI := fmt.Sprintf("%s?label_key=clustername&label_value=%s&fields=%s&page_size=100", apiPath, clusterName, fields)
 	nextURI := ""
 
 	for {
