@@ -831,8 +831,12 @@ func validateReferredHTTPRoute(key, name, namespace string, allowedRoutesAll boo
 	var routes []string
 	for _, httpRoute := range httpRoutes {
 		httpRouteToGatewayOperation(httpRoute, key, name, namespace)
-		routeTypeNsName := lib.HTTPRoute + "/" + httpRoute.Namespace + "/" + httpRoute.Name
-		routes = append(routes, routeTypeNsName)
+		routeTypeNsNameList, found := HTTPRouteChanges(httpRoute.Namespace, httpRoute.Name, key)
+		if !found {
+			utils.AviLog.Warnf("key: %s, msg: got error while getting HTTPRoute changes: %v", key, err)
+			continue
+		}
+		routes = append(routes, routeTypeNsNameList...)
 	}
 	return routes, nil
 }
