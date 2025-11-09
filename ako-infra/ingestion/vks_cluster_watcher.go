@@ -692,43 +692,8 @@ func (w *VKSClusterWatcher) deleteVSVIPObjects(aviClient *clients.AviClient, clu
 
 // fetchVSVIPObjectsByLabel fetches VSVIP objects using label-based query
 func (w *VKSClusterWatcher) fetchVSVIPObjectsByLabel(aviClient *clients.AviClient, apiPath, clusterName, fields string) ([]map[string]interface{}, error) {
-	var allObjects []map[string]interface{}
-	baseURI := fmt.Sprintf("%s?label_key=clustername&label_value=%s&fields=%s&page_size=100", apiPath, clusterName, fields)
-	nextURI := ""
-
-	for {
-		uri := baseURI
-		if nextURI != "" {
-			uri = nextURI
-		}
-
-		var response map[string]interface{}
-		err := aviClient.AviSession.Get(uri, &response)
-		if err != nil {
-			utils.AviLog.Warnf("Get uri %v returned err %v", uri, err)
-			return nil, err
-		}
-
-		results, ok := response["results"].([]interface{})
-		if !ok {
-			return nil, fmt.Errorf("unexpected response format for %s", apiPath)
-		}
-
-		for _, result := range results {
-			if obj, ok := result.(map[string]interface{}); ok {
-				allObjects = append(allObjects, obj)
-			}
-		}
-
-		if next, exists := response["next"].(string); exists && next != "" {
-			utils.AviLog.Infof("Processing next page for %s: %s", apiPath, next)
-			nextURI = next
-		} else {
-			break
-		}
-	}
-
-	return allObjects, nil
+	query := fmt.Sprintf("label_key=clustername&label_value=%s", clusterName)
+	return w.fetchAviObjectsWithQuery(aviClient, apiPath, query, fields)
 }
 
 // deleteVirtualServices deletes child VS first, then parent VS
@@ -802,8 +767,13 @@ func (w *VKSClusterWatcher) deleteObjectsOfType(aviClient *clients.AviClient, ap
 }
 
 func (w *VKSClusterWatcher) fetchAviObjects(aviClient *clients.AviClient, apiPath, createdBy, fields string) ([]map[string]interface{}, error) {
+	query := fmt.Sprintf("created_by=%s", createdBy)
+	return w.fetchAviObjectsWithQuery(aviClient, apiPath, query, fields)
+}
+
+func (w *VKSClusterWatcher) fetchAviObjectsWithQuery(aviClient *clients.AviClient, apiPath, queryParams, fields string) ([]map[string]interface{}, error) {
 	var allObjects []map[string]interface{}
-	baseURI := fmt.Sprintf("%s?created_by=%s&fields=%s&page_size=100", apiPath, createdBy, fields)
+	baseURI := fmt.Sprintf("%s?%s&fields=%s&page_size=100", apiPath, queryParams, fields)
 	nextURI := ""
 
 	for {
@@ -831,8 +801,14 @@ func (w *VKSClusterWatcher) fetchAviObjects(aviClient *clients.AviClient, apiPat
 		}
 
 		if next, exists := response["next"].(string); exists && next != "" {
-			utils.AviLog.Infof("Processing next page for %s: %s", apiPath, next)
-			nextURI = next
+			// Extract just the path from the full URL (e.g., https://host/api/... -> /api/...)
+			nextParts := strings.Split(next, apiPath)
+			if len(nextParts) > 1 {
+				nextURI = apiPath + nextParts[1]
+				utils.AviLog.Infof("Processing next page for %s: %s", apiPath, nextURI)
+			} else {
+				break
+			}
 		} else {
 			break
 		}
