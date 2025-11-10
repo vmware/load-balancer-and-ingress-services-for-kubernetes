@@ -652,6 +652,64 @@ func TestApplicationProfileController(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "success: PUT returns 404, recreates applicationprofile",
+			ap: &akov1alpha1.ApplicationProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            "test",
+					Finalizers:      []string{"applicationprofile.ako.vmware.com/finalizer"},
+					ResourceVersion: "1000",
+					Namespace:       "default",
+					Generation:      2,
+				},
+				Status: akov1alpha1.ApplicationProfileStatus{
+					UUID:               "123",
+					ObservedGeneration: 1,
+					Tenant:             "admin",
+				},
+			},
+			prepare: func(mockAviClient *mock.MockAviClientInterface) {
+				// First PUT call returns 404
+				mockAviClient.EXPECT().AviSessionPut(crdlib.ApplicationProfileURL+"/123", gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
+					HttpStatusCode: 404,
+					AviResult: session.AviResult{
+						Message: &[]string{"not found"}[0],
+					},
+				}).Times(1)
+				// Then POST to recreate
+				responseUUID := map[string]interface{}{
+					"uuid": "456",
+				}
+				mockAviClient.EXPECT().AviSessionPost(crdlib.ApplicationProfileURL, gomock.Any(), gomock.Any(), gomock.Any()).Do(func(url string, request interface{}, response interface{}, params ...interface{}) {
+					if resp, ok := response.(*map[string]interface{}); ok {
+						*resp = responseUUID
+					}
+				}).Return(nil).Times(1)
+			},
+			want: &akov1alpha1.ApplicationProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            "test",
+					Finalizers:      []string{"applicationprofile.ako.vmware.com/finalizer"},
+					ResourceVersion: "1001",
+					Generation:      2,
+				},
+				Status: akov1alpha1.ApplicationProfileStatus{
+					UUID:               "456",
+					BackendObjectName:  "ako-crd-operator-test-cluster--738bb014438bdbfe7f14e44b60f97b07e22e4dc0",
+					Tenant:             "admin",
+					ObservedGeneration: 1,
+					Conditions: []metav1.Condition{
+						{
+							Type:    string(akov1alpha1.ObjectConditionProgrammed),
+							Status:  metav1.ConditionTrue,
+							Reason:  "Created",
+							Message: "ApplicationProfile created successfully on Avi Controller",
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
 			name: "error: delete fails with non-404 error",
 			ap: &akov1alpha1.ApplicationProfile{
 				ObjectMeta: metav1.ObjectMeta{

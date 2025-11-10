@@ -265,26 +265,7 @@ func (r *ApplicationProfileReconciler) ReconcileIfRequired(ctx context.Context, 
 	}
 	// this is a POST Call
 	if ap.Status.UUID == "" {
-		resp, err := r.createApplicationProfile(ctx, apReq, namespaceTenant)
-		if err != nil {
-			if statusErr := r.StatusManager.SetStatus(ctx, ap, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionFalse, akov1alpha1.ObjectReasonCreationFailed, fmt.Sprintf("Failed to create ApplicationProfile on Avi Controller: %v", err)); statusErr != nil {
-				return statusErr
-			}
-			log.Errorf("error creating application profile: %s", err.Error())
-			return err
-		}
-		uuid, err := controllerutils.ExtractUUID(resp)
-		if err != nil {
-			if statusErr := r.StatusManager.SetStatus(ctx, ap, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionFalse, akov1alpha1.ObjectReasonUUIDExtractionFailed, fmt.Sprintf("Failed to extract UUID: %v", err)); statusErr != nil {
-				return statusErr
-			}
-			log.Errorf("error extracting UUID from application profile: %s", err.Error())
-			return err
-		}
-		ap.Status.UUID = uuid
-		ap.Status.BackendObjectName = apReq.Name
-		ap.Status.Tenant = namespaceTenant
-		if err := r.StatusManager.SetStatus(ctx, ap, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionTrue, akov1alpha1.ObjectReasonCreated, "ApplicationProfile created successfully on Avi Controller"); err != nil {
+		if err := r.handleApplicationProfileCreation(ctx, ap, apReq, namespaceTenant); err != nil {
 			return err
 		}
 
@@ -306,6 +287,14 @@ func (r *ApplicationProfileReconciler) ReconcileIfRequired(ctx context.Context, 
 		}
 		resp := map[string]interface{}{}
 		if err := r.AviClient.AviSessionPut(utils.GetUriEncoded(fmt.Sprintf("%s/%s", crdlib.ApplicationProfileURL, ap.Status.UUID)), apReq, &resp, session.SetOptTenant(namespaceTenant)); err != nil {
+			// Check if the error is 404 (Not Found), indicating the object was deleted out-of-band
+			if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == http.StatusNotFound {
+				log.Info("ApplicationProfile not found on Avi Controller (404), attempting to recreate")
+				if err := r.handleApplicationProfileCreation(ctx, ap, apReq, namespaceTenant); err != nil {
+					return err
+				}
+				return nil
+			}
 			log.Errorf("error updating application profile %s", err.Error())
 			if statusErr := r.StatusManager.SetStatus(ctx, ap, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionFalse, akov1alpha1.ObjectReasonUpdateFailed, fmt.Sprintf("Failed to update ApplicationProfile on Avi Controller: %v", err)); statusErr != nil {
 				return statusErr
@@ -319,6 +308,39 @@ func (r *ApplicationProfileReconciler) ReconcileIfRequired(ctx context.Context, 
 		}
 		log.Info("successfully updated application profile")
 	}
+	return nil
+}
+
+// handleApplicationProfileCreation creates an application profile, extracts UUID, and updates status
+func (r *ApplicationProfileReconciler) handleApplicationProfileCreation(ctx context.Context, ap *akov1alpha1.ApplicationProfile, apReq *ApplicationProfileRequest, namespaceTenant string) error {
+	log := utils.LoggerFromContext(ctx)
+
+	resp, err := r.createApplicationProfile(ctx, apReq, namespaceTenant)
+	if err != nil {
+		if statusErr := r.StatusManager.SetStatus(ctx, ap, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionFalse, akov1alpha1.ObjectReasonCreationFailed, fmt.Sprintf("Failed to create ApplicationProfile on Avi Controller: %v", err)); statusErr != nil {
+			return statusErr
+		}
+		log.Errorf("error creating application profile: %s", err.Error())
+		return err
+	}
+
+	uuid, err := controllerutils.ExtractUUID(resp)
+	if err != nil {
+		if statusErr := r.StatusManager.SetStatus(ctx, ap, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionFalse, akov1alpha1.ObjectReasonUUIDExtractionFailed, fmt.Sprintf("Failed to extract UUID: %v", err)); statusErr != nil {
+			return statusErr
+		}
+		log.Errorf("error extracting UUID from application profile: %s", err.Error())
+		return err
+	}
+
+	ap.Status.UUID = uuid
+	ap.Status.BackendObjectName = apReq.Name
+	ap.Status.Tenant = namespaceTenant
+
+	if err := r.StatusManager.SetStatus(ctx, ap, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionTrue, akov1alpha1.ObjectReasonCreated, "ApplicationProfile created successfully on Avi Controller"); err != nil {
+		return err
+	}
+
 	return nil
 }
 

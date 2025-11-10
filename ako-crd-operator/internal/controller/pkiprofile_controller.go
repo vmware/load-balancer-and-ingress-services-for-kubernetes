@@ -285,26 +285,7 @@ func (r *PKIProfileReconciler) ReconcileIfRequired(ctx context.Context, pki *ako
 	}
 	// this is a POST Call
 	if pki.Status.UUID == "" {
-		resp, err := r.createPKIProfile(ctx, pkiReq, namespaceTenant)
-		if err != nil {
-			log.Errorf("error creating pki profile: %s", err.Error())
-			if statusErr := r.SetStatus(ctx, pki, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionFalse, akov1alpha1.ObjectReasonCreationFailed, fmt.Sprintf("Failed to create PKIProfile on Avi Controller: %v", err)); statusErr != nil {
-				return statusErr
-			}
-			return err
-		}
-		uuid, err := controllerutils.ExtractUUID(resp)
-		if err != nil {
-			log.Errorf("error extracting UUID from pki profile: %s", err.Error())
-			if statusErr := r.SetStatus(ctx, pki, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionFalse, akov1alpha1.ObjectReasonUUIDExtractionFailed, fmt.Sprintf("Failed to extract UUID: %v", err)); statusErr != nil {
-				return statusErr
-			}
-			return err
-		}
-		pki.Status.UUID = uuid
-		pki.Status.BackendObjectName = *pkiReq.Name
-		pki.Status.Tenant = namespaceTenant
-		if err := r.SetStatus(ctx, pki, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionTrue, akov1alpha1.ObjectReasonCreated, "PKIProfile created successfully on Avi Controller"); err != nil {
+		if err := r.handlePKIProfileCreation(ctx, pki, pkiReq, namespaceTenant); err != nil {
 			return err
 		}
 	} else {
@@ -325,6 +306,14 @@ func (r *PKIProfileReconciler) ReconcileIfRequired(ctx context.Context, pki *ako
 		log.Debugf("overwriting pki profile")
 		resp := map[string]interface{}{}
 		if err := r.AviClient.AviSessionPut(utils.GetUriEncoded(fmt.Sprintf("%s/%s", crdlib.PKIProfileURL, pki.Status.UUID)), pkiReq, &resp, session.SetOptTenant(namespaceTenant)); err != nil {
+			// Check if the error is 404 (Not Found), indicating the object was deleted out-of-band
+			if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == http.StatusNotFound {
+				log.Info("PKIProfile not found on Avi Controller (404), attempting to recreate")
+				if err := r.handlePKIProfileCreation(ctx, pki, pkiReq, namespaceTenant); err != nil {
+					return err
+				}
+				return nil
+			}
 			log.Errorf("error updating pki profile %s", err.Error())
 			if statusErr := r.SetStatus(ctx, pki, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionFalse, akov1alpha1.ObjectReasonUpdateFailed, fmt.Sprintf("Failed to update PKIProfile on Avi Controller: %v", err)); statusErr != nil {
 				return statusErr
@@ -337,6 +326,39 @@ func (r *PKIProfileReconciler) ReconcileIfRequired(ctx context.Context, pki *ako
 			return err
 		}
 	}
+	return nil
+}
+
+// handlePKIProfileCreation creates a PKI profile, extracts UUID, and updates status
+func (r *PKIProfileReconciler) handlePKIProfileCreation(ctx context.Context, pki *akov1alpha1.PKIProfile, pkiReq *models.PKIprofile, namespaceTenant string) error {
+	log := utils.LoggerFromContext(ctx)
+
+	resp, err := r.createPKIProfile(ctx, pkiReq, namespaceTenant)
+	if err != nil {
+		log.Errorf("error creating pki profile: %s", err.Error())
+		if statusErr := r.SetStatus(ctx, pki, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionFalse, akov1alpha1.ObjectReasonCreationFailed, fmt.Sprintf("Failed to create PKIProfile on Avi Controller: %v", err)); statusErr != nil {
+			return statusErr
+		}
+		return err
+	}
+
+	uuid, err := controllerutils.ExtractUUID(resp)
+	if err != nil {
+		log.Errorf("error extracting UUID from pki profile: %s", err.Error())
+		if statusErr := r.SetStatus(ctx, pki, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionFalse, akov1alpha1.ObjectReasonUUIDExtractionFailed, fmt.Sprintf("Failed to extract UUID: %v", err)); statusErr != nil {
+			return statusErr
+		}
+		return err
+	}
+
+	pki.Status.UUID = uuid
+	pki.Status.BackendObjectName = *pkiReq.Name
+	pki.Status.Tenant = namespaceTenant
+
+	if err := r.SetStatus(ctx, pki, akov1alpha1.ObjectConditionProgrammed, metav1.ConditionTrue, akov1alpha1.ObjectReasonCreated, "PKIProfile created successfully on Avi Controller"); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -369,6 +391,7 @@ func (r *PKIProfileReconciler) createPKIProfile(ctx context.Context, pkiReq *mod
 		}
 		return nil, err
 	}
+	log.Info("pki profile successfully created")
 	return resp, nil
 }
 
