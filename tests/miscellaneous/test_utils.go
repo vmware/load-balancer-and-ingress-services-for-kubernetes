@@ -27,15 +27,8 @@ import (
 	"github.com/vmware/alb-sdk/go/session"
 )
 
-// StringPtr returns a pointer to the provided string
-func StringPtr(s string) *string {
-	return &s
-}
-
-// BoolPtr returns a pointer to the provided bool
-func BoolPtr(b bool) *bool {
-	return &b
-}
+// Note: StringPtr, BoolPtr, and Int32Ptr are defined in internal_cache_controller_obj_cache_test_additional.go
+// to avoid duplication
 
 // MapsEqual compares two string maps for equality
 func MapsEqual(m1, m2 map[string]string) bool {
