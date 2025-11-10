@@ -560,6 +560,15 @@ func (w *VKSClusterWatcher) cleanupAviObjects(ctx context.Context, clusterName, 
 		}
 	}
 
+	// Delete VSVIP objects at the end (after both ako- and ako-gw- objects)
+	// VSVIP objects use cluster name in markers, not the ako-/ako-gw- prefix
+	utils.AviLog.Infof("Cleaning up VSVIP objects for cluster %s", clusterNameWithUID)
+	if err := w.deleteVSVIPObjects(clusterAviClient, clusterNameWithUID); err != nil {
+		errorMsg := fmt.Sprintf("failed to cleanup VSVIP for cluster %s: %v", clusterNameWithUID, err)
+		utils.AviLog.Warnf("%s", errorMsg)
+		errors = append(errors, errorMsg)
+	}
+
 	if len(errors) > 0 {
 		return fmt.Errorf("cleanup failures: %s", strings.Join(errors, "; "))
 	}
@@ -586,6 +595,10 @@ func (w *VKSClusterWatcher) createCleanupAviClient(controllerIP, username, passw
 		}
 	}
 
+	// Set X-Avi-UserAgent header for rate limiting identification
+	userHeaders := utils.SharedCtrlProp().GetCtrlUserHeader()
+	userHeaders[utils.XAviUserAgentHeader] = "AKO"
+
 	transport, isSecure := utils.GetHTTPTransportWithCert(caData)
 	options := []func(*session.AviSession) error{
 		session.SetPassword(password),
@@ -594,6 +607,7 @@ func (w *VKSClusterWatcher) createCleanupAviClient(controllerIP, username, passw
 		session.SetTimeout(120 * time.Second),
 		session.SetVersion(ctrlVersion),
 		session.SetTenant(tenant),
+		session.SetUserHeader(userHeaders),
 	}
 
 	if !isSecure {
@@ -609,13 +623,16 @@ func (w *VKSClusterWatcher) createCleanupAviClient(controllerIP, username, passw
 }
 
 func (w *VKSClusterWatcher) deleteAviObjects(aviClient *clients.AviClient, createdBy string) error {
+	var errors []string
+
 	utils.AviLog.Infof("Cleaning up VirtualServices for %s", createdBy)
 	if err := w.deleteVirtualServices(aviClient, createdBy); err != nil {
-		return fmt.Errorf("failed to cleanup virtualservices: %v", err)
+		errorMsg := fmt.Sprintf("failed to cleanup virtualservices: %v", err)
+		utils.AviLog.Warnf("%s", errorMsg)
+		errors = append(errors, errorMsg)
 	}
 
 	objectTypes := []string{
-		"/api/vsvip",
 		"/api/vsdatascriptset",
 		"/api/httppolicyset",
 		"/api/l4policyset",
@@ -625,7 +642,6 @@ func (w *VKSClusterWatcher) deleteAviObjects(aviClient *clients.AviClient, creat
 		"/api/stringgroup",
 	}
 
-	var errors []string
 	for _, apiPath := range objectTypes {
 		utils.AviLog.Infof("Cleaning up %s for %s", apiPath, createdBy)
 		if err := w.deleteObjectsOfType(aviClient, apiPath, createdBy); err != nil {
@@ -639,6 +655,45 @@ func (w *VKSClusterWatcher) deleteAviObjects(aviClient *clients.AviClient, creat
 		return fmt.Errorf("object cleanup failures: %s", strings.Join(errors, "; "))
 	}
 	return nil
+}
+
+// deleteVSVIPObjects deletes VSVIP objects using label-based query
+// VSVIP objects don't have created_by field, they use markers/labels with clustername key
+func (w *VKSClusterWatcher) deleteVSVIPObjects(aviClient *clients.AviClient, clusterName string) error {
+	apiPath := "/api/vsvip"
+	utils.AviLog.Infof("Cleaning up VSVIP objects for cluster %s using label-based query", clusterName)
+
+	objects, err := w.fetchVSVIPObjectsByLabel(aviClient, apiPath, clusterName, "uuid,name")
+	if err != nil {
+		return fmt.Errorf("failed to fetch VSVIP objects: %v", err)
+	}
+
+	if len(objects) == 0 {
+		utils.AviLog.Infof("No VSVIP objects found for cluster %s", clusterName)
+		return nil
+	}
+
+	utils.AviLog.Infof("Found %d VSVIP objects to delete for cluster %s", len(objects), clusterName)
+
+	var errors []string
+	for _, obj := range objects {
+		if err := w.deleteAviObject(aviClient, apiPath, obj); err != nil {
+			errors = append(errors, err.Error())
+		}
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("VSVIP deletion failures: %s", strings.Join(errors, "; "))
+	}
+
+	utils.AviLog.Infof("Successfully deleted all VSVIP objects for cluster %s", clusterName)
+	return nil
+}
+
+// fetchVSVIPObjectsByLabel fetches VSVIP objects using label-based query
+func (w *VKSClusterWatcher) fetchVSVIPObjectsByLabel(aviClient *clients.AviClient, apiPath, clusterName, fields string) ([]map[string]interface{}, error) {
+	query := fmt.Sprintf("label_key=clustername&label_value=%s", clusterName)
+	return w.fetchAviObjectsWithQuery(aviClient, apiPath, query, fields)
 }
 
 // deleteVirtualServices deletes child VS first, then parent VS
@@ -702,18 +757,27 @@ func (w *VKSClusterWatcher) deleteObjectsOfType(aviClient *clients.AviClient, ap
 
 	utils.AviLog.Infof("Found %d %s to delete for %s", len(objects), apiPath, createdBy)
 
+	var errors []string
 	for _, obj := range objects {
 		if err := w.deleteAviObject(aviClient, apiPath, obj); err != nil {
-			return err
+			errors = append(errors, err.Error())
 		}
+	}
+	if len(errors) > 0 {
+		return fmt.Errorf("object deletion failures: %s", strings.Join(errors, "; "))
 	}
 
 	return nil
 }
 
 func (w *VKSClusterWatcher) fetchAviObjects(aviClient *clients.AviClient, apiPath, createdBy, fields string) ([]map[string]interface{}, error) {
+	query := fmt.Sprintf("created_by=%s", createdBy)
+	return w.fetchAviObjectsWithQuery(aviClient, apiPath, query, fields)
+}
+
+func (w *VKSClusterWatcher) fetchAviObjectsWithQuery(aviClient *clients.AviClient, apiPath, queryParams, fields string) ([]map[string]interface{}, error) {
 	var allObjects []map[string]interface{}
-	baseURI := fmt.Sprintf("%s?created_by=%s&fields=%s&page_size=100", apiPath, createdBy, fields)
+	baseURI := fmt.Sprintf("%s?%s&fields=%s&page_size=100", apiPath, queryParams, fields)
 	nextURI := ""
 
 	for {
@@ -741,8 +805,14 @@ func (w *VKSClusterWatcher) fetchAviObjects(aviClient *clients.AviClient, apiPat
 		}
 
 		if next, exists := response["next"].(string); exists && next != "" {
-			utils.AviLog.Infof("Processing next page for %s: %s", apiPath, next)
-			nextURI = next
+			// Extract just the path from the full URL (e.g., https://host/api/... -> /api/...)
+			nextParts := strings.Split(next, apiPath)
+			if len(nextParts) > 1 {
+				nextURI = apiPath + nextParts[1]
+				utils.AviLog.Infof("Processing next page for %s: %s", apiPath, nextURI)
+			} else {
+				break
+			}
 		} else {
 			break
 		}

@@ -70,6 +70,10 @@ func CreateVKSAviClient(controllerIP, username, authToken, caData string) (*clie
 		return nil, fmt.Errorf("VKS: Controller credentials not available for VKS client initialization")
 	}
 
+	// Set X-Avi-UserAgent header for rate limiting identification
+	userHeaders := utils.SharedCtrlProp().GetCtrlUserHeader()
+	userHeaders[utils.XAviUserAgentHeader] = "AKO"
+
 	transport, isSecure := utils.GetHTTPTransportWithCert(caData)
 	options := []func(*session.AviSession) error{
 		session.SetAuthToken(authToken),
@@ -77,6 +81,7 @@ func CreateVKSAviClient(controllerIP, username, authToken, caData string) (*clie
 		session.SetTransport(transport),
 		session.SetTimeout(120 * time.Second),
 		session.SetVersion(VKSAviVersion),
+		session.SetUserHeader(userHeaders),
 	}
 
 	if !isSecure {
