@@ -757,10 +757,14 @@ func (w *VKSClusterWatcher) deleteObjectsOfType(aviClient *clients.AviClient, ap
 
 	utils.AviLog.Infof("Found %d %s to delete for %s", len(objects), apiPath, createdBy)
 
+	var errors []string
 	for _, obj := range objects {
 		if err := w.deleteAviObject(aviClient, apiPath, obj); err != nil {
-			return err
+			errors = append(errors, err.Error())
 		}
+	}
+	if len(errors) > 0 {
+		return fmt.Errorf("object deletion failures: %s", strings.Join(errors, "; "))
 	}
 
 	return nil
