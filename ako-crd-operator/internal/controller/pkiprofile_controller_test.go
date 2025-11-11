@@ -221,6 +221,80 @@ func TestPKIProfileController(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "success: PUT returns 404, recreates pkiprofile",
+			pki: &akov1alpha1.PKIProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            "test",
+					Finalizers:      []string{"pkiprofile.ako.vmware.com/finalizer"},
+					ResourceVersion: "1000",
+					Namespace:       "default",
+					Generation:      2,
+				},
+				Status: akov1alpha1.PKIProfileStatus{
+					UUID:               "123",
+					ObservedGeneration: 1,
+					Tenant:             "admin",
+				},
+				Spec: akov1alpha1.PKIProfileSpec{
+					CACerts: []*akov1alpha1.SSLCertificate{{Certificate: func() *string {
+						s := testCertificate
+						return &s
+					}()}},
+				},
+			},
+			prepare: func(mockAviClient *mock.MockAviClientInterface) {
+				// First PUT call returns 404
+				mockAviClient.EXPECT().AviSessionPut(fmt.Sprintf("%s/%s", crdlib.PKIProfileURL, "123"), gomock.Any(), gomock.Any(), gomock.Any()).Return(session.AviError{
+					HttpStatusCode: 404,
+					AviResult: session.AviResult{
+						Message: &[]string{"not found"}[0],
+					},
+				}).Times(1)
+				// Then POST to recreate
+				responseUUID := map[string]interface{}{
+					"uuid": "456",
+				}
+				mockAviClient.EXPECT().AviSessionPost(crdlib.PKIProfileURL, gomock.Any(), gomock.Any(), gomock.Any()).Do(func(url string, request interface{}, response interface{}, params interface{}) {
+					if resp, ok := response.(*map[string]interface{}); ok {
+						*resp = responseUUID
+					}
+				}).Return(nil).Times(1)
+			},
+			prepareCache: func(cache *mock.MockCacheOperation) {
+				cache.EXPECT().GetObjectByUUID(gomock.Any(), gomock.Any()).Return(nil, false).AnyTimes()
+			},
+			want: &akov1alpha1.PKIProfile{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:            "test",
+					Finalizers:      []string{"pkiprofile.ako.vmware.com/finalizer"},
+					Namespace:       "default",
+					ResourceVersion: "1001",
+					Generation:      2,
+				},
+				Status: akov1alpha1.PKIProfileStatus{
+					UUID:               "456",
+					BackendObjectName:  "ako-crd-operator-test-cluster--738bb014438bdbfe7f14e44b60f97b07e22e4dc0",
+					Tenant:             "admin",
+					Controller:         crdlib.AKOCRDController,
+					ObservedGeneration: 2,
+					Conditions: []metav1.Condition{
+						{
+							Type:   string(akov1alpha1.ObjectConditionProgrammed),
+							Status: metav1.ConditionTrue,
+							Reason: "Created",
+						},
+					},
+				},
+				Spec: akov1alpha1.PKIProfileSpec{
+					CACerts: []*akov1alpha1.SSLCertificate{{Certificate: func() *string {
+						s := testCertificate
+						return &s
+					}()}},
+				},
+			},
+			wantErr: false,
+		},
+		{
 			name: "success: delete pkiprofile",
 			pki: &akov1alpha1.PKIProfile{
 				ObjectMeta: metav1.ObjectMeta{
