@@ -6363,3 +6363,167 @@ func TestHTTPRouteWithRouteBackendExtensionPKIProfileUpdate(t *testing.T) {
 	akogatewayapitests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
 }
+
+// TestHTTPRouteGatewayHostnameandGatewaynameChanges tests that when an HTTPRoute changes its gateway reference,
+// the old gateway's child VSes and pools are properly cleaned up.
+// This test validates the fix for the issue where stale VSes/pools were left behind.
+func TestHTTPRouteGatewayHostnameandGatewaynameChanges(t *testing.T) {
+
+	gatewayClassName := "gateway-class-gw-change"
+	gateway1Name := "gateway-gw-change-01"
+	gateway2Name := "gateway-gw-change-02"
+	httpRouteName := "httproute-gw-change"
+	svcName := "avisvc-gw-change"
+	ports := []int32{8080}
+
+	// Setup
+	akogatewayapitests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+
+	// Create first gateway with hostname1
+	listeners1 := akogatewayapitests.GetListenersOnHostname([]string{"host1.example.com"})
+	akogatewayapitests.SetupGateway(t, gateway1Name, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners1)
+
+	// Create second gateway with hostname2
+	listeners2 := akogatewayapitests.GetListenersOnHostname([]string{"host2.example.com"})
+	akogatewayapitests.SetupGateway(t, gateway2Name, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners2)
+
+	g := gomega.NewGomegaWithT(t)
+	modelName1, _ := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gateway1Name)
+	modelName2, _ := akogatewayapitests.GetModelName(DEFAULT_NAMESPACE, gateway2Name)
+
+	// Wait for both gateways to be created
+	g.Eventually(func() bool {
+		found1, _ := objects.SharedAviGraphLister().Get(modelName1)
+		found2, _ := objects.SharedAviGraphLister().Get(modelName2)
+		return found1 && found2
+	}, 45*time.Second).Should(gomega.Equal(true))
+
+	// Create service
+	svcExample := (integrationtest.FakeService{
+		Name:         svcName,
+		Namespace:    DEFAULT_NAMESPACE,
+		Type:         corev1.ServiceTypeClusterIP,
+		ServicePorts: []integrationtest.Serviceport{{PortName: "foo", Protocol: "TCP", PortNumber: ports[0], TargetPort: intstr.FromInt(int(ports[0]))}},
+	}).Service()
+	_, err := akogatewayapitests.KubeClient.CoreV1().Services(DEFAULT_NAMESPACE).Create(context.TODO(), svcExample, metav1.CreateOptions{})
+	if err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+	integrationtest.CreateEPS(t, DEFAULT_NAMESPACE, svcName, false, false, "1.1.1")
+
+	// Create HTTPRoute referencing gateway1 with hostname1
+	parentRefs1 := akogatewayapitests.GetParentReferencesFromListeners(listeners1, gateway1Name, DEFAULT_NAMESPACE)
+	rule := akogatewayapitests.GetHTTPRouteRuleV1(integrationtest.PATHPREFIX, []string{"/foo"}, []string{},
+		map[string][]string{"RequestHeaderModifier": {"add"}},
+		[][]string{{svcName, DEFAULT_NAMESPACE, fmt.Sprintf("%d", ports[0]), "1"}}, nil)
+	rules := []gatewayv1.HTTPRouteRule{rule}
+	hostnames1 := []gatewayv1.Hostname{"host1.example.com"}
+	akogatewayapitests.SetupHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs1, hostnames1, rules)
+
+	// Verify HTTPRoute is accepted by gateway1
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(DEFAULT_NAMESPACE).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			return false
+		}
+		if len(httpRoute.Status.Parents) == 0 {
+			return false
+		}
+		return apimeta.IsStatusConditionTrue(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted))
+	}, 60*time.Second).Should(gomega.Equal(true))
+
+	// Verify child VS is created for gateway1
+	g.Eventually(func() int {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName1)
+		if !found {
+			return 0
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 25*time.Second).Should(gomega.Equal(1))
+
+	// Get the child VS name for gateway1
+	_, aviModel1 := objects.SharedAviGraphLister().Get(modelName1)
+	nodes1 := aviModel1.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	childNode1 := nodes1[0].EvhNodes[0]
+	childVSName1 := childNode1.Name
+	t.Logf("Child VS created for gateway1: %s", childVSName1)
+
+	// Verify gateway1 has pools
+	g.Expect(len(childNode1.PoolRefs)).To(gomega.BeNumerically(">", 0))
+	t.Logf("Gateway1 has %d pool(s)", len(childNode1.PoolRefs))
+
+	// Verify gateway2 has no child VSes yet
+	_, aviModel2 := objects.SharedAviGraphLister().Get(modelName2)
+	g.Expect(aviModel2).ToNot(gomega.BeNil())
+	nodes2 := aviModel2.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	g.Expect(nodes2).ToNot(gomega.BeNil())
+	g.Expect(len(nodes2[0].EvhNodes)).To(gomega.Equal(0))
+
+	// Update HTTPRoute to reference gateway2 with hostname2
+	parentRefs2 := akogatewayapitests.GetParentReferencesFromListeners(listeners2, gateway2Name, DEFAULT_NAMESPACE)
+	hostnames2 := []gatewayv1.Hostname{"host2.example.com"}
+	akogatewayapitests.UpdateHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE, parentRefs2, hostnames2, rules)
+
+	// Verify HTTPRoute is accepted by gateway2
+	g.Eventually(func() bool {
+		httpRoute, err := akogatewayapitests.GatewayClient.GatewayV1().HTTPRoutes(DEFAULT_NAMESPACE).Get(context.TODO(), httpRouteName, metav1.GetOptions{})
+		if err != nil || httpRoute == nil {
+			return false
+		}
+		if len(httpRoute.Status.Parents) == 0 {
+			return false
+		}
+		// Check that the parent is gateway2
+		if string(httpRoute.Status.Parents[0].ParentRef.Name) != gateway2Name {
+			return false
+		}
+		return apimeta.IsStatusConditionTrue(httpRoute.Status.Parents[0].Conditions, string(gatewayv1.RouteConditionAccepted))
+	}, 60*time.Second).Should(gomega.Equal(true))
+
+	// Verify child VS is created for gateway2
+	g.Eventually(func() int {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName2)
+		if !found {
+			return 0
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].EvhNodes)
+	}, 25*time.Second).Should(gomega.Equal(1))
+
+	// Get the child VS name for gateway2
+	_, aviModel2 = objects.SharedAviGraphLister().Get(modelName2)
+	nodes2 = aviModel2.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	childNode2 := nodes2[0].EvhNodes[0]
+	childVSName2 := childNode2.Name
+	t.Logf("Child VS created for gateway2: %s", childVSName2)
+
+	// Verify gateway2 has pools
+	g.Expect(len(childNode2.PoolRefs)).To(gomega.BeNumerically(">", 0))
+	t.Logf("Gateway2 has %d pool(s)", len(childNode2.PoolRefs))
+
+	g.Eventually(func() int {
+		found, aviModel := objects.SharedAviGraphLister().Get(modelName1)
+		if !found {
+			return -1
+		}
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		numChildVSes := len(nodes[0].EvhNodes)
+		return numChildVSes
+	}, 60*time.Second).Should(gomega.Equal(0), "Gateway1 should have no child VSes after HTTPRoute changed to gateway2")
+
+	// Verify the child VS names are different
+	g.Expect(childVSName1).NotTo(gomega.Equal(childVSName2), "Child VS names should be different for different gateways")
+
+	t.Logf("SUCCESS: Old gateway's child VS was properly cleaned up")
+	t.Logf("  - Gateway1 child VS '%s' was deleted", childVSName1)
+	t.Logf("  - Gateway2 child VS '%s' was created", childVSName2)
+
+	// Clean up
+	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName)
+	integrationtest.DelEPS(t, DEFAULT_NAMESPACE, svcName)
+	akogatewayapitests.TeardownHTTPRoute(t, httpRouteName, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGateway(t, gateway1Name, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGateway(t, gateway2Name, DEFAULT_NAMESPACE)
+	akogatewayapitests.TeardownGatewayClass(t, gatewayClassName)
+}
