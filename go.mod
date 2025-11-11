@@ -19,12 +19,13 @@ require (
 	github.com/openshift/client-go v0.0.0-20201020082437-7737f16e53fc
 	github.com/prometheus/client_golang v1.17.0
 	github.com/vmware-tanzu/service-apis v0.0.0-20200901171416-461d35e58618
-	github.com/vmware/alb-sdk v0.0.0-20250407104238-8f88209a8f1a
+	github.com/vmware/alb-sdk v0.0.0-20251031103126-465797fb76a0
 	go.uber.org/zap v1.27.0
 	golang.org/x/crypto v0.37.0
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d
 	google.golang.org/protobuf v1.36.6
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
+	gopkg.in/yaml.v2 v2.4.0
 	istio.io/client-go v1.25.2
 	k8s.io/api v0.33.1
 	k8s.io/apimachinery v0.33.1
@@ -72,7 +73,6 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20241209162323-e6fa225c2576 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
-	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	istio.io/api v1.25.2-0.20250410212420-84c271001f68 // indirect
 	k8s.io/kube-openapi v0.0.0-20250318190949-c8a335a9a2ff // indirect
