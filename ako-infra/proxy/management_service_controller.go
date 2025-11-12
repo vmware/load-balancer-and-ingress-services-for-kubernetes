@@ -313,7 +313,7 @@ func (c *ManagementServiceController) validateManagementServiceConfig(serviceObj
 	portFound := false
 	for _, portInterface := range ports {
 		if port, ok := portInterface.(map[string]interface{}); ok {
-			if value, ok := port["value"].(float64); ok {
+			if value, ok := port["value"].(int64); ok {
 				if int32(value) == c.servicePort {
 					portFound = true
 					break
