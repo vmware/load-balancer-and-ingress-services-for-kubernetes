@@ -20,6 +20,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/vmware/alb-sdk/go/clients"
@@ -95,6 +96,8 @@ type VKSClusterWatcher struct {
 
 	reconcileTicker *time.Ticker
 	reconcileStopCh chan struct{}
+	reconcilerWg    sync.WaitGroup
+	workerWg        sync.WaitGroup
 
 	// For testing - allows injecting mock behavior
 	testMode            bool
@@ -232,6 +235,7 @@ func (w *VKSClusterWatcher) AddVKSSecretEventHandler(stopCh <-chan struct{}) {
 // Start begins cluster watcher operation
 func (w *VKSClusterWatcher) Start() error {
 	utils.AviLog.Infof("Starting cluster watcher")
+	w.workerWg.Add(1)
 	go w.runWorker()
 
 	w.startPeriodicReconciler()
@@ -247,10 +251,15 @@ func (w *VKSClusterWatcher) Stop() {
 	w.stopPeriodicReconciler()
 
 	w.workqueue.ShutDown()
+
+	// Wait for the worker goroutine to finish processing
+	w.workerWg.Wait()
+
 	utils.AviLog.Infof("Cluster watcher stopped")
 }
 
 func (w *VKSClusterWatcher) runWorker() {
+	defer w.workerWg.Done()
 	for w.ProcessNextWorkItem() {
 	}
 }
@@ -1476,7 +1485,9 @@ func (w *VKSClusterWatcher) startPeriodicReconciler() {
 	ticker := time.NewTicker(VKSReconcileInterval)
 	w.reconcileTicker = ticker
 
+	w.reconcilerWg.Add(1)
 	go func() {
+		defer w.reconcilerWg.Done()
 		for {
 			select {
 			case <-ticker.C:
@@ -1493,6 +1504,9 @@ func (w *VKSClusterWatcher) startPeriodicReconciler() {
 func (w *VKSClusterWatcher) stopPeriodicReconciler() {
 	// Close the stop channel first to signal the goroutine to exit
 	close(w.reconcileStopCh)
+
+	// Wait for the reconciler goroutine to finish
+	w.reconcilerWg.Wait()
 
 	// Then clean up the ticker after the goroutine has exited
 	if w.reconcileTicker != nil {

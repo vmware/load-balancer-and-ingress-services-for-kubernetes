@@ -943,13 +943,7 @@ func TestVKSClusterWatcher_WorkerIntegration(t *testing.T) {
 	// Enqueue a cluster event
 	watcher.EnqueueCluster(cluster, "ADD")
 
-	// Process one work item
-	processed := watcher.ProcessNextWorkItem()
-	if !processed {
-		t.Error("Expected work item to be processed")
-	}
-
-	// Verify that the secret was created successfully (with retry)
+	// Wait for the background worker to process the item by checking if secret is created
 	secretName := "test-cluster-avi-secret"
 	var secret *corev1.Secret
 	ctx := context.Background()

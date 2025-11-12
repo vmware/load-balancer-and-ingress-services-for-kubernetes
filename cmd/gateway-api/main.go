@@ -18,6 +18,7 @@ import (
 	"context"
 	"flag"
 	"os"
+	"strconv"
 	"sync"
 	"time"
 
@@ -163,6 +164,10 @@ func Initialize() {
 		// AKO will be primary by default in VCF deployments
 		lib.AKOControlConfig().SetAKOInstanceFlag(true)
 		k8s.SharedAviController().InitVCFHandlers(kubeClient, ctrlCh, stopCh)
+	}
+
+	if managedMode, _ := strconv.ParseBool(os.Getenv(utils.VKS_MANAGED)); managedMode {
+		lib.AKOControlConfig().SetAKOInstanceFlag(true)
 	}
 
 	lib.SetAKOUser(akogatewaylib.Prefix)
