@@ -16,6 +16,7 @@ package avirest
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -94,4 +95,32 @@ func CreateVKSAviClient(controllerIP, username, authToken, caData string) (*clie
 	}
 
 	return aviClient, nil
+}
+
+// IsRetryableError determines if an error should trigger a retry
+func IsRetryableError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	// For AviError, check if it's session expired
+	if strings.Contains(err.Error(), "Rest request error, returning to caller") {
+		return true
+	}
+
+	if aviError, ok := err.(session.AviError); ok {
+		switch aviError.HttpStatusCode {
+		case 400, 401, 403, 404, 409, 412, 422, 501:
+			return false
+		default:
+			// For 5xx errors and other transient issues, retry
+			return true
+		}
+	}
+
+	if strings.Contains(err.Error(), "Object not found") {
+		// non retryable
+		return false
+	}
+	return false
 }

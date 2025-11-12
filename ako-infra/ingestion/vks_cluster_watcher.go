@@ -54,6 +54,7 @@ const (
 	VKSClusterWorkQueue = "vks-cluster-watcher"
 
 	VKSReconcileInterval = 6 * time.Hour
+	VKSCleanupRetryDelay = 5 * time.Minute
 )
 
 // VKSClusterConfig holds all the configuration needed for a VKS cluster's AKO deployment
@@ -464,9 +465,22 @@ func (w *VKSClusterWatcher) cleanupClusterAviObjects(clusterName, clusterNameWit
 		cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 		defer cancel()
 
+		requeueOnError := func(stage string, err error) {
+			if !avirest.IsRetryableError(err) {
+				utils.AviLog.Errorf("VKS cleanup: %s failed for cluster %s with non-retryable error: %v - keeping credentials for periodic reconciliation", stage, clusterNameWithUID, err)
+				return
+			}
+
+			utils.AviLog.Errorf("VKS cleanup: %s failed for cluster %s: %v - requeuing for retry after %v", stage, clusterNameWithUID, err, VKSCleanupRetryDelay)
+			clusterKey := fmt.Sprintf("%s/%s", clusterNamespace, clusterName)
+			time.AfterFunc(VKSCleanupRetryDelay, func() {
+				w.workqueue.Add(clusterKey)
+			})
+		}
+
 		utils.AviLog.Infof("VKS cleanup: Executing Avi objects cleanup for cluster %s", clusterNameWithUID)
 		if err := w.cleanupAviObjects(cleanupCtx, clusterName, clusterNameWithUID, clusterNamespace); err != nil {
-			utils.AviLog.Errorf("VKS cleanup: Avi objects cleanup failed for cluster %s: %v - keeping credentials for retry", clusterNameWithUID, err)
+			requeueOnError("Avi objects cleanup", err)
 			// Don't delete RBAC or secret if Avi objects cleanup failed
 			return
 		}
@@ -474,7 +488,7 @@ func (w *VKSClusterWatcher) cleanupClusterAviObjects(clusterName, clusterNameWit
 
 		utils.AviLog.Infof("VKS cleanup: Cleaning up RBAC for cluster %s", clusterNameWithUID)
 		if err := w.cleanupClusterSpecificRBAC(clusterNameWithUID); err != nil {
-			utils.AviLog.Errorf("VKS cleanup: RBAC cleanup failed for cluster %s: %v - keeping secret for retry", clusterNameWithUID, err)
+			requeueOnError("RBAC cleanup", err)
 			// Don't delete secret if RBAC cleanup failed
 			return
 		}
@@ -487,7 +501,7 @@ func (w *VKSClusterWatcher) cleanupClusterAviObjects(clusterName, clusterNameWit
 			if errors.IsNotFound(err) {
 				utils.AviLog.Infof("VKS cleanup: Secret %s/%s already deleted", clusterNamespace, secretName)
 			} else {
-				utils.AviLog.Warnf("VKS cleanup: Failed to delete secret %s/%s: %v - will retry in next cycle", clusterNamespace, secretName, err)
+				requeueOnError("Secret deletion", err)
 				return
 			}
 		}
