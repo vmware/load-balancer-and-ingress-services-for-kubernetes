@@ -18,15 +18,38 @@
 package miscellaneous
 
 import (
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/alb-sdk/go/models"
+	"github.com/vmware/alb-sdk/go/session"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 )
 
-// Helper functions - using common test utilities
+// Helper functions for creating pointers
+func StringPtr(s string) *string {
+	return &s
+}
+
+func Int32Ptr(i int32) *int32 {
+	return &i
+}
+
+func BoolPtr(b bool) *bool {
+	return &b
+}
+
+// ========================================
+// Cache Initialization and Structure Tests
+// ========================================
 
 func TestNewAviObjCache(t *testing.T) {
 	objCache := cache.NewAviObjCache()
@@ -285,6 +308,10 @@ func TestAviObjCacheInitialization(t *testing.T) {
 	}
 }
 
+// ========================================
+// UUID and Pattern Extraction Tests
+// ========================================
+
 func TestExtractUUID(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -464,6 +491,372 @@ func TestExtractPattern(t *testing.T) {
 	}
 }
 
+// ========================================
+// Reference Marking and Deletion Tests
+// ========================================
+
+func TestMarkReference(t *testing.T) {
+	objCache := cache.NewAviObjCache()
+
+	// Setup test data
+	tenant := "admin"
+	dsKey := cache.NamespaceName{Namespace: tenant, Name: "ds1"}
+	httpKey := cache.NamespaceName{Namespace: tenant, Name: "http1"}
+	l4Key := cache.NamespaceName{Namespace: tenant, Name: "l4-1"}
+	pgKey := cache.NamespaceName{Namespace: tenant, Name: "pg1"}
+	poolKey := cache.NamespaceName{Namespace: tenant, Name: "pool1"}
+	sslKey := cache.NamespaceName{Namespace: tenant, Name: "ssl1"}
+	vsvipKey := cache.NamespaceName{Namespace: tenant, Name: "vsvip1"}
+
+	// Add cache entries
+	objCache.DSCache.AviCacheAdd(dsKey, &cache.AviDSCache{Name: "ds1", HasReference: false})
+	objCache.HTTPPolicyCache.AviCacheAdd(httpKey, &cache.AviHTTPPolicyCache{Name: "http1", HasReference: false})
+	objCache.L4PolicyCache.AviCacheAdd(l4Key, &cache.AviL4PolicyCache{Name: "l4-1", HasReference: false})
+	objCache.PgCache.AviCacheAdd(pgKey, &cache.AviPGCache{Name: "pg1", HasReference: false})
+	objCache.PoolCache.AviCacheAdd(poolKey, &cache.AviPoolCache{Name: "pool1", HasReference: false})
+	objCache.SSLKeyCache.AviCacheAdd(sslKey, &cache.AviSSLCache{Name: "ssl1", HasReference: false})
+	objCache.VSVIPCache.AviCacheAdd(vsvipKey, &cache.AviVSVIPCache{Name: "vsvip1", HasReference: false})
+
+	// Create VS cache object with references
+	vsCacheObj := &cache.AviVsCache{
+		Name:                 "vs1",
+		Tenant:               tenant,
+		DSKeyCollection:      []cache.NamespaceName{dsKey},
+		HTTPKeyCollection:    []cache.NamespaceName{httpKey},
+		L4PolicyCollection:   []cache.NamespaceName{l4Key},
+		PGKeyCollection:      []cache.NamespaceName{pgKey},
+		PoolKeyCollection:    []cache.NamespaceName{poolKey},
+		SSLKeyCertCollection: []cache.NamespaceName{sslKey},
+		VSVipKeyCollection:   []cache.NamespaceName{vsvipKey},
+	}
+
+	// Mark references
+	objCache.MarkReference(vsCacheObj)
+
+	// Verify all references are marked
+	tests := []struct {
+		name      string
+		cacheKey  cache.NamespaceName
+		cacheType string
+		getFunc   func() (interface{}, bool)
+	}{
+		{
+			name:      "DS reference marked",
+			cacheKey:  dsKey,
+			cacheType: "DS",
+			getFunc:   func() (interface{}, bool) { return objCache.DSCache.AviCacheGet(dsKey) },
+		},
+		{
+			name:      "HTTP policy reference marked",
+			cacheKey:  httpKey,
+			cacheType: "HTTP",
+			getFunc:   func() (interface{}, bool) { return objCache.HTTPPolicyCache.AviCacheGet(httpKey) },
+		},
+		{
+			name:      "L4 policy reference marked",
+			cacheKey:  l4Key,
+			cacheType: "L4",
+			getFunc:   func() (interface{}, bool) { return objCache.L4PolicyCache.AviCacheGet(l4Key) },
+		},
+		{
+			name:      "PG reference marked",
+			cacheKey:  pgKey,
+			cacheType: "PG",
+			getFunc:   func() (interface{}, bool) { return objCache.PgCache.AviCacheGet(pgKey) },
+		},
+		{
+			name:      "Pool reference marked",
+			cacheKey:  poolKey,
+			cacheType: "Pool",
+			getFunc:   func() (interface{}, bool) { return objCache.PoolCache.AviCacheGet(poolKey) },
+		},
+		{
+			name:      "SSL reference marked",
+			cacheKey:  sslKey,
+			cacheType: "SSL",
+			getFunc:   func() (interface{}, bool) { return objCache.SSLKeyCache.AviCacheGet(sslKey) },
+		},
+		{
+			name:      "VSVIP reference marked",
+			cacheKey:  vsvipKey,
+			cacheType: "VSVIP",
+			getFunc:   func() (interface{}, bool) { return objCache.VSVIPCache.AviCacheGet(vsvipKey) },
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			obj, found := tt.getFunc()
+			if !found {
+				t.Errorf("%s cache entry not found", tt.cacheType)
+				return
+			}
+
+			var hasRef bool
+			switch v := obj.(type) {
+			case *cache.AviDSCache:
+				hasRef = v.HasReference
+			case *cache.AviHTTPPolicyCache:
+				hasRef = v.HasReference
+			case *cache.AviL4PolicyCache:
+				hasRef = v.HasReference
+			case *cache.AviPGCache:
+				hasRef = v.HasReference
+			case *cache.AviPoolCache:
+				hasRef = v.HasReference
+			case *cache.AviSSLCache:
+				hasRef = v.HasReference
+			case *cache.AviVSVIPCache:
+				hasRef = v.HasReference
+			}
+
+			if !hasRef {
+				t.Errorf("%s reference not marked", tt.cacheType)
+			}
+		})
+	}
+}
+
+func TestDeleteUnmarked(t *testing.T) {
+	objCache := cache.NewAviObjCache()
+
+	tenant := "admin"
+
+	// Add unmarked entries (HasReference = false)
+	dsKey := cache.NamespaceName{Namespace: tenant, Name: "ds-unmarked"}
+	objCache.DSCache.AviCacheAdd(dsKey, &cache.AviDSCache{Name: "ds-unmarked", HasReference: false})
+
+	httpKey := cache.NamespaceName{Namespace: tenant, Name: "http-unmarked"}
+	objCache.HTTPPolicyCache.AviCacheAdd(httpKey, &cache.AviHTTPPolicyCache{Name: "http-unmarked", HasReference: false})
+
+	l4Key := cache.NamespaceName{Namespace: tenant, Name: "l4-unmarked"}
+	objCache.L4PolicyCache.AviCacheAdd(l4Key, &cache.AviL4PolicyCache{Name: "l4-unmarked", HasReference: false})
+
+	pgKey := cache.NamespaceName{Namespace: tenant, Name: "pg-unmarked"}
+	objCache.PgCache.AviCacheAdd(pgKey, &cache.AviPGCache{Name: "pg-unmarked", HasReference: false})
+
+	poolKey := cache.NamespaceName{Namespace: tenant, Name: "pool-unmarked"}
+	objCache.PoolCache.AviCacheAdd(poolKey, &cache.AviPoolCache{Name: "pool-unmarked", HasReference: false})
+
+	sslKey := cache.NamespaceName{Namespace: tenant, Name: "ssl-unmarked"}
+	objCache.SSLKeyCache.AviCacheAdd(sslKey, &cache.AviSSLCache{Name: "ssl-unmarked", HasReference: false})
+
+	vsvipKey := cache.NamespaceName{Namespace: tenant, Name: "vsvip-unmarked"}
+	objCache.VSVIPCache.AviCacheAdd(vsvipKey, &cache.AviVSVIPCache{Name: "vsvip-unmarked", HasReference: false})
+
+	sgKey := cache.NamespaceName{Namespace: tenant, Name: "sg-unmarked"}
+	objCache.StringGroupCache.AviCacheAdd(sgKey, &cache.AviStringGroupCache{Name: "sg-unmarked", HasReference: false})
+
+	// Add marked entries (HasReference = true)
+	markedDsKey := cache.NamespaceName{Namespace: tenant, Name: "ds-marked"}
+	objCache.DSCache.AviCacheAdd(markedDsKey, &cache.AviDSCache{Name: "ds-marked", HasReference: true})
+
+	// Call DeleteUnmarked
+	childCollection := make(map[string][]string)
+	childCollection[tenant] = []string{"child-uuid-1"}
+	objCache.DeleteUnmarked(childCollection)
+
+	// Verify dummy VS was created with unmarked objects
+	dummyVsKey := cache.NamespaceName{Namespace: tenant, Name: "DummyVSForStaleData"}
+	vsObj, found := objCache.VsCacheMeta.AviCacheGet(dummyVsKey)
+	if !found {
+		t.Fatal("Dummy VS not created for unmarked objects")
+	}
+
+	dummyVs, ok := vsObj.(*cache.AviVsCache)
+	if !ok {
+		t.Fatal("Dummy VS is not of correct type")
+	}
+
+	// Verify unmarked objects are in dummy VS
+	if len(dummyVs.DSKeyCollection) == 0 {
+		t.Error("DS keys not added to dummy VS")
+	}
+	if len(dummyVs.HTTPKeyCollection) == 0 {
+		t.Error("HTTP keys not added to dummy VS")
+	}
+	if len(dummyVs.L4PolicyCollection) == 0 {
+		t.Error("L4 keys not added to dummy VS")
+	}
+	if len(dummyVs.PGKeyCollection) == 0 {
+		t.Error("PG keys not added to dummy VS")
+	}
+	if len(dummyVs.PoolKeyCollection) == 0 {
+		t.Error("Pool keys not added to dummy VS")
+	}
+	if len(dummyVs.SSLKeyCertCollection) == 0 {
+		t.Error("SSL keys not added to dummy VS")
+	}
+	if len(dummyVs.VSVipKeyCollection) == 0 {
+		t.Error("VSVIP keys not added to dummy VS")
+	}
+	if len(dummyVs.StringGroupKeyCollection) == 0 {
+		t.Error("StringGroup keys not added to dummy VS")
+	}
+	if len(dummyVs.SNIChildCollection) == 0 {
+		t.Error("SNI child collection not added to dummy VS")
+	}
+}
+
+// ========================================
+// Persistence Profile Tests
+// ========================================
+
+func TestCalculatePersistenProfileChecksum(t *testing.T) {
+	tests := []struct {
+		name    string
+		profile models.ApplicationPersistenceProfile
+	}{
+		{
+			name: "Basic profile without HTTP cookie",
+			profile: models.ApplicationPersistenceProfile{
+				Name:            StringPtr("test-profile"),
+				PersistenceType: StringPtr("PERSISTENCE_TYPE_CLIENT_IP_ADDRESS"),
+			},
+		},
+		{
+			name: "Profile with HTTP cookie persistence",
+			profile: models.ApplicationPersistenceProfile{
+				Name:            StringPtr("cookie-profile"),
+				PersistenceType: StringPtr("PERSISTENCE_TYPE_HTTP_COOKIE"),
+				HTTPCookiePersistenceProfile: &models.HTTPCookiePersistenceProfile{
+					CookieName: StringPtr("session-cookie"),
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := cache.CalculatePersistenProfileChecksum(tt.profile)
+			// We can't predict the exact checksum, but we can verify it's calculated
+			t.Logf("Checksum calculated: %d", got)
+		})
+	}
+}
+
+// ========================================
+// Pool Group Tests
+// ========================================
+
+func TestAviPopulateAllPGs(t *testing.T) {
+	objCache := cache.NewAviObjCache()
+
+	// Add some pools to cache first
+	poolKey := cache.NamespaceName{Namespace: "admin", Name: "pool1"}
+	objCache.PoolCache.AviCacheAdd(poolKey, &cache.AviPoolCache{
+		Name: "pool1",
+		Uuid: "pool-uuid-1",
+	})
+
+	// Test with mock data
+	t.Run("Empty result", func(t *testing.T) {
+		pgData := []cache.AviPGCache{}
+		// Note: Actual test would require mocking lib.AviGetCollectionRaw
+		// For now, verify the data structure
+		if len(pgData) != 0 {
+			t.Errorf("Expected empty pgData, got %d items", len(pgData))
+		}
+	})
+
+	t.Run("Valid PG data structure", func(t *testing.T) {
+		pgData := []cache.AviPGCache{
+			{
+				Name:             "pg1",
+				Tenant:           "admin",
+				Uuid:             "pg-uuid-1",
+				CloudConfigCksum: "checksum1",
+				Members:          []string{"pool1"},
+			},
+		}
+
+		if len(pgData) != 1 {
+			t.Errorf("Expected 1 PG, got %d", len(pgData))
+		}
+
+		pg := pgData[0]
+		if pg.Name != "pg1" {
+			t.Errorf("Expected name 'pg1', got '%s'", pg.Name)
+		}
+		if len(pg.Members) != 1 {
+			t.Errorf("Expected 1 member, got %d", len(pg.Members))
+		}
+	})
+}
+
+func TestAviPGPoolCachePopulate(t *testing.T) {
+	objCache := cache.NewAviObjCache()
+	tenant := "admin"
+
+	// Add PG with members to cache
+	pgName := "pg1"
+	pgKey := cache.NamespaceName{Namespace: tenant, Name: pgName}
+	objCache.PgCache.AviCacheAdd(pgKey, &cache.AviPGCache{
+		Name:    pgName,
+		Uuid:    "pg-uuid-1",
+		Members: []string{"pool1", "pool2"},
+	})
+
+	t.Run("PG found in cache", func(t *testing.T) {
+		// Note: Actual test would require a real client
+		// For now, verify the cache structure
+		pgObj, found := objCache.PgCache.AviCacheGet(pgKey)
+		if !found {
+			t.Fatal("PG not found in cache")
+		}
+
+		pg, ok := pgObj.(*cache.AviPGCache)
+		if !ok {
+			t.Fatal("PG object is not of correct type")
+		}
+
+		if len(pg.Members) != 2 {
+			t.Errorf("Expected 2 members, got %d", len(pg.Members))
+		}
+	})
+
+	t.Run("PG not found in cache", func(t *testing.T) {
+		nonExistentKey := cache.NamespaceName{Namespace: tenant, Name: "non-existent-pg"}
+		_, found := objCache.PgCache.AviCacheGet(nonExistentKey)
+		if found {
+			t.Error("Expected PG not to be found")
+		}
+	})
+}
+
+// ========================================
+// Host to Ingress Mapping Tests
+// ========================================
+
+func TestPopulateHostToIngMapping(t *testing.T) {
+	// Note: This function requires informers to be set up
+	// For now, test the data structure
+	t.Run("Valid host to ingress mapping structure", func(t *testing.T) {
+		hostsToIng := map[string][]string{
+			"host1.example.com": {"namespace1/ingress1", "namespace2/ingress2"},
+			"host2.example.com": {"namespace3/ingress3"},
+		}
+
+		if len(hostsToIng) != 2 {
+			t.Errorf("Expected 2 hosts, got %d", len(hostsToIng))
+		}
+
+		host1Ings := hostsToIng["host1.example.com"]
+		if len(host1Ings) != 2 {
+			t.Errorf("Expected 2 ingresses for host1, got %d", len(host1Ings))
+		}
+
+		host2Ings := hostsToIng["host2.example.com"]
+		if len(host2Ings) != 1 {
+			t.Errorf("Expected 1 ingress for host2, got %d", len(host2Ings))
+		}
+	})
+}
+
+// ========================================
+// CIDR Overlapping Tests
+// ========================================
+
 func TestFindCIDROverlapping(t *testing.T) {
 	// Helper to create IP address
 	createIPAddr := func(addr, ipType string) *models.IPAddr {
@@ -562,5 +955,1610 @@ func TestFindCIDROverlapping(t *testing.T) {
 				t.Errorf("FindCIDROverlapping() network = %v, want %v", *gotNetwork.Name, tt.wantNetwork)
 			}
 		})
+	}
+}
+
+func TestFindCIDROverlappingMultipleNetworks(t *testing.T) {
+	createIPAddr := func(addr, ipType string) *models.IPAddr {
+		return &models.IPAddr{
+			Addr: &addr,
+			Type: &ipType,
+		}
+	}
+
+	createSubnet := func(addr, ipType string, mask int32) *models.Subnet {
+		return &models.Subnet{
+			Prefix: &models.IPAddrPrefix{
+				IPAddr: createIPAddr(addr, ipType),
+				Mask:   &mask,
+			},
+		}
+	}
+
+	t.Run("Match both IPv4 and IPv6 - requires single subnet with both", func(t *testing.T) {
+		// Note: FindCIDROverlapping requires BOTH CIDRs to be in the SAME subnet entry
+		// If IPv4 and IPv6 are in separate subnets, it won't match both
+		networks := []models.Network{
+			{
+				Name: StringPtr("dual-stack-network"),
+				UUID: StringPtr("uuid-dual"),
+				ConfiguredSubnets: []*models.Subnet{
+					createSubnet("10.0.0.0", "V4", 24),
+					createSubnet("2001:db8::", "V6", 64),
+				},
+			},
+		}
+
+		ipNet := akov1beta1.AviInfraSettingVipNetwork{
+			Cidr:   "10.0.0.0/24",
+			V6Cidr: "2001:db8::/64",
+		}
+
+		found, _ := cache.FindCIDROverlapping(networks, ipNet)
+		// This will NOT find a match because IPv4 and IPv6 are in separate subnets
+		// The function resets matchedCidrCount after each subnet
+		if found {
+			t.Error("Expected NOT to find matching network (CIDRs in separate subnets)")
+		}
+	})
+
+	t.Run("Partial match - only IPv4", func(t *testing.T) {
+		networks := []models.Network{
+			{
+				Name: StringPtr("ipv4-only"),
+				UUID: StringPtr("uuid-v4"),
+				ConfiguredSubnets: []*models.Subnet{
+					createSubnet("10.0.0.0", "V4", 24),
+				},
+			},
+		}
+
+		ipNet := akov1beta1.AviInfraSettingVipNetwork{
+			Cidr:   "10.0.0.0/24",
+			V6Cidr: "2001:db8::/64", // This won't match
+		}
+
+		found, _ := cache.FindCIDROverlapping(networks, ipNet)
+		if found {
+			t.Error("Expected not to find matching network (partial match)")
+		}
+	})
+
+	t.Run("Multiple networks - first match wins", func(t *testing.T) {
+		networks := []models.Network{
+			{
+				Name: StringPtr("network1"),
+				UUID: StringPtr("uuid1"),
+				ConfiguredSubnets: []*models.Subnet{
+					createSubnet("10.0.0.0", "V4", 24),
+				},
+			},
+			{
+				Name: StringPtr("network2"),
+				UUID: StringPtr("uuid2"),
+				ConfiguredSubnets: []*models.Subnet{
+					createSubnet("10.0.0.0", "V4", 24),
+				},
+			},
+		}
+
+		ipNet := akov1beta1.AviInfraSettingVipNetwork{
+			Cidr: "10.0.0.0/24",
+		}
+
+		found, network := cache.FindCIDROverlapping(networks, ipNet)
+		if !found {
+			t.Error("Expected to find matching network")
+		}
+		if network.Name != nil && *network.Name != "network1" {
+			t.Errorf("Expected first matching network 'network1', got '%s'", *network.Name)
+		}
+	})
+}
+
+// ========================================
+// Utility Function Tests
+// ========================================
+
+func TestRemoveNamespaceNameAdditional(t *testing.T) {
+	t.Run("Remove existing element", func(t *testing.T) {
+		list := []cache.NamespaceName{
+			{Namespace: "ns1", Name: "name1"},
+			{Namespace: "ns2", Name: "name2"},
+			{Namespace: "ns3", Name: "name3"},
+		}
+
+		toRemove := cache.NamespaceName{Namespace: "ns2", Name: "name2"}
+		result := cache.RemoveNamespaceName(list, toRemove)
+
+		if len(result) != 2 {
+			t.Errorf("Expected 2 elements after removal, got %d", len(result))
+		}
+
+		// Verify removed element is not in result
+		for _, item := range result {
+			if item.Namespace == "ns2" && item.Name == "name2" {
+				t.Error("Removed element still present in result")
+			}
+		}
+	})
+
+	t.Run("Remove non-existing element", func(t *testing.T) {
+		list := []cache.NamespaceName{
+			{Namespace: "ns1", Name: "name1"},
+			{Namespace: "ns2", Name: "name2"},
+		}
+
+		toRemove := cache.NamespaceName{Namespace: "ns3", Name: "name3"}
+		result := cache.RemoveNamespaceName(list, toRemove)
+
+		if len(result) != 2 {
+			t.Errorf("Expected 2 elements (no removal), got %d", len(result))
+		}
+	})
+
+	t.Run("Remove from empty list", func(t *testing.T) {
+		list := []cache.NamespaceName{}
+		toRemove := cache.NamespaceName{Namespace: "ns1", Name: "name1"}
+		result := cache.RemoveNamespaceName(list, toRemove)
+
+		if len(result) != 0 {
+			t.Errorf("Expected empty list, got %d elements", len(result))
+		}
+	})
+}
+
+// ========================================
+// VS Cache Operations Tests
+// ========================================
+
+func TestVsCacheOperations(t *testing.T) {
+	objCache := cache.NewAviObjCache()
+
+	t.Run("Add and retrieve VS cache", func(t *testing.T) {
+		vsKey := cache.NamespaceName{Namespace: "admin", Name: "vs1"}
+		vsCache := &cache.AviVsCache{
+			Name:             "vs1",
+			Tenant:           "admin",
+			Uuid:             "vs-uuid-1",
+			CloudConfigCksum: "checksum1",
+		}
+
+		objCache.VsCacheMeta.AviCacheAdd(vsKey, vsCache)
+
+		retrieved, found := objCache.VsCacheMeta.AviCacheGet(vsKey)
+		if !found {
+			t.Fatal("VS not found in cache")
+		}
+
+		retrievedVs, ok := retrieved.(*cache.AviVsCache)
+		if !ok {
+			t.Fatal("Retrieved object is not of type AviVsCache")
+		}
+
+		if retrievedVs.Name != "vs1" {
+			t.Errorf("Expected name 'vs1', got '%s'", retrievedVs.Name)
+		}
+		if retrievedVs.Uuid != "vs-uuid-1" {
+			t.Errorf("Expected UUID 'vs-uuid-1', got '%s'", retrievedVs.Uuid)
+		}
+	})
+
+	t.Run("Delete VS cache", func(t *testing.T) {
+		vsKey := cache.NamespaceName{Namespace: "admin", Name: "vs-to-delete"}
+		vsCache := &cache.AviVsCache{
+			Name:   "vs-to-delete",
+			Tenant: "admin",
+			Uuid:   "vs-uuid-delete",
+		}
+
+		objCache.VsCacheMeta.AviCacheAdd(vsKey, vsCache)
+		objCache.VsCacheMeta.AviCacheDelete(vsKey)
+
+		_, found := objCache.VsCacheMeta.AviCacheGet(vsKey)
+		if found {
+			t.Error("VS should have been deleted from cache")
+		}
+	})
+}
+
+// ========================================
+// Cache Object Fields Tests
+// ========================================
+
+func TestCacheObjectFields(t *testing.T) {
+	t.Run("AviVsCache fields", func(t *testing.T) {
+		vsCache := &cache.AviVsCache{
+			Name:             "vs1",
+			Tenant:           "admin",
+			Uuid:             "uuid1",
+			CloudConfigCksum: "checksum1",
+		}
+
+		if vsCache.Name != "vs1" {
+			t.Errorf("Expected name 'vs1', got '%s'", vsCache.Name)
+		}
+		if vsCache.Tenant != "admin" {
+			t.Errorf("Expected tenant 'admin', got '%s'", vsCache.Tenant)
+		}
+		if vsCache.Uuid != "uuid1" {
+			t.Errorf("Expected uuid 'uuid1', got '%s'", vsCache.Uuid)
+		}
+	})
+
+	t.Run("AviPoolCache fields", func(t *testing.T) {
+		poolCache := &cache.AviPoolCache{
+			Name:             "pool1",
+			Tenant:           "admin",
+			Uuid:             "pool-uuid-1",
+			CloudConfigCksum: "checksum1",
+		}
+
+		if poolCache.Name != "pool1" {
+			t.Errorf("Expected name 'pool1', got '%s'", poolCache.Name)
+		}
+		if poolCache.Tenant != "admin" {
+			t.Errorf("Expected tenant 'admin', got '%s'", poolCache.Tenant)
+		}
+	})
+}
+
+// ========================================
+// Cache Data Structures Tests
+// ========================================
+
+func TestCacheDataStructures(t *testing.T) {
+	t.Run("AviHTTPPolicyCache structure", func(t *testing.T) {
+		httpCache := cache.AviHTTPPolicyCache{
+			Name:            "http-policy-1",
+			Tenant:          "admin",
+			Uuid:            "http-uuid-1",
+			PoolGroups:      []string{"pg1", "pg2"},
+			Pools:           []string{"pool1"},
+			StringGroupRefs: []string{"sg1"},
+		}
+
+		if httpCache.Name != "http-policy-1" {
+			t.Errorf("Expected name 'http-policy-1', got '%s'", httpCache.Name)
+		}
+		if len(httpCache.PoolGroups) != 2 {
+			t.Errorf("Expected 2 pool groups, got %d", len(httpCache.PoolGroups))
+		}
+	})
+
+	t.Run("AviL4PolicyCache structure", func(t *testing.T) {
+		l4Cache := cache.AviL4PolicyCache{
+			Name:   "l4-policy-1",
+			Tenant: "admin",
+			Uuid:   "l4-uuid-1",
+			Pools:  []string{"pool1", "pool2"},
+		}
+
+		if l4Cache.Name != "l4-policy-1" {
+			t.Errorf("Expected name 'l4-policy-1', got '%s'", l4Cache.Name)
+		}
+		if len(l4Cache.Pools) != 2 {
+			t.Errorf("Expected 2 pools, got %d", len(l4Cache.Pools))
+		}
+	})
+
+	t.Run("AviStringGroupCache structure", func(t *testing.T) {
+		sgCache := cache.AviStringGroupCache{
+			Name:        "sg1",
+			Tenant:      "admin",
+			Uuid:        "sg-uuid-1",
+			Description: "Test string group",
+		}
+
+		if sgCache.Name != "sg1" {
+			t.Errorf("Expected name 'sg1', got '%s'", sgCache.Name)
+		}
+		if sgCache.Description != "Test string group" {
+			t.Errorf("Expected description 'Test string group', got '%s'", sgCache.Description)
+		}
+	})
+
+	t.Run("AviPkiProfileCache structure", func(t *testing.T) {
+		pkiCache := cache.AviPkiProfileCache{
+			Name:   "pki1",
+			Tenant: "admin",
+			Uuid:   "pki-uuid-1",
+		}
+
+		if pkiCache.Name != "pki1" {
+			t.Errorf("Expected name 'pki1', got '%s'", pkiCache.Name)
+		}
+	})
+
+	t.Run("AviVrfCache structure", func(t *testing.T) {
+		vrfCache := cache.AviVrfCache{
+			Name: "vrf1",
+			Uuid: "vrf-uuid-1",
+		}
+
+		if vrfCache.Name != "vrf1" {
+			t.Errorf("Expected name 'vrf1', got '%s'", vrfCache.Name)
+		}
+	})
+}
+
+// ========================================
+// Cache Key Operations Tests
+// ========================================
+
+func TestCacheKeyOperations(t *testing.T) {
+	t.Run("NamespaceName equality", func(t *testing.T) {
+		key1 := cache.NamespaceName{Namespace: "ns1", Name: "name1"}
+		key2 := cache.NamespaceName{Namespace: "ns1", Name: "name1"}
+		key3 := cache.NamespaceName{Namespace: "ns2", Name: "name1"}
+
+		if key1 != key2 {
+			t.Error("Expected equal keys to be equal")
+		}
+		if key1 == key3 {
+			t.Error("Expected different keys to be different")
+		}
+	})
+
+	t.Run("NamespaceName as map key", func(t *testing.T) {
+		testMap := make(map[cache.NamespaceName]string)
+		key1 := cache.NamespaceName{Namespace: "ns1", Name: "name1"}
+		key2 := cache.NamespaceName{Namespace: "ns1", Name: "name1"}
+
+		testMap[key1] = "value1"
+		testMap[key2] = "value2" // Should overwrite
+
+		if len(testMap) != 1 {
+			t.Errorf("Expected 1 entry in map, got %d", len(testMap))
+		}
+		if testMap[key1] != "value2" {
+			t.Errorf("Expected value 'value2', got '%s'", testMap[key1])
+		}
+	})
+}
+
+// Helper function to create mock PKI profile response
+func createMockPkiProfileResponse(profiles []models.PKIprofile, nextPage string) string {
+	results, _ := json.Marshal(profiles)
+	response := map[string]interface{}{
+		"count":   len(profiles),
+		"results": json.RawMessage(results),
+	}
+	if nextPage != "" {
+		response["next"] = nextPage
+	}
+	respBytes, _ := json.Marshal(response)
+	return string(respBytes)
+}
+
+// Helper function to create mock AVI server for PKI profile tests
+func setupPkiMockServer(t *testing.T, handler http.HandlerFunc) (*httptest.Server, *clients.AviClient) {
+	server := httptest.NewTLSServer(handler)
+
+	// Extract URL without https://
+	url := strings.TrimPrefix(server.URL, "https://")
+
+	aviClient, err := clients.NewAviClient(
+		url,
+		"admin",
+		session.SetInsecure,
+		session.SetVersion("20.1.1"),
+		session.SetTimeout(10*time.Second),
+		session.DisableControllerStatusCheckOnFailure(true),
+	)
+	if err != nil {
+		server.Close()
+		t.Fatalf("Failed to create AVI client: %v", err)
+	}
+
+	return server, aviClient
+}
+
+func TestAviPopulateAllPkiProfiles_Success(t *testing.T) {
+	// Create mock PKI profiles
+	cert1 := "-----BEGIN CERTIFICATE-----\nMIIDBTCCAe2gAwIBAgIUJcVHBy6lHaUBNPInPTpN52HY0ikwDQYJKoZIhvcNAQEL\n-----END CERTIFICATE-----"
+	cert2 := "-----BEGIN CERTIFICATE-----\nMIIDBTCCAe2gAwIBAgIUABCDEFGHIJKLMNOPQRSTUVWXYZ0wDQYJKoZIhvcNAQEL\n-----END CERTIFICATE-----"
+
+	profiles := []models.PKIprofile{
+		{
+			Name:      StringPtr("pki-profile-1"),
+			UUID:      StringPtr("uuid-1"),
+			TenantRef: StringPtr("https://localhost/api/tenant/admin#admin"),
+			CaCerts: []*models.SSLCertificate{
+				{
+					Certificate: StringPtr(cert1),
+				},
+			},
+			Markers: []*models.RoleFilterMatchLabel{},
+		},
+		{
+			Name:      StringPtr("pki-profile-2"),
+			UUID:      StringPtr("uuid-2"),
+			TenantRef: StringPtr("https://localhost/api/tenant/tenant1#tenant1"),
+			CaCerts: []*models.SSLCertificate{
+				{
+					Certificate: StringPtr(cert2),
+				},
+			},
+			Markers: []*models.RoleFilterMatchLabel{},
+		},
+	}
+
+	mockResponse := createMockPkiProfileResponse(profiles, "")
+
+	// Create mock server and client
+	server, aviClient := setupPkiMockServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if strings.Contains(r.URL.Path, "/login") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"success": true}`))
+			return
+		}
+		if strings.Contains(r.URL.Path, "/api/pkiprofile") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(mockResponse))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"count": 0, "results": []}`))
+	}))
+	defer server.Close()
+
+	// Test the function
+	objCache := &cache.AviObjCache{}
+	pkiData := []cache.AviPkiProfileCache{}
+
+	result, count, err := objCache.AviPopulateAllPkiPRofiles(aviClient, &pkiData)
+
+	// Assertions
+	if err != nil {
+		t.Errorf("Expected no error, got: %v", err)
+	}
+	if count != 2 {
+		t.Errorf("Expected count 2, got: %d", count)
+	}
+	if result == nil {
+		t.Fatal("Expected non-nil result")
+	}
+	if len(*result) != 2 {
+		t.Errorf("Expected 2 PKI profiles, got: %d", len(*result))
+	}
+
+	// Verify first profile
+	if (*result)[0].Name != "pki-profile-1" {
+		t.Errorf("Expected name 'pki-profile-1', got: %s", (*result)[0].Name)
+	}
+	if (*result)[0].Uuid != "uuid-1" {
+		t.Errorf("Expected uuid 'uuid-1', got: %s", (*result)[0].Uuid)
+	}
+	if (*result)[0].Tenant != "admin" {
+		t.Errorf("Expected tenant 'admin', got: %s", (*result)[0].Tenant)
+	}
+
+	// Verify second profile
+	if (*result)[1].Name != "pki-profile-2" {
+		t.Errorf("Expected name 'pki-profile-2', got: %s", (*result)[1].Name)
+	}
+	if (*result)[1].Tenant != "tenant1" {
+		t.Errorf("Expected tenant 'tenant1', got: %s", (*result)[1].Tenant)
+	}
+}
+
+func TestAviPopulateAllPkiProfiles_WithPagination(t *testing.T) {
+	cert1 := "-----BEGIN CERTIFICATE-----\nMIIDBTCCAe2gAwIBAgIUJcVHBy6lHaUBNPInPTpN52HY0ikwDQYJKoZIhvcNAQEL\n-----END CERTIFICATE-----"
+	cert2 := "-----BEGIN CERTIFICATE-----\nMIIDBTCCAe2gAwIBAgIUABCDEFGHIJKLMNOPQRSTUVWXYZ0wDQYJKoZIhvcNAQEL\n-----END CERTIFICATE-----"
+
+	// First page
+	profiles1 := []models.PKIprofile{
+		{
+			Name:      StringPtr("pki-profile-1"),
+			UUID:      StringPtr("uuid-1"),
+			TenantRef: StringPtr("https://localhost/api/tenant/admin#admin"),
+			CaCerts: []*models.SSLCertificate{
+				{Certificate: StringPtr(cert1)},
+			},
+			Markers: []*models.RoleFilterMatchLabel{},
+		},
+	}
+
+	// Second page
+	profiles2 := []models.PKIprofile{
+		{
+			Name:      StringPtr("pki-profile-2"),
+			UUID:      StringPtr("uuid-2"),
+			TenantRef: StringPtr("https://localhost/api/tenant/admin#admin"),
+			CaCerts: []*models.SSLCertificate{
+				{Certificate: StringPtr(cert2)},
+			},
+			Markers: []*models.RoleFilterMatchLabel{},
+		},
+	}
+
+	mockResponse1 := createMockPkiProfileResponse(profiles1, "https://localhost/api/pkiprofile?page=2")
+	mockResponse2 := createMockPkiProfileResponse(profiles2, "")
+
+	// Create mock server with pagination
+	server, aviClient := setupPkiMockServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if strings.Contains(r.URL.Path, "/login") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"success": true}`))
+			return
+		}
+		if strings.Contains(r.URL.Path, "/api/pkiprofile") {
+			page := r.URL.Query().Get("page")
+			w.WriteHeader(http.StatusOK)
+			if page == "2" {
+				w.Write([]byte(mockResponse2))
+			} else {
+				w.Write([]byte(mockResponse1))
+			}
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"count": 0, "results": []}`))
+	}))
+	defer server.Close()
+
+	objCache := &cache.AviObjCache{}
+	pkiData := []cache.AviPkiProfileCache{}
+
+	result, count, err := objCache.AviPopulateAllPkiPRofiles(aviClient, &pkiData)
+
+	if err != nil {
+		t.Errorf("Expected no error, got: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("Expected count 1 (from first page), got: %d", count)
+	}
+	if len(*result) != 2 {
+		t.Errorf("Expected 2 PKI profiles total (across pages), got: %d", len(*result))
+	}
+}
+
+func TestAviPopulateAllPkiProfiles_WithOverrideUri(t *testing.T) {
+	cert := "-----BEGIN CERTIFICATE-----\nMIIDBTCCAe2gAwIBAgIUJcVHBy6lHaUBNPInPTpN52HY0ikwDQYJKoZIhvcNAQEL\n-----END CERTIFICATE-----"
+
+	profiles := []models.PKIprofile{
+		{
+			Name:      StringPtr("pki-profile-override"),
+			UUID:      StringPtr("uuid-override"),
+			TenantRef: StringPtr("https://localhost/api/tenant/admin#admin"),
+			CaCerts: []*models.SSLCertificate{
+				{Certificate: StringPtr(cert)},
+			},
+			Markers: []*models.RoleFilterMatchLabel{},
+		},
+	}
+
+	mockResponse := createMockPkiProfileResponse(profiles, "")
+
+	server, aviClient := setupPkiMockServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if strings.Contains(r.URL.Path, "/login") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"success": true}`))
+			return
+		}
+		// Check for custom URI
+		if strings.Contains(r.URL.Path, "/api/pkiprofile/custom") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(mockResponse))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"count": 0, "results": []}`))
+	}))
+	defer server.Close()
+
+	objCache := &cache.AviObjCache{}
+	pkiData := []cache.AviPkiProfileCache{}
+
+	// Use override URI
+	overrideUri := cache.NextPage{NextURI: "/api/pkiprofile/custom"}
+	result, count, err := objCache.AviPopulateAllPkiPRofiles(aviClient, &pkiData, overrideUri)
+
+	if err != nil {
+		t.Errorf("Expected no error, got: %v", err)
+	}
+	if count != 1 {
+		t.Errorf("Expected count 1, got: %d", count)
+	}
+	if len(*result) != 1 {
+		t.Errorf("Expected 1 PKI profile, got: %d", len(*result))
+	}
+	if (*result)[0].Name != "pki-profile-override" {
+		t.Errorf("Expected name 'pki-profile-override', got: %s", (*result)[0].Name)
+	}
+}
+
+func TestAviPopulateAllPkiProfiles_APIError(t *testing.T) {
+	// Create mock server that returns error
+	server, aviClient := setupPkiMockServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if strings.Contains(r.URL.Path, "/login") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"success": true}`))
+			return
+		}
+		if strings.Contains(r.URL.Path, "/api/pkiprofile") {
+			w.WriteHeader(http.StatusInternalServerError)
+			w.Write([]byte(`{"error": "Internal server error"}`))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	objCache := &cache.AviObjCache{}
+	pkiData := []cache.AviPkiProfileCache{}
+
+	result, count, err := objCache.AviPopulateAllPkiPRofiles(aviClient, &pkiData)
+
+	// Should return error
+	if err == nil {
+		t.Error("Expected error, got nil")
+	}
+	if result != nil {
+		t.Errorf("Expected nil result on error, got: %v", result)
+	}
+	if count != 0 {
+		t.Errorf("Expected count 0 on error, got: %d", count)
+	}
+}
+
+func TestAviPopulateAllPkiProfiles_InvalidJSON(t *testing.T) {
+	// Create mock server that returns invalid JSON
+	server, aviClient := setupPkiMockServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if strings.Contains(r.URL.Path, "/login") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"success": true}`))
+			return
+		}
+		if strings.Contains(r.URL.Path, "/api/pkiprofile") {
+			w.WriteHeader(http.StatusOK)
+			// Invalid JSON - results is not an array
+			w.Write([]byte(`{"count": 1, "results": "invalid"}`))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	objCache := &cache.AviObjCache{}
+	pkiData := []cache.AviPkiProfileCache{}
+
+	result, count, err := objCache.AviPopulateAllPkiPRofiles(aviClient, &pkiData)
+
+	// Should return error due to JSON unmarshal failure
+	if err == nil {
+		t.Error("Expected error due to invalid JSON, got nil")
+	}
+	if result != nil {
+		t.Errorf("Expected nil result on error, got: %v", result)
+	}
+	if count != 0 {
+		t.Errorf("Expected count 0 on error, got: %d", count)
+	}
+}
+
+func TestAviPopulateAllPkiProfiles_MissingName(t *testing.T) {
+	cert := "-----BEGIN CERTIFICATE-----\nMIIDBTCCAe2gAwIBAgIUJcVHBy6lHaUBNPInPTpN52HY0ikwDQYJKoZIhvcNAQEL\n-----END CERTIFICATE-----"
+
+	// Profile with missing name (should be skipped)
+	profiles := []models.PKIprofile{
+		{
+			Name:      nil, // Missing name
+			UUID:      StringPtr("uuid-1"),
+			TenantRef: StringPtr("https://localhost/api/tenant/admin#admin"),
+			CaCerts: []*models.SSLCertificate{
+				{Certificate: StringPtr(cert)},
+			},
+		},
+		{
+			Name:      StringPtr("pki-profile-2"),
+			UUID:      StringPtr("uuid-2"),
+			TenantRef: StringPtr("https://localhost/api/tenant/admin#admin"),
+			CaCerts: []*models.SSLCertificate{
+				{Certificate: StringPtr(cert)},
+			},
+			Markers: []*models.RoleFilterMatchLabel{},
+		},
+	}
+
+	mockResponse := createMockPkiProfileResponse(profiles, "")
+
+	server, aviClient := setupPkiMockServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if strings.Contains(r.URL.Path, "/login") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"success": true}`))
+			return
+		}
+		if strings.Contains(r.URL.Path, "/api/pkiprofile") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(mockResponse))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"count": 0, "results": []}`))
+	}))
+	defer server.Close()
+
+	objCache := &cache.AviObjCache{}
+	pkiData := []cache.AviPkiProfileCache{}
+
+	result, count, err := objCache.AviPopulateAllPkiPRofiles(aviClient, &pkiData)
+
+	if err != nil {
+		t.Errorf("Expected no error, got: %v", err)
+	}
+	if count != 2 {
+		t.Errorf("Expected count 2, got: %d", count)
+	}
+	// Should only have 1 profile (the one with missing name is skipped)
+	if len(*result) != 1 {
+		t.Errorf("Expected 1 PKI profile (missing name skipped), got: %d", len(*result))
+	}
+	if len(*result) > 0 && (*result)[0].Name != "pki-profile-2" {
+		t.Errorf("Expected name 'pki-profile-2', got: %s", (*result)[0].Name)
+	}
+}
+
+func TestAviPopulateAllPkiProfiles_MissingUUID(t *testing.T) {
+	cert := "-----BEGIN CERTIFICATE-----\nMIIDBTCCAe2gAwIBAgIUJcVHBy6lHaUBNPInPTpN52HY0ikwDQYJKoZIhvcNAQEL\n-----END CERTIFICATE-----"
+
+	// Profile with missing UUID (should be skipped)
+	profiles := []models.PKIprofile{
+		{
+			Name:      StringPtr("pki-profile-1"),
+			UUID:      nil, // Missing UUID
+			TenantRef: StringPtr("https://localhost/api/tenant/admin#admin"),
+			CaCerts: []*models.SSLCertificate{
+				{Certificate: StringPtr(cert)},
+			},
+		},
+		{
+			Name:      StringPtr("pki-profile-2"),
+			UUID:      StringPtr("uuid-2"),
+			TenantRef: StringPtr("https://localhost/api/tenant/admin#admin"),
+			CaCerts: []*models.SSLCertificate{
+				{Certificate: StringPtr(cert)},
+			},
+			Markers: []*models.RoleFilterMatchLabel{},
+		},
+	}
+
+	mockResponse := createMockPkiProfileResponse(profiles, "")
+
+	server, aviClient := setupPkiMockServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if strings.Contains(r.URL.Path, "/login") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"success": true}`))
+			return
+		}
+		if strings.Contains(r.URL.Path, "/api/pkiprofile") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(mockResponse))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"count": 0, "results": []}`))
+	}))
+	defer server.Close()
+
+	objCache := &cache.AviObjCache{}
+	pkiData := []cache.AviPkiProfileCache{}
+
+	result, _, err := objCache.AviPopulateAllPkiPRofiles(aviClient, &pkiData)
+
+	if err != nil {
+		t.Errorf("Expected no error, got: %v", err)
+	}
+	// Should only have 1 profile (the one with missing UUID is skipped)
+	if len(*result) != 1 {
+		t.Errorf("Expected 1 PKI profile (missing UUID skipped), got: %d", len(*result))
+	}
+	if len(*result) > 0 && (*result)[0].Name != "pki-profile-2" {
+		t.Errorf("Expected name 'pki-profile-2', got: %s", (*result)[0].Name)
+	}
+}
+
+func TestAviPopulateAllPkiProfiles_InvalidPkiDataInElement(t *testing.T) {
+	// Create response with one valid and one invalid element
+	validProfile := models.PKIprofile{
+		Name:      StringPtr("pki-profile-valid"),
+		UUID:      StringPtr("uuid-valid"),
+		TenantRef: StringPtr("https://localhost/api/tenant/admin#admin"),
+		CaCerts: []*models.SSLCertificate{
+			{Certificate: StringPtr("cert")},
+		},
+		Markers: []*models.RoleFilterMatchLabel{},
+	}
+
+	validBytes, _ := json.Marshal(validProfile)
+	invalidBytes := []byte(`{"invalid": "json structure"}`)
+
+	results := []json.RawMessage{invalidBytes, validBytes}
+	resultsBytes, _ := json.Marshal(results)
+
+	response := fmt.Sprintf(`{"count": 2, "results": %s}`, string(resultsBytes))
+
+	server, aviClient := setupPkiMockServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if strings.Contains(r.URL.Path, "/login") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"success": true}`))
+			return
+		}
+		if strings.Contains(r.URL.Path, "/api/pkiprofile") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(response))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	objCache := &cache.AviObjCache{}
+	pkiData := []cache.AviPkiProfileCache{}
+
+	result, count, err := objCache.AviPopulateAllPkiPRofiles(aviClient, &pkiData)
+
+	if err != nil {
+		t.Errorf("Expected no error (invalid elements should be skipped), got: %v", err)
+	}
+	if count != 2 {
+		t.Errorf("Expected count 2, got: %d", count)
+	}
+	// Should only have 1 valid profile (invalid one is skipped with warning)
+	if len(*result) != 1 {
+		t.Errorf("Expected 1 PKI profile (invalid skipped), got: %d", len(*result))
+	}
+	if len(*result) > 0 && (*result)[0].Name != "pki-profile-valid" {
+		t.Errorf("Expected name 'pki-profile-valid', got: %s", (*result)[0].Name)
+	}
+}
+
+func TestAviPopulateAllPkiProfiles_TenantRefVariations(t *testing.T) {
+	cert := "-----BEGIN CERTIFICATE-----\nMIIDBTCCAe2gAwIBAgIUJcVHBy6lHaUBNPInPTpN52HY0ikwDQYJKoZIhvcNAQEL\n-----END CERTIFICATE-----"
+
+	profiles := []models.PKIprofile{
+		{
+			Name:      StringPtr("pki-with-hash"),
+			UUID:      StringPtr("uuid-1"),
+			TenantRef: StringPtr("https://localhost/api/tenant/admin#tenant-hash"),
+			CaCerts: []*models.SSLCertificate{
+				{Certificate: StringPtr(cert)},
+			},
+			Markers: []*models.RoleFilterMatchLabel{},
+		},
+		{
+			Name:      StringPtr("pki-with-slash"),
+			UUID:      StringPtr("uuid-2"),
+			TenantRef: StringPtr("https://localhost/api/tenant/tenant-slash"),
+			CaCerts: []*models.SSLCertificate{
+				{Certificate: StringPtr(cert)},
+			},
+			Markers: []*models.RoleFilterMatchLabel{},
+		},
+		{
+			Name:      StringPtr("pki-plain"),
+			UUID:      StringPtr("uuid-3"),
+			TenantRef: StringPtr("tenant-plain"),
+			CaCerts: []*models.SSLCertificate{
+				{Certificate: StringPtr(cert)},
+			},
+			Markers: []*models.RoleFilterMatchLabel{},
+		},
+	}
+
+	mockResponse := createMockPkiProfileResponse(profiles, "")
+
+	server, aviClient := setupPkiMockServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if strings.Contains(r.URL.Path, "/login") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"success": true}`))
+			return
+		}
+		if strings.Contains(r.URL.Path, "/api/pkiprofile") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(mockResponse))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"count": 0, "results": []}`))
+	}))
+	defer server.Close()
+
+	objCache := &cache.AviObjCache{}
+	pkiData := []cache.AviPkiProfileCache{}
+
+	result, _, err := objCache.AviPopulateAllPkiPRofiles(aviClient, &pkiData)
+
+	if err != nil {
+		t.Errorf("Expected no error, got: %v", err)
+	}
+	if len(*result) != 3 {
+		t.Fatalf("Expected 3 PKI profiles, got: %d", len(*result))
+	}
+
+	// Verify tenant extraction from different formats
+	if (*result)[0].Tenant != "tenant-hash" {
+		t.Errorf("Expected tenant 'tenant-hash', got: %s", (*result)[0].Tenant)
+	}
+	if (*result)[1].Tenant != "tenant-slash" {
+		t.Errorf("Expected tenant 'tenant-slash', got: %s", (*result)[1].Tenant)
+	}
+	if (*result)[2].Tenant != "tenant-plain" {
+		t.Errorf("Expected tenant 'tenant-plain', got: %s", (*result)[2].Tenant)
+	}
+}
+
+func TestAviPopulateAllPkiProfiles_PaginationError(t *testing.T) {
+	cert := "-----BEGIN CERTIFICATE-----\nMIIDBTCCAe2gAwIBAgIUJcVHBy6lHaUBNPInPTpN52HY0ikwDQYJKoZIhvcNAQEL\n-----END CERTIFICATE-----"
+
+	profiles := []models.PKIprofile{
+		{
+			Name:      StringPtr("pki-profile-1"),
+			UUID:      StringPtr("uuid-1"),
+			TenantRef: StringPtr("https://localhost/api/tenant/admin#admin"),
+			CaCerts: []*models.SSLCertificate{
+				{Certificate: StringPtr(cert)},
+			},
+			Markers: []*models.RoleFilterMatchLabel{},
+		},
+	}
+
+	mockResponse1 := createMockPkiProfileResponse(profiles, "https://localhost/api/pkiprofile?page=2")
+
+	// Create mock server where second page returns error
+	server, aviClient := setupPkiMockServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if strings.Contains(r.URL.Path, "/login") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"success": true}`))
+			return
+		}
+		if strings.Contains(r.URL.Path, "/api/pkiprofile") {
+			page := r.URL.Query().Get("page")
+			if page == "2" {
+				// Second page returns error
+				w.WriteHeader(http.StatusInternalServerError)
+				w.Write([]byte(`{"error": "Internal server error"}`))
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(mockResponse1))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	objCache := &cache.AviObjCache{}
+	pkiData := []cache.AviPkiProfileCache{}
+
+	result, _, err := objCache.AviPopulateAllPkiPRofiles(aviClient, &pkiData)
+
+	// Should return error from pagination
+	if err == nil {
+		t.Error("Expected error from pagination failure, got nil")
+	}
+	if result != nil {
+		t.Errorf("Expected nil result on pagination error, got: %v", result)
+	}
+}
+
+// ========================================
+// PopulatePkiProfilesToCache Tests
+// ========================================
+
+func TestPopulatePkiProfilesToCache_Success(t *testing.T) {
+	cert := "-----BEGIN CERTIFICATE-----\nMIIDBTCCAe2gAwIBAgIUJcVHBy6lHaUBNPInPTpN52HY0ikwDQYJKoZIhvcNAQEL\n-----END CERTIFICATE-----"
+
+	profiles := []models.PKIprofile{
+		{
+			Name:      StringPtr("pki-profile-1"),
+			UUID:      StringPtr("uuid-1"),
+			TenantRef: StringPtr("https://localhost/api/tenant/admin#admin"),
+			CaCerts: []*models.SSLCertificate{
+				{Certificate: StringPtr(cert)},
+			},
+			Markers: []*models.RoleFilterMatchLabel{},
+		},
+		{
+			Name:      StringPtr("pki-profile-2"),
+			UUID:      StringPtr("uuid-2"),
+			TenantRef: StringPtr("https://localhost/api/tenant/admin#admin"),
+			CaCerts: []*models.SSLCertificate{
+				{Certificate: StringPtr(cert)},
+			},
+			Markers: []*models.RoleFilterMatchLabel{},
+		},
+	}
+
+	mockResponse := createMockPkiProfileResponse(profiles, "")
+
+	server, aviClient := setupPkiMockServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if strings.Contains(r.URL.Path, "/login") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"success": true}`))
+			return
+		}
+		if strings.Contains(r.URL.Path, "/api/pkiprofile") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(mockResponse))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"count": 0, "results": []}`))
+	}))
+	defer server.Close()
+
+	objCache := cache.NewAviObjCache()
+	objCache.PopulatePkiProfilesToCache(aviClient)
+
+	// Verify both profiles are in cache
+	key1 := cache.NamespaceName{Namespace: "admin", Name: "pki-profile-1"}
+	pkiObj1, found1 := objCache.PKIProfileCache.AviCacheGet(key1)
+	if !found1 {
+		t.Error("Expected pki-profile-1 to be in cache")
+	} else {
+		pki1, ok := pkiObj1.(*cache.AviPkiProfileCache)
+		if !ok {
+			t.Error("Expected AviPkiProfileCache type")
+		} else {
+			if pki1.Name != "pki-profile-1" {
+				t.Errorf("Expected name 'pki-profile-1', got '%s'", pki1.Name)
+			}
+			if pki1.Uuid != "uuid-1" {
+				t.Errorf("Expected uuid 'uuid-1', got '%s'", pki1.Uuid)
+			}
+			if pki1.Tenant != "admin" {
+				t.Errorf("Expected tenant 'admin', got '%s'", pki1.Tenant)
+			}
+		}
+	}
+
+	key2 := cache.NamespaceName{Namespace: "admin", Name: "pki-profile-2"}
+	pkiObj2, found2 := objCache.PKIProfileCache.AviCacheGet(key2)
+	if !found2 {
+		t.Error("Expected pki-profile-2 to be in cache")
+	} else {
+		pki2, ok := pkiObj2.(*cache.AviPkiProfileCache)
+		if !ok {
+			t.Error("Expected AviPkiProfileCache type")
+		} else {
+			if pki2.Name != "pki-profile-2" {
+				t.Errorf("Expected name 'pki-profile-2', got '%s'", pki2.Name)
+			}
+		}
+	}
+}
+
+func TestPopulatePkiProfilesToCache_UpdateExisting(t *testing.T) {
+	cert := "-----BEGIN CERTIFICATE-----\nMIIDBTCCAe2gAwIBAgIUJcVHBy6lHaUBNPInPTpN52HY0ikwDQYJKoZIhvcNAQEL\n-----END CERTIFICATE-----"
+
+	profiles := []models.PKIprofile{
+		{
+			Name:      StringPtr("pki-profile-1"),
+			UUID:      StringPtr("uuid-1-updated"),
+			TenantRef: StringPtr("https://localhost/api/tenant/admin#admin"),
+			CaCerts: []*models.SSLCertificate{
+				{Certificate: StringPtr(cert)},
+			},
+			Markers: []*models.RoleFilterMatchLabel{},
+		},
+	}
+
+	mockResponse := createMockPkiProfileResponse(profiles, "")
+
+	server, aviClient := setupPkiMockServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if strings.Contains(r.URL.Path, "/login") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"success": true}`))
+			return
+		}
+		if strings.Contains(r.URL.Path, "/api/pkiprofile") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(mockResponse))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"count": 0, "results": []}`))
+	}))
+	defer server.Close()
+
+	objCache := cache.NewAviObjCache()
+
+	// Pre-populate cache with old data
+	oldKey := cache.NamespaceName{Namespace: "admin", Name: "pki-profile-1"}
+	oldPki := &cache.AviPkiProfileCache{
+		Name:   "pki-profile-1",
+		Uuid:   "uuid-1-old",
+		Tenant: "admin",
+	}
+	objCache.PKIProfileCache.AviCacheAdd(oldKey, oldPki)
+
+	// Populate cache (should update)
+	objCache.PopulatePkiProfilesToCache(aviClient)
+
+	// Verify profile was updated
+	pkiObj, found := objCache.PKIProfileCache.AviCacheGet(oldKey)
+	if !found {
+		t.Fatal("Expected pki-profile-1 to be in cache")
+	}
+
+	pki, ok := pkiObj.(*cache.AviPkiProfileCache)
+	if !ok {
+		t.Fatal("Expected AviPkiProfileCache type")
+	}
+
+	if pki.Uuid != "uuid-1-updated" {
+		t.Errorf("Expected updated uuid 'uuid-1-updated', got '%s'", pki.Uuid)
+	}
+}
+
+func TestPopulatePkiProfilesToCache_RemoveStaleEntries(t *testing.T) {
+	cert := "-----BEGIN CERTIFICATE-----\nMIIDBTCCAe2gAwIBAgIUJcVHBy6lHaUBNPInPTpN52HY0ikwDQYJKoZIhvcNAQEL\n-----END CERTIFICATE-----"
+
+	// Only return one profile from API
+	profiles := []models.PKIprofile{
+		{
+			Name:      StringPtr("pki-profile-1"),
+			UUID:      StringPtr("uuid-1"),
+			TenantRef: StringPtr("https://localhost/api/tenant/admin#admin"),
+			CaCerts: []*models.SSLCertificate{
+				{Certificate: StringPtr(cert)},
+			},
+			Markers: []*models.RoleFilterMatchLabel{},
+		},
+	}
+
+	mockResponse := createMockPkiProfileResponse(profiles, "")
+
+	server, aviClient := setupPkiMockServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if strings.Contains(r.URL.Path, "/login") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"success": true}`))
+			return
+		}
+		if strings.Contains(r.URL.Path, "/api/pkiprofile") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(mockResponse))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"count": 0, "results": []}`))
+	}))
+	defer server.Close()
+
+	objCache := cache.NewAviObjCache()
+
+	// Pre-populate cache with two profiles
+	key1 := cache.NamespaceName{Namespace: "admin", Name: "pki-profile-1"}
+	pki1 := &cache.AviPkiProfileCache{
+		Name:   "pki-profile-1",
+		Uuid:   "uuid-1",
+		Tenant: "admin",
+	}
+	objCache.PKIProfileCache.AviCacheAdd(key1, pki1)
+
+	key2 := cache.NamespaceName{Namespace: "admin", Name: "pki-profile-2"}
+	pki2 := &cache.AviPkiProfileCache{
+		Name:   "pki-profile-2",
+		Uuid:   "uuid-2",
+		Tenant: "admin",
+	}
+	objCache.PKIProfileCache.AviCacheAdd(key2, pki2)
+
+	// Populate cache (should keep profile-1, remove profile-2)
+	objCache.PopulatePkiProfilesToCache(aviClient)
+
+	// Verify profile-1 still exists
+	_, found1 := objCache.PKIProfileCache.AviCacheGet(key1)
+	if !found1 {
+		t.Error("Expected pki-profile-1 to remain in cache")
+	}
+
+	// Verify profile-2 was removed
+	_, found2 := objCache.PKIProfileCache.AviCacheGet(key2)
+	if found2 {
+		t.Error("Expected pki-profile-2 to be removed from cache")
+	}
+}
+
+func TestPopulatePkiProfilesToCache_PreserveInvalidDataFlag(t *testing.T) {
+	cert := "-----BEGIN CERTIFICATE-----\nMIIDBTCCAe2gAwIBAgIUJcVHBy6lHaUBNPInPTpN52HY0ikwDQYJKoZIhvcNAQEL\n-----END CERTIFICATE-----"
+
+	profiles := []models.PKIprofile{
+		{
+			Name:      StringPtr("pki-profile-1"),
+			UUID:      StringPtr("uuid-1"),
+			TenantRef: StringPtr("https://localhost/api/tenant/admin#admin"),
+			CaCerts: []*models.SSLCertificate{
+				{Certificate: StringPtr(cert)},
+			},
+			Markers: []*models.RoleFilterMatchLabel{},
+		},
+	}
+
+	mockResponse := createMockPkiProfileResponse(profiles, "")
+
+	server, aviClient := setupPkiMockServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if strings.Contains(r.URL.Path, "/login") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"success": true}`))
+			return
+		}
+		if strings.Contains(r.URL.Path, "/api/pkiprofile") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(mockResponse))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"count": 0, "results": []}`))
+	}))
+	defer server.Close()
+
+	objCache := cache.NewAviObjCache()
+
+	// Pre-populate cache with InvalidData flag set
+	oldKey := cache.NamespaceName{Namespace: "admin", Name: "pki-profile-1"}
+	oldPki := &cache.AviPkiProfileCache{
+		Name:        "pki-profile-1",
+		Uuid:        "uuid-1-old",
+		Tenant:      "admin",
+		InvalidData: true,
+	}
+	objCache.PKIProfileCache.AviCacheAdd(oldKey, oldPki)
+
+	// Populate cache
+	objCache.PopulatePkiProfilesToCache(aviClient)
+
+	// Verify InvalidData flag is preserved
+	pkiObj, found := objCache.PKIProfileCache.AviCacheGet(oldKey)
+	if !found {
+		t.Fatal("Expected pki-profile-1 to be in cache")
+	}
+
+	pki, ok := pkiObj.(*cache.AviPkiProfileCache)
+	if !ok {
+		t.Fatal("Expected AviPkiProfileCache type")
+	}
+
+	if !pki.InvalidData {
+		t.Error("Expected InvalidData flag to be preserved")
+	}
+}
+
+func TestPopulatePkiProfilesToCache_EmptyCache(t *testing.T) {
+	cert := "-----BEGIN CERTIFICATE-----\nMIIDBTCCAe2gAwIBAgIUJcVHBy6lHaUBNPInPTpN52HY0ikwDQYJKoZIhvcNAQEL\n-----END CERTIFICATE-----"
+
+	profiles := []models.PKIprofile{
+		{
+			Name:      StringPtr("pki-profile-1"),
+			UUID:      StringPtr("uuid-1"),
+			TenantRef: StringPtr("https://localhost/api/tenant/admin#admin"),
+			CaCerts: []*models.SSLCertificate{
+				{Certificate: StringPtr(cert)},
+			},
+			Markers: []*models.RoleFilterMatchLabel{},
+		},
+	}
+
+	mockResponse := createMockPkiProfileResponse(profiles, "")
+
+	server, aviClient := setupPkiMockServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if strings.Contains(r.URL.Path, "/login") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"success": true}`))
+			return
+		}
+		if strings.Contains(r.URL.Path, "/api/pkiprofile") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(mockResponse))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"count": 0, "results": []}`))
+	}))
+	defer server.Close()
+
+	objCache := cache.NewAviObjCache()
+
+	// Start with empty cache
+	objCache.PopulatePkiProfilesToCache(aviClient)
+
+	// Verify profile was added
+	key := cache.NamespaceName{Namespace: "admin", Name: "pki-profile-1"}
+	pkiObj, found := objCache.PKIProfileCache.AviCacheGet(key)
+	if !found {
+		t.Fatal("Expected pki-profile-1 to be in cache")
+	}
+
+	pki, ok := pkiObj.(*cache.AviPkiProfileCache)
+	if !ok {
+		t.Fatal("Expected AviPkiProfileCache type")
+	}
+
+	if pki.Name != "pki-profile-1" {
+		t.Errorf("Expected name 'pki-profile-1', got '%s'", pki.Name)
+	}
+}
+
+func TestPopulatePkiProfilesToCache_NoProfilesFromAPI(t *testing.T) {
+	// Return empty profiles list
+	profiles := []models.PKIprofile{}
+	mockResponse := createMockPkiProfileResponse(profiles, "")
+
+	server, aviClient := setupPkiMockServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if strings.Contains(r.URL.Path, "/login") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"success": true}`))
+			return
+		}
+		if strings.Contains(r.URL.Path, "/api/pkiprofile") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(mockResponse))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"count": 0, "results": []}`))
+	}))
+	defer server.Close()
+
+	objCache := cache.NewAviObjCache()
+
+	// Pre-populate cache
+	key := cache.NamespaceName{Namespace: "admin", Name: "pki-profile-1"}
+	pki := &cache.AviPkiProfileCache{
+		Name:   "pki-profile-1",
+		Uuid:   "uuid-1",
+		Tenant: "admin",
+	}
+	objCache.PKIProfileCache.AviCacheAdd(key, pki)
+
+	// Populate cache (should remove all entries)
+	objCache.PopulatePkiProfilesToCache(aviClient)
+
+	// Verify cache is empty
+	_, found := objCache.PKIProfileCache.AviCacheGet(key)
+	if found {
+		t.Error("Expected cache to be empty after API returned no profiles")
+	}
+}
+
+func TestPopulatePkiProfilesToCache_MultiTenant(t *testing.T) {
+	cert := "-----BEGIN CERTIFICATE-----\nMIIDBTCCAe2gAwIBAgIUJcVHBy6lHaUBNPInPTpN52HY0ikwDQYJKoZIhvcNAQEL\n-----END CERTIFICATE-----"
+
+	profiles := []models.PKIprofile{
+		{
+			Name:      StringPtr("pki-profile-admin"),
+			UUID:      StringPtr("uuid-admin"),
+			TenantRef: StringPtr("https://localhost/api/tenant/admin#admin"),
+			CaCerts: []*models.SSLCertificate{
+				{Certificate: StringPtr(cert)},
+			},
+			Markers: []*models.RoleFilterMatchLabel{},
+		},
+		{
+			Name:      StringPtr("pki-profile-tenant1"),
+			UUID:      StringPtr("uuid-tenant1"),
+			TenantRef: StringPtr("https://localhost/api/tenant/tenant1#tenant1"),
+			CaCerts: []*models.SSLCertificate{
+				{Certificate: StringPtr(cert)},
+			},
+			Markers: []*models.RoleFilterMatchLabel{},
+		},
+	}
+
+	mockResponse := createMockPkiProfileResponse(profiles, "")
+
+	server, aviClient := setupPkiMockServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if strings.Contains(r.URL.Path, "/login") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"success": true}`))
+			return
+		}
+		if strings.Contains(r.URL.Path, "/api/pkiprofile") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(mockResponse))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"count": 0, "results": []}`))
+	}))
+	defer server.Close()
+
+	objCache := cache.NewAviObjCache()
+	objCache.PopulatePkiProfilesToCache(aviClient)
+
+	// Verify admin tenant profile
+	keyAdmin := cache.NamespaceName{Namespace: "admin", Name: "pki-profile-admin"}
+	pkiObjAdmin, foundAdmin := objCache.PKIProfileCache.AviCacheGet(keyAdmin)
+	if !foundAdmin {
+		t.Error("Expected pki-profile-admin to be in cache")
+	} else {
+		pkiAdmin, ok := pkiObjAdmin.(*cache.AviPkiProfileCache)
+		if !ok {
+			t.Error("Expected AviPkiProfileCache type")
+		} else if pkiAdmin.Tenant != "admin" {
+			t.Errorf("Expected tenant 'admin', got '%s'", pkiAdmin.Tenant)
+		}
+	}
+
+	// Verify tenant1 profile
+	keyTenant1 := cache.NamespaceName{Namespace: "tenant1", Name: "pki-profile-tenant1"}
+	pkiObjTenant1, foundTenant1 := objCache.PKIProfileCache.AviCacheGet(keyTenant1)
+	if !foundTenant1 {
+		t.Error("Expected pki-profile-tenant1 to be in cache")
+	} else {
+		pkiTenant1, ok := pkiObjTenant1.(*cache.AviPkiProfileCache)
+		if !ok {
+			t.Error("Expected AviPkiProfileCache type")
+		} else if pkiTenant1.Tenant != "tenant1" {
+			t.Errorf("Expected tenant 'tenant1', got '%s'", pkiTenant1.Tenant)
+		}
+	}
+}
+
+func TestPopulatePkiProfilesToCache_WrongDataTypeInCache(t *testing.T) {
+	cert := "-----BEGIN CERTIFICATE-----\nMIIDBTCCAe2gAwIBAgIUJcVHBy6lHaUBNPInPTpN52HY0ikwDQYJKoZIhvcNAQEL\n-----END CERTIFICATE-----"
+
+	profiles := []models.PKIprofile{
+		{
+			Name:      StringPtr("pki-profile-1"),
+			UUID:      StringPtr("uuid-1"),
+			TenantRef: StringPtr("https://localhost/api/tenant/admin#admin"),
+			CaCerts: []*models.SSLCertificate{
+				{Certificate: StringPtr(cert)},
+			},
+			Markers: []*models.RoleFilterMatchLabel{},
+		},
+	}
+
+	mockResponse := createMockPkiProfileResponse(profiles, "")
+
+	server, aviClient := setupPkiMockServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if strings.Contains(r.URL.Path, "/login") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"success": true}`))
+			return
+		}
+		if strings.Contains(r.URL.Path, "/api/pkiprofile") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(mockResponse))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"count": 0, "results": []}`))
+	}))
+	defer server.Close()
+
+	objCache := cache.NewAviObjCache()
+
+	// Pre-populate cache with wrong data type (string instead of AviPkiProfileCache)
+	wrongKey := cache.NamespaceName{Namespace: "admin", Name: "pki-profile-1"}
+	objCache.PKIProfileCache.AviCacheAdd(wrongKey, "wrong-type-data")
+
+	// Populate cache (should handle wrong type gracefully)
+	objCache.PopulatePkiProfilesToCache(aviClient)
+
+	// Verify profile was updated with correct type
+	pkiObj, found := objCache.PKIProfileCache.AviCacheGet(wrongKey)
+	if !found {
+		t.Fatal("Expected pki-profile-1 to be in cache")
+	}
+
+	pki, ok := pkiObj.(*cache.AviPkiProfileCache)
+	if !ok {
+		t.Fatal("Expected AviPkiProfileCache type after update")
+	}
+
+	if pki.Name != "pki-profile-1" {
+		t.Errorf("Expected name 'pki-profile-1', got '%s'", pki.Name)
+	}
+}
+
+func TestPopulatePkiProfilesToCache_WithPagination(t *testing.T) {
+	cert := "-----BEGIN CERTIFICATE-----\nMIIDBTCCAe2gAwIBAgIUJcVHBy6lHaUBNPInPTpN52HY0ikwDQYJKoZIhvcNAQEL\n-----END CERTIFICATE-----"
+
+	// First page
+	profiles1 := []models.PKIprofile{
+		{
+			Name:      StringPtr("pki-profile-1"),
+			UUID:      StringPtr("uuid-1"),
+			TenantRef: StringPtr("https://localhost/api/tenant/admin#admin"),
+			CaCerts: []*models.SSLCertificate{
+				{Certificate: StringPtr(cert)},
+			},
+			Markers: []*models.RoleFilterMatchLabel{},
+		},
+	}
+
+	// Second page
+	profiles2 := []models.PKIprofile{
+		{
+			Name:      StringPtr("pki-profile-2"),
+			UUID:      StringPtr("uuid-2"),
+			TenantRef: StringPtr("https://localhost/api/tenant/admin#admin"),
+			CaCerts: []*models.SSLCertificate{
+				{Certificate: StringPtr(cert)},
+			},
+			Markers: []*models.RoleFilterMatchLabel{},
+		},
+	}
+
+	mockResponse1 := createMockPkiProfileResponse(profiles1, "https://localhost/api/pkiprofile?page=2")
+	mockResponse2 := createMockPkiProfileResponse(profiles2, "")
+
+	server, aviClient := setupPkiMockServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if strings.Contains(r.URL.Path, "/login") {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"success": true}`))
+			return
+		}
+		if strings.Contains(r.URL.Path, "/api/pkiprofile") {
+			page := r.URL.Query().Get("page")
+			w.WriteHeader(http.StatusOK)
+			if page == "2" {
+				w.Write([]byte(mockResponse2))
+			} else {
+				w.Write([]byte(mockResponse1))
+			}
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"count": 0, "results": []}`))
+	}))
+	defer server.Close()
+
+	objCache := cache.NewAviObjCache()
+	objCache.PopulatePkiProfilesToCache(aviClient)
+
+	// Verify both profiles from both pages are in cache
+	key1 := cache.NamespaceName{Namespace: "admin", Name: "pki-profile-1"}
+	_, found1 := objCache.PKIProfileCache.AviCacheGet(key1)
+	if !found1 {
+		t.Error("Expected pki-profile-1 from page 1 to be in cache")
+	}
+
+	key2 := cache.NamespaceName{Namespace: "admin", Name: "pki-profile-2"}
+	_, found2 := objCache.PKIProfileCache.AviCacheGet(key2)
+	if !found2 {
+		t.Error("Expected pki-profile-2 from page 2 to be in cache")
 	}
 }

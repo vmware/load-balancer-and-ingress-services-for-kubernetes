@@ -448,32 +448,3 @@ func TestAviVsCacheAddToVSVipKeyCollection(t *testing.T) {
 		t.Errorf("AddToVSVipKeyCollection() key = %v, want %v", vsCache.VSVipKeyCollection[0], key)
 	}
 }
-
-func TestNamespaceNameStruct(t *testing.T) {
-	nn := cache.NamespaceName{
-		Namespace: "test-namespace",
-		Name:      "test-name",
-	}
-
-	if nn.Namespace != "test-namespace" {
-		t.Errorf("NamespaceName.Namespace = %v, want test-namespace", nn.Namespace)
-	}
-
-	if nn.Name != "test-name" {
-		t.Errorf("NamespaceName.Name = %v, want test-name", nn.Name)
-	}
-}
-
-func TestNamespaceNameEquality(t *testing.T) {
-	nn1 := cache.NamespaceName{Namespace: "ns1", Name: "name1"}
-	nn2 := cache.NamespaceName{Namespace: "ns1", Name: "name1"}
-	nn3 := cache.NamespaceName{Namespace: "ns2", Name: "name1"}
-
-	if nn1 != nn2 {
-		t.Error("Equal NamespaceName structs should be equal")
-	}
-
-	if nn1 == nn3 {
-		t.Error("Different NamespaceName structs should not be equal")
-	}
-}

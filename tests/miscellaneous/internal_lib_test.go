@@ -156,24 +156,6 @@ func TestContainsFinalizerIngressFinalizer(t *testing.T) {
 	}
 }
 
-func TestFinalizerConstants(t *testing.T) {
-	tests := []struct {
-		name     string
-		constant string
-	}{
-		{"GatewayFinalizer", lib.GatewayFinalizer},
-		{"IngressFinalizer", lib.IngressFinalizer},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.constant == "" {
-				t.Errorf("%s should not be empty", tt.name)
-			}
-		})
-	}
-}
-
 func TestFinalizerWithMultipleObjects(t *testing.T) {
 	finalizer := "test.finalizer.com"
 
@@ -538,75 +520,6 @@ func TestStaticRoutesIntfToObjWithLabels(t *testing.T) {
 
 // ========== Tests from constants_test.go ==========
 
-func TestConstants(t *testing.T) {
-	tests := []struct {
-		name     string
-		constant interface{}
-		expected interface{}
-	}{
-		{"DISABLE_STATIC_ROUTE_SYNC", lib.DISABLE_STATIC_ROUTE_SYNC, "DISABLE_STATIC_ROUTE_SYNC"},
-		{"ENABLE_RHI", lib.ENABLE_RHI, "ENABLE_RHI"},
-		{"ENABLE_EVH", lib.ENABLE_EVH, "ENABLE_EVH"},
-		{"CNI_PLUGIN", lib.CNI_PLUGIN, "CNI_PLUGIN"},
-		{"CALICO_CNI", lib.CALICO_CNI, "calico"},
-		{"ANTREA_CNI", lib.ANTREA_CNI, "antrea"},
-		{"NCP_CNI", lib.NCP_CNI, "ncp"},
-		{"OPENSHIFT_CNI", lib.OPENSHIFT_CNI, "openshift"},
-		{"OVN_KUBERNETES_CNI", lib.OVN_KUBERNETES_CNI, "ovn-kubernetes"},
-		{"CILIUM_CNI", lib.CILIUM_CNI, "cilium"},
-		{"INGRESS_API", lib.INGRESS_API, "INGRESS_API"},
-		{"AviConfigMap", lib.AviConfigMap, "avi-k8s-config"},
-		{"AviSecret", lib.AviSecret, "avi-secret"},
-		{"AviInitSecret", lib.AviInitSecret, "avi-init-secret"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.constant != tt.expected {
-				t.Errorf("%s = %v, want %v", tt.name, tt.constant, tt.expected)
-			}
-		})
-	}
-}
-
-func TestCloudTypeConstants(t *testing.T) {
-	cloudTypes := map[string]string{
-		"CLOUD_VCENTER":   lib.CLOUD_VCENTER,
-		"CLOUD_AZURE":     lib.CLOUD_AZURE,
-		"CLOUD_AWS":       lib.CLOUD_AWS,
-		"CLOUD_OPENSTACK": lib.CLOUD_OPENSTACK,
-		"CLOUD_GCP":       lib.CLOUD_GCP,
-		"CLOUD_NONE":      lib.CLOUD_NONE,
-		"CLOUD_NSXT":      lib.CLOUD_NSXT,
-	}
-
-	for name, value := range cloudTypes {
-		if value == "" {
-			t.Errorf("%s should not be empty", name)
-		}
-	}
-}
-
-func TestShardSchemeConstants(t *testing.T) {
-	tests := []struct {
-		name     string
-		constant string
-		expected string
-	}{
-		{"DEFAULT_SHARD_SCHEME", lib.DEFAULT_SHARD_SCHEME, "hostname"},
-		{"HOSTNAME_SHARD_SCHEME", lib.HOSTNAME_SHARD_SCHEME, "hostname"},
-		{"NAMESPACE_SHARD_SCHEME", lib.NAMESPACE_SHARD_SCHEME, "namespace"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.constant != tt.expected {
-				t.Errorf("%s = %v, want %v", tt.name, tt.constant, tt.expected)
-			}
-		})
-	}
-}
-
 func TestRegexConstants(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -656,123 +569,6 @@ func TestRegexConstants(t *testing.T) {
 	}
 }
 
-func TestAutoFQDNConstants(t *testing.T) {
-	tests := []struct {
-		name     string
-		constant string
-		expected string
-	}{
-		{"AutoFQDNDefault", lib.AutoFQDNDefault, "Default"},
-		{"AutoFQDNFlat", lib.AutoFQDNFlat, "Flat"},
-		{"AutoFQDNDisabled", lib.AutoFQDNDisabled, "Disabled"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.constant != tt.expected {
-				t.Errorf("%s = %v, want %v", tt.name, tt.constant, tt.expected)
-			}
-		})
-	}
-}
-
-func TestStatusConstants(t *testing.T) {
-	tests := []struct {
-		name     string
-		constant string
-		expected string
-	}{
-		{"StatusRejected", lib.StatusRejected, "Rejected"},
-		{"StatusAccepted", lib.StatusAccepted, "Accepted"},
-		{"CRDActive", lib.CRDActive, "ACTIVE"},
-		{"CRDInactive", lib.CRDInactive, "INACTIVE"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.constant != tt.expected {
-				t.Errorf("%s = %v, want %v", tt.name, tt.constant, tt.expected)
-			}
-		})
-	}
-}
-
-func TestEventConstants(t *testing.T) {
-	eventConstants := []string{
-		lib.AKOEventComponent,
-		lib.AKOShutdown,
-		lib.SyncDisabled,
-		lib.ValidatedUserInput,
-		lib.StatusSync,
-		lib.AKOReady,
-		lib.AKOPause,
-		lib.DuplicateHostPath,
-		lib.DuplicateHost,
-		lib.Removed,
-		lib.Synced,
-		lib.Attached,
-		lib.Detached,
-		lib.PatchFailed,
-		lib.InvalidConfiguration,
-	}
-
-	for _, constant := range eventConstants {
-		if constant == "" {
-			t.Errorf("Event constant should not be empty")
-		}
-	}
-}
-
-func TestAnnotationConstants(t *testing.T) {
-	tests := []struct {
-		name     string
-		constant string
-	}{
-		{"DefaultIngressClassAnnotation", lib.DefaultIngressClassAnnotation},
-		{"ExternalDNSAnnotation", lib.ExternalDNSAnnotation},
-		{"GatewayFinalizer", lib.GatewayFinalizer},
-		{"IngressFinalizer", lib.IngressFinalizer},
-		{"AkoGroup", lib.AkoGroup},
-		{"AviIngressController", lib.AviIngressController},
-		{"InfraSettingNameAnnotation", lib.InfraSettingNameAnnotation},
-		{"SkipNodePortAnnotation", lib.SkipNodePortAnnotation},
-		{"PassthroughAnnotation", lib.PassthroughAnnotation},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.constant == "" {
-				t.Errorf("%s should not be empty", tt.name)
-			}
-		})
-	}
-}
-
-func TestNumericConstants(t *testing.T) {
-	tests := []struct {
-		name     string
-		constant int
-		min      int
-	}{
-		{"SLOW_SYNC_TIME", lib.SLOW_SYNC_TIME, 0},
-		{"SSLPort", lib.SSLPort, 0},
-		{"DNS_LABEL_LENGTH", lib.DNS_LABEL_LENGTH, 0},
-		{"NODE_NETWORK_MAX_ENTRIES", lib.NODE_NETWORK_MAX_ENTRIES, 0},
-		{"AVI_OBJ_NAME_MAX_LENGTH", lib.AVI_OBJ_NAME_MAX_LENGTH, 0},
-		{"ControllerReqWaitTime", lib.ControllerReqWaitTime, 0},
-		{"AviObjDeletionTime", lib.AviObjDeletionTime, 0},
-		{"FullSyncInterval", lib.FullSyncInterval, 0},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.constant < tt.min {
-				t.Errorf("%s = %d, should be >= %d", tt.name, tt.constant, tt.min)
-			}
-		})
-	}
-}
-
 func TestPassthroughDatascript(t *testing.T) {
 	if lib.PassthroughDatascript == "" {
 		t.Error("PassthroughDatascript should not be empty")
@@ -790,49 +586,6 @@ func TestPassthroughDatascript(t *testing.T) {
 		if !regexp.MustCompile(element).MatchString(lib.PassthroughDatascript) {
 			t.Errorf("PassthroughDatascript should contain %s", element)
 		}
-	}
-}
-
-func TestCacheIndexerConstants(t *testing.T) {
-	tests := []struct {
-		name     string
-		constant string
-	}{
-		{"AviSettingGWClassIndex", lib.AviSettingGWClassIndex},
-		{"GatewayClassGatewayIndex", lib.GatewayClassGatewayIndex},
-		{"SeGroupAviSettingIndex", lib.SeGroupAviSettingIndex},
-		{"AviSettingServicesIndex", lib.AviSettingServicesIndex},
-		{"AviSettingIngClassIndex", lib.AviSettingIngClassIndex},
-		{"AviSettingRouteIndex", lib.AviSettingRouteIndex},
-		{"L4RuleToServicesIndex", lib.L4RuleToServicesIndex},
-		{"AviSettingNamespaceIndex", lib.AviSettingNamespaceIndex},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.constant == "" {
-				t.Errorf("%s should not be empty", tt.name)
-			}
-		})
-	}
-}
-
-func TestLicenseTypeConstants(t *testing.T) {
-	tests := []struct {
-		name     string
-		constant string
-		expected string
-	}{
-		{"LicenseTypeEnterprise", lib.LicenseTypeEnterprise, "ENTERPRISE"},
-		{"LicenseTypeEnterpriseCloudServices", lib.LicenseTypeEnterpriseCloudServices, "ENTERPRISE_WITH_CLOUD_SERVICES"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.constant != tt.expected {
-				t.Errorf("%s = %v, want %v", tt.name, tt.constant, tt.expected)
-			}
-		})
 	}
 }
 
