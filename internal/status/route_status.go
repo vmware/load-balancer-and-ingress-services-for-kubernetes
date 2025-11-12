@@ -607,7 +607,8 @@ func deleteRouteObject(option UpdateOptions, key string, isVSDelete bool, retryN
 		}
 		// Check if this host is still present in the spec, if so - don't delete it
 		// NS migration case: if false -> ns invalid event happened so remove status
-		if mRoute.Status.Ingress[i].RouterName == lib.AKOUser && (routeHost != svcMdataHostname || isVSDelete || !utils.CheckIfNamespaceAccepted(option.ServiceMetadata.Namespace)) {
+		// Blocked namespace case: if namespace is in blockedNamespaceList, remove status
+		if mRoute.Status.Ingress[i].RouterName == lib.AKOUser && (routeHost != svcMdataHostname || isVSDelete || !utils.CheckIfNamespaceAccepted(option.ServiceMetadata.Namespace) || lib.IsNamespaceBlocked(option.ServiceMetadata.Namespace)) {
 			mRoute.Status.Ingress = append(mRoute.Status.Ingress[:i], mRoute.Status.Ingress[i+1:]...)
 		} else {
 			utils.AviLog.Debugf("key: %s, msg: skipping status update since host is present in the route: %v", key, svcMdataHostname)
@@ -673,8 +674,10 @@ func deleteRouteAnnotation(routeObj *routev1.Route, svcMeta lib.ServiceMetadataO
 				// 1. this host is still present in the spec, if so - don't delete it from annotations
 				// 2. in case of NS migration, if NS is moved from selected to rejected, this host then
 				//    has to be removed from the annotations list.
+				// 3. if namespace is in blockedNamespaceList, remove annotations
 				nsMigrationFilterFlag := utils.CheckIfNamespaceAccepted(svcMeta.Namespace)
-				if routeHost != host || isVSDelete || !nsMigrationFilterFlag {
+				nsBlockedFlag := lib.IsNamespaceBlocked(svcMeta.Namespace)
+				if routeHost != host || isVSDelete || !nsMigrationFilterFlag || nsBlockedFlag {
 					delete(existingAnnotations, k)
 				} else {
 					utils.AviLog.Debugf("key: %s, msg: skipping annotation update since host is present in the route: %v", key, host)
