@@ -400,6 +400,7 @@ func deleteObject(option UpdateOptions, key string, isVSDelete bool, retryNum ..
 			}
 			if !lib.ValidateIngressForClass(key, mIngress) ||
 				!utils.CheckIfNamespaceAccepted(option.ServiceMetadata.Namespace) ||
+				lib.IsNamespaceBlocked(option.ServiceMetadata.Namespace) ||
 				!utils.HasElem(hostListIng, host) ||
 				mIngress.GetDeletionTimestamp() != nil {
 				mIngress.Status.LoadBalancer.Ingress = append(mIngress.Status.LoadBalancer.Ingress[:i], mIngress.Status.LoadBalancer.Ingress[i+1:]...)
@@ -497,9 +498,11 @@ func deleteIngressAnnotation(ingObj *networkingv1.Ingress, svcMeta lib.ServiceMe
 				// 1. this host is still present in the spec, if so - don't delete it from annotations
 				// 2. in case of NS migration, if NS is moved from selected to rejected, this host then
 				//    has to be removed from the annotations list.
+				// 3. if namespace is in blockedNamespaceList, remove annotations
 				nsMigrationFilterFlag := utils.CheckIfNamespaceAccepted(svcMeta.Namespace)
+				nsBlockedFlag := lib.IsNamespaceBlocked(svcMeta.Namespace)
 
-				if !utils.HasElem(ingHostList, host) || !nsMigrationFilterFlag {
+				if !utils.HasElem(ingHostList, host) || !nsMigrationFilterFlag || nsBlockedFlag {
 					delete(existingAnnotations, k)
 					continue
 				}
