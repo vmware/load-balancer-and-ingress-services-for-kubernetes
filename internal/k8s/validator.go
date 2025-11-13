@@ -139,10 +139,41 @@ func (l *leader) ValidateHostRuleObj(key string, hostrule *akov1beta1.HostRule) 
 			return err
 		}
 
-		for cachedFQDN, cachedAliases := range objects.SharedCRDLister().GetAllFQDNToAliasesMapping() {
+		allCachedMappings := objects.SharedCRDLister().GetAllFQDNToAliasesMapping()
+
+		// Collect stale FQDNs (for which hostrule is not there) to delete
+		staleFQDNs := make([]string, 0)
+
+		for cachedFQDN, cachedAliases := range allCachedMappings {
 			if cachedFQDN == fqdn {
 				continue
 			}
+
+			// Verify if the cached FQDN still has a valid hostrule
+			found, hrNSNameStr := objects.SharedCRDLister().GetFQDNToHostruleMapping(cachedFQDN)
+			if !found {
+				// No hostrule mapping found, mark as stale
+				staleFQDNs = append(staleFQDNs, cachedFQDN)
+				continue
+			}
+
+			// Verify the hostrule actually exists in Kubernetes
+			hrNSName := strings.Split(hrNSNameStr, "/")
+			if len(hrNSName) != 2 {
+				// Invalid format, mark as stale
+				staleFQDNs = append(staleFQDNs, cachedFQDN)
+				continue
+			}
+
+			// Check if hostrule exists
+			_, err := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(hrNSName[0]).Get(hrNSName[1])
+			if k8serrors.IsNotFound(err) {
+				// Hostrule no longer exists, mark as stale
+				staleFQDNs = append(staleFQDNs, cachedFQDN)
+				continue
+			}
+
+			// Check for alias conflicts with valid cached entries
 			aliases := cachedAliases.([]string)
 			for _, alias := range hostrule.Spec.VirtualHost.Aliases {
 				if utils.HasElem(aliases, alias) {
@@ -151,6 +182,31 @@ func (l *leader) ValidateHostRuleObj(key string, hostrule *akov1beta1.HostRule) 
 					return err
 				}
 			}
+		}
+
+		// Re-verifying to check whether entries are stale so that
+		// un-necessary deletion will not happen -- will increase processing time a bit
+		verifiedStaleFQDNs := make([]string, 0, len(staleFQDNs))
+		for _, staleFQDN := range staleFQDNs {
+			found, hrNSNameStr := objects.SharedCRDLister().GetFQDNToHostruleMapping(staleFQDN)
+			if found {
+				// Entry was updated by another thread, verify it's still invalid
+				hrNSName := strings.Split(hrNSNameStr, "/")
+				if len(hrNSName) == 2 {
+					_, err := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(hrNSName[0]).Get(hrNSName[1])
+					if err == nil {
+						// Hostrule exists, do not add
+						continue
+					}
+				}
+			}
+			// Entry is still stale, add for deletion
+			verifiedStaleFQDNs = append(verifiedStaleFQDNs, staleFQDN)
+		}
+
+		if len(verifiedStaleFQDNs) > 0 {
+			deletedCount := objects.SharedCRDLister().BatchDeleteFQDNToAliasesMappings(verifiedStaleFQDNs)
+			utils.AviLog.Debugf("key: %s, msg: Cleaned up %d stale FQDN aliases mappings (hostrules no longer exist)", key, deletedCount)
 		}
 	}
 
