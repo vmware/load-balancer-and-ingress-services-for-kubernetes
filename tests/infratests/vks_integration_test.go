@@ -855,8 +855,6 @@ func TestVKSClusterLifecycleIntegration(t *testing.T) {
 	addClusterToInformerCache(t, cluster)
 
 	clusterWatcher.EnqueueCluster(cluster, "ADD")
-	processed := clusterWatcher.ProcessNextWorkItem()
-	g.Expect(processed).To(gomega.BeTrue())
 
 	// Verify cluster secret was created
 	g.Eventually(func() bool {
@@ -899,8 +897,6 @@ func TestVKSClusterLifecycleIntegration(t *testing.T) {
 	}
 
 	clusterWatcher.EnqueueCluster(cluster, "UPDATE")
-	processed = clusterWatcher.ProcessNextWorkItem()
-	g.Expect(processed).To(gomega.BeTrue())
 
 	// Verify secret was cleaned up
 	g.Eventually(func() bool {
@@ -916,8 +912,6 @@ func TestVKSClusterLifecycleIntegration(t *testing.T) {
 	}
 
 	clusterWatcher.EnqueueCluster(cluster, "DELETE")
-	processed = clusterWatcher.ProcessNextWorkItem()
-	g.Expect(processed).To(gomega.BeTrue())
 
 	clusterWatcher.Stop()
 
@@ -995,8 +989,6 @@ func TestVKSEndToEndIntegration(t *testing.T) {
 	addClusterToInformerCache(t, cluster)
 
 	clusterWatcher.EnqueueCluster(cluster, "ADD")
-	processed := clusterWatcher.ProcessNextWorkItem()
-	g.Expect(processed).To(gomega.BeTrue())
 	g.Eventually(func() bool {
 		secretName := "vks-cluster-avi-secret"
 		secret, err := kubeClient.CoreV1().Secrets("vks-test-ns").Get(context.Background(), secretName, metav1.GetOptions{})
@@ -1261,8 +1253,6 @@ func TestVKSE2ECreationToCleanup(t *testing.T) {
 	addClusterToInformerCache(t, cluster)
 
 	clusterWatcher.EnqueueCluster(cluster, "ADD")
-	processed := clusterWatcher.ProcessNextWorkItem()
-	g.Expect(processed).To(gomega.BeTrue())
 	g.Eventually(func() bool {
 		secretName := "e2e-cluster-avi-secret"
 		secret, err := kubeClient.CoreV1().Secrets("e2e-test-ns").Get(context.Background(), secretName, metav1.GetOptions{})
@@ -1398,8 +1388,6 @@ func TestVKSE2ECreationToCleanup(t *testing.T) {
 
 	// Process cluster DELETE event
 	clusterWatcher.EnqueueCluster(cluster, "DELETE")
-	processed = clusterWatcher.ProcessNextWorkItem()
-	g.Expect(processed).To(gomega.BeTrue())
 
 	// Verify cluster secret was deleted
 	g.Eventually(func() bool {
