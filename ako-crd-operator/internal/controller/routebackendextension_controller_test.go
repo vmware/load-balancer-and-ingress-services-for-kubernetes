@@ -491,7 +491,7 @@ func TestRouteBackendExtensionController(t *testing.T) {
 			} else {
 				assert.NoError(t, err)
 			}
-			assert.False(t, result.Requeue)
+			assert.False(t, result.Requeue) //nolint: staticcheck
 			assert.Equal(t, int64(0), result.RequeueAfter.Nanoseconds())
 
 			// Validate events if needed
