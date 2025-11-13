@@ -592,6 +592,15 @@ func (w *VKSClusterWatcher) cleanupAviObjects(ctx context.Context, clusterName, 
 		errors = append(errors, errorMsg)
 	}
 
+	// Delete CRD objects (HealthMonitor, ApplicationProfile, PKIProfile)
+	// These objects use markers with clustername key
+	utils.AviLog.Infof("Cleaning up CRD objects for cluster %s", clusterNameWithUID)
+	if err := w.deleteCRDObjects(clusterAviClient, clusterNameWithUID); err != nil {
+		errorMsg := fmt.Sprintf("failed to cleanup CRD objects for cluster %s: %v", clusterNameWithUID, err)
+		utils.AviLog.Warnf("%s", errorMsg)
+		errors = append(errors, errorMsg)
+	}
+
 	if len(errors) > 0 {
 		return fmt.Errorf("cleanup failures: %s", strings.Join(errors, "; "))
 	}
@@ -686,7 +695,7 @@ func (w *VKSClusterWatcher) deleteVSVIPObjects(aviClient *clients.AviClient, clu
 	apiPath := "/api/vsvip"
 	utils.AviLog.Infof("Cleaning up VSVIP objects for cluster %s using label-based query", clusterName)
 
-	objects, err := w.fetchVSVIPObjectsByLabel(aviClient, apiPath, clusterName, "uuid,name")
+	objects, err := w.fetchObjectsByClusterNameLabel(aviClient, apiPath, clusterName, "uuid,name")
 	if err != nil {
 		return fmt.Errorf("failed to fetch VSVIP objects: %v", err)
 	}
@@ -713,8 +722,60 @@ func (w *VKSClusterWatcher) deleteVSVIPObjects(aviClient *clients.AviClient, clu
 	return nil
 }
 
-// fetchVSVIPObjectsByLabel fetches VSVIP objects using label-based query
-func (w *VKSClusterWatcher) fetchVSVIPObjectsByLabel(aviClient *clients.AviClient, apiPath, clusterName, fields string) ([]map[string]interface{}, error) {
+// deleteCRDObjects deletes CRD objects (HealthMonitor, ApplicationProfile, PKIProfile) using label-based query
+func (w *VKSClusterWatcher) deleteCRDObjects(aviClient *clients.AviClient, clusterName string) error {
+	crdObjectTypes := []string{
+		"/api/healthmonitor",
+		"/api/applicationprofile",
+		"/api/pkiprofile",
+	}
+
+	var allErrors []string
+
+	for _, apiPath := range crdObjectTypes {
+		utils.AviLog.Infof("Cleaning up CRD %s for cluster %s using label-based query", apiPath, clusterName)
+
+		objects, err := w.fetchObjectsByClusterNameLabel(aviClient, apiPath, clusterName, "uuid,name")
+		if err != nil {
+			errorMsg := fmt.Sprintf("failed to fetch %s: %v", apiPath, err)
+			utils.AviLog.Warnf("%s", errorMsg)
+			allErrors = append(allErrors, errorMsg)
+			continue
+		}
+
+		if len(objects) == 0 {
+			utils.AviLog.Infof("No CRD %s found for cluster %s", apiPath, clusterName)
+			continue
+		}
+
+		utils.AviLog.Infof("Found %d CRD %s to delete for cluster %s", len(objects), apiPath, clusterName)
+
+		var errors []string
+		for _, obj := range objects {
+			if err := w.deleteAviObject(aviClient, apiPath, obj); err != nil {
+				errors = append(errors, err.Error())
+			}
+		}
+
+		if len(errors) > 0 {
+			errorMsg := fmt.Sprintf("%s deletion failures: %s", apiPath, strings.Join(errors, "; "))
+			allErrors = append(allErrors, errorMsg)
+		} else {
+			utils.AviLog.Infof("Successfully deleted all CRD %s for cluster %s", apiPath, clusterName)
+		}
+	}
+
+	if len(allErrors) > 0 {
+		return fmt.Errorf("CRD object deletion failures: %s", strings.Join(allErrors, "; "))
+	}
+
+	utils.AviLog.Infof("Successfully deleted all CRD objects for cluster %s", clusterName)
+	return nil
+}
+
+// fetchObjectsByClusterNameLabel fetches objects using label-based query with clustername marker
+// Used for VSVIP and CRD objects (HealthMonitor, ApplicationProfile, PKIProfile)
+func (w *VKSClusterWatcher) fetchObjectsByClusterNameLabel(aviClient *clients.AviClient, apiPath, clusterName, fields string) ([]map[string]interface{}, error) {
 	query := fmt.Sprintf("label_key=clustername&label_value=%s", clusterName)
 	return w.fetchAviObjectsWithQuery(aviClient, apiPath, query, fields)
 }
@@ -856,6 +917,11 @@ func (w *VKSClusterWatcher) deleteAviObject(aviClient *clients.AviClient, apiPat
 	utils.AviLog.Infof("Deleting %s: %s (UUID: %s)", apiPath, name, uuid)
 
 	if err := aviClient.AviSession.Delete(deleteURI); err != nil {
+		// Check if object is already deleted (404 Not Found)
+		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 404 {
+			utils.AviLog.Infof("Object %s %s already deleted (404)", apiPath, name)
+			return nil
+		}
 		utils.AviLog.Warnf("Failed to delete %s %s: %v", apiPath, name, err)
 		return fmt.Errorf("failed to delete %s %s: %v", apiPath, name, err)
 	}

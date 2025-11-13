@@ -118,9 +118,5 @@ func IsRetryableError(err error) bool {
 		}
 	}
 
-	if strings.Contains(err.Error(), "Object not found") {
-		// non retryable
-		return false
-	}
 	return false
 }
