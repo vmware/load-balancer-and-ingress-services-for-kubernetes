@@ -1,4 +1,4 @@
-// Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+// Copyright 2019 VMware, Inc.
 // SPDX-License-Identifier: Apache License 2.0
 
 package clients

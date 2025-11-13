@@ -443,8 +443,8 @@ github.com/urfave/cli v1.20.0/go.mod h1:70zkFmudgCuE/ngEzBv17Jvp/497gISqfk5gWijb
 github.com/vektah/gqlparser v1.1.2/go.mod h1:1ycwN7Ij5njmMkPPAOaRFY4rET2Enx7IkVv3vaXspKw=
 github.com/vmware-tanzu/service-apis v0.0.0-20200901171416-461d35e58618 h1:ZLkxMxSr/YrYENjUJ8g6uB4rUQpZKBR3Olqf2DvuMFk=
 github.com/vmware-tanzu/service-apis v0.0.0-20200901171416-461d35e58618/go.mod h1:afqpDk9He9v+/qWix0RRotm3RNyni4Lmc1y9geDCPuo=
-github.com/vmware/alb-sdk v0.0.0-20250407104238-8f88209a8f1a h1:LwflvQ8MSQ5X1Zh8sD5NF8XE1OU7xjr00USw+GQjykk=
-github.com/vmware/alb-sdk v0.0.0-20250407104238-8f88209a8f1a/go.mod h1:fuRb4saDY/xy/UMeMvyKYmcplNknEL9ysaqYSw7reNE=
+github.com/vmware/alb-sdk v0.0.0-20251031103126-465797fb76a0 h1:Ooc6UVcgHnHeOX4F1pvy5tZg+N5d7KEJT75NWlHHbbk=
+github.com/vmware/alb-sdk v0.0.0-20251031103126-465797fb76a0/go.mod h1:fuRb4saDY/xy/UMeMvyKYmcplNknEL9ysaqYSw7reNE=
 github.com/x448/float16 v0.8.4 h1:qLwI1I70+NjRFUR3zs1JPUCgaCXSh3SW62uAKT1mSBM=
 github.com/x448/float16 v0.8.4/go.mod h1:14CWIYCyZA/cWjXOioeEpHeN/83MdbZDRQHoFcYsOfg=
 github.com/xiang90/probing v0.0.0-20160813154853-07dd2e8dfe18/go.mod h1:UETIi67q53MR2AWcXfiuqkDkRtnGDLqkBTpCHuJHxtU=
