@@ -14,40 +14,35 @@ kubectl create ns avi-system
 Step 2: Search the available charts for AKO
 
 ```
-helm show chart oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 2.2.1
+helm show chart oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 2.1.1
 
-Pulled: projects.packages.broadcom.com/ako/helm-charts/ako:2.2.1
+Pulled: projects.packages.broadcom.com/ako/helm-charts/ako:2.1.1
 Digest: sha256:xxxxxxxx
 apiVersion: v2
-appVersion: 2.2.1
+appVersion: 2.1.1
 dependencies:
 - condition: ako-crd-operator.enabled
   name: ako-crd-operator
   repository: oci://projects.packages.broadcom.com/ako/helm-charts
-  version: 2.2.1
+  version: 2.1.1
 description: A helm chart for Avi Kubernetes Operator
 name: ako
 type: application
-version: 2.2.1
+version: 2.1.1
 ```
 
-Step 2: Pull AKO helm chart
+Step 3: Use the values.yaml from this chart to edit values related to the Avi Load Balancer configuration. To get the values.yaml for a release, run the following command:
+
 ```
-helm pull oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 2.2.1 --untar
+helm show values oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 2.1.1 > values.yaml
 ```
 
-Step 3: Update helm dependency after going into ako directory
-```
-cd ako
-helm dependency build
-```
+Step 4: Edit the [values.yaml](#parameters) file and update the details according to your environment.
 
-Step 4: Update the values.yaml
-Values and their corresponding index can be found [here](#parameters).
-
-**Note**: Starting from AKO-2.2.1, the AKO Helm chart has a dependency chart `ako-crd-operator`. The installation can be enabled/disabled by setting `ako-crd-operator.enabled` in the AKO values.yaml.
+**Note**: Starting from AKO-2.1.1, the AKO Helm chart has a dependency chart `ako-crd-operator`. The installation can be enabled/disabled by setting `ako-crd-operator.enabled` in the AKO values.yaml.
 
 Step 5: Install AKO
+
 Starting from AKO-1.7.1, multiple AKO instances can be installed in a cluster.
 > **Note**: <br>
     1. Only one AKO instance, out of multiple AKO instances, should be `Primary`. <br>
@@ -56,12 +51,12 @@ Starting from AKO-1.7.1, multiple AKO instances can be installed in a cluster.
 <b>Primary AKO installation</b>
 
 ```
-helm install --generate-name . --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --set AKOSettings.primaryInstance=true --namespace=avi-system
+helm install --generate-name oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 2.1.1 -f /path/to/values.yaml  --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --set AKOSettings.primaryInstance=true --namespace=avi-system
 ```
 
 <b>Secondary AKO installation</b>
 ```
-helm install --generate-name . --version 2.2.1  --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --set AKOSettings.primaryInstance=false --namespace=avi-secondary-system --set ako-crd-operator.enabled=false
+helm install --generate-name oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 2.1.1 -f /path/to/values.yaml  --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --set AKOSettings.primaryInstance=false --namespace=avi-secondary-system --set ako-crd-operator.enabled=false
 
 ```
 Note: Since only one instance of ako-crd-operator can run in the cluster, for secondary AKO Installation, set ako-crd-operator.enabled to false.
@@ -72,7 +67,7 @@ Step 6: Check the installation
 helm list -n avi-system
 
 NAME          	NAMESPACE 	REVISION	UPDATED     STATUS  	CHART    	APP VERSION
-ako-1691752136	avi-system	1       	2025-09-28	deployed	ako-2.2.1	2.2.1
+ako-1691752136	avi-system	1       	2025-09-28	deployed	ako-2.1.1	2.1.1
 ```
 
 ## Uninstall using *helm*
@@ -102,19 +97,16 @@ Follow these steps if you are upgrading from an older AKO release.
 Helm does not upgrade the CRDs during a release upgrade. Before you upgrade a release, run the following command to download and upgrade the CRDs:
 
 ```
-helm pull oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 2.2.1 --untar
-cd ako
-helm dependency build
+helm template oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 2.1.1 --include-crds --output-dir <output_dir>
 
 ```
 
-This will save the helm files to ako directory which will contain the CRDs corresponding to the AKO version.
 
 *Step2*
 To install the CRDs:
 
 ```
-kubectl apply -f crds/
+kubectl apply -f <output_dir>/ako/crds/
 ```
 
 Note: This step is not necessary for CRDs included in the ako-crd-operator, as this will be the initial installation of the ako-crd-operator, and all associated CRDs will be newly installed during the upgrade process.
@@ -125,28 +117,28 @@ Note: This step is not necessary for CRDs included in the ako-crd-operator, as t
 helm list -n avi-system
 
 NAME          	NAMESPACE 	REVISION	UPDATED                             	    STATUS  	CHART    	APP VERSION
-ako-1593523840	avi-system	1       	2024-08-04 13:44:31.609195757 +0000 UTC	    deployed	ako-1.12.2.2.12.2
+ako-1593523840	avi-system	1       	2024-08-04 13:44:31.609195757 +0000 UTC	    deployed	ako-1.12.2 1.12.2
 ```
 
 *Step4*
 
-Update the values.yaml in ako directory for AKO version 2.2.1 as per the requirement.
+Get the values.yaml for the latest AKO version:
 ```
-vi values.yaml
+helm show values oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 2.1.1 > values.yaml
 ```
 
-*Step4*
+*Step5*
 
 Upgrade the Helm chart:
 
 ```
-helm upgrade ako-1593523840 . --set ControllerSettings.controllerHost=<IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --namespace=avi-system
-
+helm upgrade ako-1593523840  oci://projects.packages.broadcom.com/ako/helm-charts/ako -f /path/to/values.yaml --version 2.1.1 --set ControllerSettings.controllerHost=<IP or Hostname> --set avicredentials.password=<username> --set avicredentials.username=<username> --namespace=avi-system
 ```
 
 Upgrade the secondary AKO:
 ```
-helm upgrade  <secondary-ako-chart-name> . --set ControllerSettings.controllerHost=<IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --namespace=avi-secondary-system --set ako-crd-operator.enabled=false
+helm upgrade ako-1593523840  oci://projects.packages.broadcom.com/ako/helm-charts/ako -f /path/to/values.yaml --version 2.1.1 --set ControllerSettings.controllerHost=<IP or Hostname> --set avicredentials.password=<username> --set avicredentials.username=<username>
+ --namespace=avi-secondary-system --set ako-crd-operator.enabled=false
 ```
 
 ***Note***
