@@ -36,8 +36,6 @@ Passive AKO does the following:
 
 ## Steps to run AKO in High Availability
 
-Pull AKO helm chart and update helm dependency if not done by following these [steps](install/helm.md)
-
 ### Transitioning from Single Replica to High Availability
 
 To transition from a single AKO replica to high availability mode, you must follow this specific sequence to ensure proper leader election:
@@ -47,7 +45,7 @@ To transition from a single AKO replica to high availability mode, you must foll
 
 ```bash
 # upgrade command
-helm upgrade ako-1593523840 . --set ControllerSettings.controllerHost=<IP or Hostname> --set avicredentials.password=<username> --set avicredentials.username=<username> --set ako-crd-operator.enabled=false --namespace=avi-system
+helm upgrade ako-1593523840 oci://projects.packages.broadcom.com/ako/helm-charts/ako -f /path/to/values.yaml --version 2.1.1 --set ControllerSettings.controllerHost=<IP or Hostname> --set avicredentials.password=<username> --set avicredentials.username=<username> --set ako-crd-operator.enabled=false --namespace=avi-system
 ```
 
 **Note**: Set ako-crd-operator.enabled to true to install ako-crd-operator as part of upgrade.
