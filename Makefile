@@ -271,13 +271,6 @@ namespacesynctests:
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/namespacesynctests -failfast -timeout 0 \
 	-coverprofile cover-9.out -coverpkg=./... > namespacesynctests.log 2>&1 && echo "namespacesynctests passed") || (echo "namespacesynctests failed" && cat namespacesynctests.log && exit 1)
 
-.PHONY: misc 
-temp:
-	@> misc.log
-	(sudo docker run \
-	-w=/go/src/$(PACKAGE_PATH_AKO) \
-	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/temp -failfast > misc.log 2>&1 && echo "misc passed") || (echo "misc failed" && cat misc.log && exit 1)
 
 .PHONY: npltests 
 npltests:
@@ -339,15 +332,8 @@ infratests:
 	(sudo docker run \
 	-w=/go/src/$(PACKAGE_PATH_AKO) \
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
-	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/infratests -failfast -timeout 0 > infratests.log 2>&1 && echo "infratests passed") || (echo "infratests failed" && cat infratests.log && exit 1)
-
-# .PHONY: multiclusteringresstests
-# multiclusteringresstests:
-#   sudo docker run \
-#   -w=/go/src/$(PACKAGE_PATH_AKO) \
-#   -v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(BUILD_GO_IMG) \
-#   $(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/multiclusteringresstests -failfast -coverprofile cover-16.out -coverpkg=./...
-
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/infratests -failfast -timeout 0 \
+	-coverprofile cover-16.out -coverpkg=./... > infratests.log 2>&1 && echo "infratests passed") || (echo "infratests failed" && cat infratests.log && exit 1)
 
 .PHONY: hatests
 hatests:
@@ -504,6 +490,24 @@ avi_rbac_tests:
 	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
 	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/internal/lib -run "Test.*" -failfast -timeout 0 \
 	-coverprofile cover-30.out -coverpkg=./... > avi_rbac_tests.log 2>&1 && echo "avi_rbac_tests passed") || (echo "avi_rbac_tests failed" && cat avi_rbac_tests.log && exit 1)
+
+.PHONY: misc 
+misc:
+	@> misc.log
+	(sudo docker run \
+	-w=/go/src/$(PACKAGE_PATH_AKO) \
+	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/miscellaneous -failfast -timeout 0 \
+	-coverprofile cover-31.out -coverpkg=./... > misc.log 2>&1 && echo "misc passed") || (echo "misc failed" && cat misc.log && exit 1)
+
+.PHONY: multiclusteringresstests
+multiclusteringresstests:
+	@> multiclusteringresstests.log
+	(sudo docker run \
+	-w=/go/src/$(PACKAGE_PATH_AKO) \
+	-v $(PWD):/go/src/$(PACKAGE_PATH_AKO) $(GO_IMG_TEST) \
+	$(GOTEST) -v -mod=vendor $(PACKAGE_PATH_AKO)/tests/multiclusteringresstests -failfast -coverprofile cover-32.out \
+	-coverpkg=./... > multiclusteringresstests.log 2>&1 && echo "multiclusteringresstests passed") || (echo "multiclusteringresstests failed" && cat multiclusteringresstests.log && exit 1)
 
 .PHONY: vks_tests
 vks_tests:
