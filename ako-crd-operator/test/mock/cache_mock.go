@@ -8,8 +8,8 @@ import (
 	context "context"
 	reflect "reflect"
 
-	gomock "github.com/golang/mock/gomock"
 	types "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/types"
+	gomock "github.com/golang/mock/gomock"
 )
 
 // MockCacheOperation is a mock of CacheOperation interface.

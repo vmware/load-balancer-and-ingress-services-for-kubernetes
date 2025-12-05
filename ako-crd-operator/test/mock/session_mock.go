@@ -7,8 +7,8 @@ package mock
 import (
 	reflect "reflect"
 
-	gomock "github.com/golang/mock/gomock"
 	utils "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	gomock "github.com/golang/mock/gomock"
 )
 
 // MockAviRestClientPoolFactory is a mock of AviRestClientPoolFactory interface.
