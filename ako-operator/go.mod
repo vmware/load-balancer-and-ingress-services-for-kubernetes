@@ -1,14 +1,12 @@
 module github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-operator
 
-go 1.24.0
-
-toolchain go1.24.3
+go 1.24.6
 
 require (
+	github.com/vmware/load-balancer-and-ingress-services-for-kubernetes v0.1.0
 	github.com/go-logr/logr v1.4.3
 	github.com/onsi/ginkgo/v2 v2.23.4
 	github.com/onsi/gomega v1.37.0
-	github.com/vmware/load-balancer-and-ingress-services-for-kubernetes v0.1.0
 	go.uber.org/zap v1.27.0
 	k8s.io/api v0.33.1
 	k8s.io/apiextensions-apiserver v0.33.1
@@ -64,7 +62,7 @@ require (
 	github.com/spf13/pflag v1.0.6 // indirect
 	github.com/stoewer/go-strcase v1.3.0 // indirect
 	github.com/vmware-tanzu/service-apis v0.0.0-20200901171416-461d35e58618 // indirect
-	github.com/vmware/alb-sdk v0.0.0-20250407104238-8f88209a8f1a // indirect
+	github.com/vmware/alb-sdk v0.0.0-20251031103126-465797fb76a0 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.58.0 // indirect

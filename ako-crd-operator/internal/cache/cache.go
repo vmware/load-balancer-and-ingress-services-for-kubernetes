@@ -7,11 +7,11 @@ import (
 	"strings"
 	"sync"
 
-	avisession "github.com/vmware/alb-sdk/go/session"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/session"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-crd-operator/internal/types"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	avisession "github.com/vmware/alb-sdk/go/session"
 )
 
 //go:generate mockgen -source=cache.go -destination=../../test/mock/cache_mock.go -package=mock

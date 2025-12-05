@@ -38,6 +38,12 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
+// These RBAC rules are needed for NSX T1 integration
+
+// +kubebuilder:rbac:groups=nsx.vmware.com,resources=namespacenetworkinfos;namespacenetworkinfos/status,verbs=get;list;watch
+// +kubebuilder:rbac:groups=nsx.vmware.com,resources=clusternetworkinfos;clusternetworkinfos/status,verbs=get;list;watch
+// +kubebuilder:rbac:groups=topology.tanzu.vmware.com,resources=availabilityzones,verbs=get;list;watch
+
 type T1LRNetworking struct {
 }
 
