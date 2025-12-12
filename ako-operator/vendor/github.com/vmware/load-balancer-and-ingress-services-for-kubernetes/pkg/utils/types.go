@@ -75,7 +75,6 @@ type KubeClientIntf struct {
 type Informers struct {
 	ConfigMapInformer           coreinformers.ConfigMapInformer
 	ServiceInformer             coreinformers.ServiceInformer
-	EpInformer                  coreinformers.EndpointsInformer
 	EpSlicesInformer            discoveryinformers.EndpointSliceInformer
 	PodInformer                 coreinformers.PodInformer
 	NSInformer                  coreinformers.NamespaceInformer
@@ -210,15 +209,21 @@ type K8ValidNamespaces struct {
 }
 
 type AviObjectMarkers struct {
-	Namespace        string
-	Host             []string
-	InfrasettingName string
-	ServiceName      string
-	Path             []string
-	Port             string
-	Protocol         string
-	IngressName      []string
-	GatewayName      string
+	Namespace          string
+	Host               []string
+	InfrasettingName   string
+	ServiceName        string
+	Path               []string
+	Port               string
+	Protocol           string
+	IngressName        []string
+	GatewayName        string
+	GatewayNamespace   string
+	HTTPRouteName      string
+	HTTPRouteNamespace string
+	HTTPRouteRuleName  string
+	BackendName        string
+	BackendNs          string
 }
 
 /*
@@ -305,10 +310,14 @@ func (e *SkipSyncError) Error() string        { return e.Msg }
 func (e *WebSyncError) GetWebAPIError() error { return e.Err }
 func (e *WebSyncError) Unwrap() error         { return e.Err }
 
-var CloudName string
+var CloudName, CloudUUID string
 
 func SetCloudName(cloudName string) {
 	CloudName = cloudName
+}
+
+func SetCloudUUID(cloudUUID string) {
+	CloudUUID = cloudUUID
 }
 
 func init() {

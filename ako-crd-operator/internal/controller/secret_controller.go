@@ -150,7 +150,7 @@ func (r *SecretReconciler) GetRegisteredReconcilers() []string {
 }
 
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch
-// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch,namespace=avi-system
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 
 // Reconcile handles secret update events
