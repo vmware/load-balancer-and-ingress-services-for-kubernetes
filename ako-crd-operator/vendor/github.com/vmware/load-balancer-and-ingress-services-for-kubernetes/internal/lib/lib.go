@@ -1997,7 +1997,6 @@ func RefreshAuthToken(kc kubernetes.Interface) {
 	ctrlAuthToken := ctrlProp[utils.ENV_CTRL_AUTHTOKEN]
 	ctrlCAData := ctrlProp[utils.ENV_CTRL_CADATA]
 	ctrlIpAddress := GetControllerIP()
-	oldTokenID := ""
 
 	aviClient := NewAviRestClientWithToken(ctrlIpAddress, ctrlUsername, ctrlAuthToken, ctrlCAData)
 	if aviClient == nil {
@@ -2027,7 +2026,6 @@ func RefreshAuthToken(kc kubernetes.Interface) {
 			utils.AviLog.Infof("Skipping AuthToken Refresh")
 			return
 		}
-		oldTokenID, _ = aviToken.(map[string]interface{})["uuid"].(string)
 	}
 
 	newTokenResp, err := utils.CreateAuthTokenWithRetry(aviClient, retryCount)
@@ -2066,12 +2064,11 @@ func RefreshAuthToken(kc kubernetes.Interface) {
 		}
 	}
 	utils.AviLog.Infof("Successfully updated authtoken")
-	if oldTokenID != "" {
-		err = utils.DeleteAuthTokenWithRetry(aviClient, oldTokenID, retryCount)
-		if err != nil {
-			utils.AviLog.Warnf("Failed to delete old token %s, err: %+v", oldTokenID, err)
-		}
-	}
+
+	// NOTE: We do NOT delete the old token here to avoid invalidating active sessions
+	// in other containers that may still be using the old token.
+	// AVI Controller automatically cleans up expired tokens via a periodic cleanup job
+	// that runs hourly (see AuthToken.delete_expired() in controller's job_manager.py).
 }
 
 func GetControllerPropertiesFromLocalSystem() (map[string]string, error) {
@@ -2417,15 +2414,29 @@ func GetAviInfraSettingName(projVpc string) string {
 	return hex.EncodeToString(hash[:])
 }
 
+var projectToTenantCache map[string]string
+
 func GetTenantForProject(project string, c *clients.AviClient) (string, error) {
+	if projectToTenantCache == nil {
+		projectToTenantCache = make(map[string]string)
+	}
+
+	if tenant, ok := projectToTenantCache[project]; ok {
+		return tenant, nil
+	}
+
 	projectToTenantMap, err := GetNSXProjectToTenantMap(c)
 	if err != nil {
 		return "", err
 	}
-	tenant, ok := projectToTenantMap[project]
+
+	projectToTenantCache = projectToTenantMap
+
+	tenant, ok := projectToTenantCache[project]
 	if !ok {
 		return "", fmt.Errorf("tenant not found for project %s", project)
 	}
+
 	return tenant, nil
 }
 

@@ -80,19 +80,14 @@ func (v *VPCHandler) createInfraSettingAndAnnotateNS(nsToVPCMap, nsToSEGMap map[
 	}
 
 	processedInfraSettingCRSet := make(map[string]struct{})
-	nsxProjectToTenantMap, err := lib.GetNSXProjectToTenantMap(InfraAviClientInstance())
-	if err != nil {
-		utils.AviLog.Errorf("Failed to get NSX project to tenant map, skipping reconcilliation, error: %s", err.Error())
-		return
-	}
 
 	for ns, vpc := range nsToVPCMap {
 		arr := strings.Split(vpc, "/vpcs/")
 		projectArr := strings.Split(arr[0], "/projects/")
 		project := projectArr[len(projectArr)-1]
-		tenant, ok := nsxProjectToTenantMap[project]
-		if !ok {
-			utils.AviLog.Warnf("Tenant not found for project %s", project)
+		tenant, err := lib.GetTenantForProject(project, InfraAviClientInstance())
+		if err != nil {
+			utils.AviLog.Warnf("Failed to get tenant for project %s: %v", project, err)
 			continue
 		}
 

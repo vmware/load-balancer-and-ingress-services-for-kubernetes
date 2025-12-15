@@ -315,10 +315,10 @@ func TestAKOInfraAviInfraSettingCreationVPC(t *testing.T) {
 		},
 	})
 
+	os.Setenv("VPC_MODE", "true")
+
 	setupInfraTest(testData)
 	annotateNamespaceWithVpcNetworkConfigCR(t, "default", vpcNetConfig)
-
-	os.Setenv("VPC_MODE", "true")
 
 	c := ingestion.SharedVCFK8sController()
 	c.InitNetworkingHandler()
@@ -606,9 +606,9 @@ func TestAKOInfraMultiAviInfraSettingCreationVPC(t *testing.T) {
 	annotateNamespaceWithVpcNetworkConfigCR(t, "red-ns", vpcNetConfig)
 	annotateNamespaceWithVpcNetworkConfigCR(t, "red", vpcRedNetConfig)
 
-	setupInfraTest(testData)
-
 	os.Setenv("VPC_MODE", "true")
+
+	setupInfraTest(testData)
 
 	c := ingestion.SharedVCFK8sController()
 	c.InitNetworkingHandler()
@@ -758,11 +758,11 @@ func TestAKOInfraAviInfraSettingCreationVPCSEG(t *testing.T) {
 		},
 	})
 
+	os.Setenv("VPC_MODE", "true")
+
 	setupInfraTest(testData)
 	annotateNamespaceWithSEG(t, "default", "AVISEG1")
 	annotateNamespaceWithVpcNetworkConfigCR(t, "default", vpcNetConfig)
-
-	os.Setenv("VPC_MODE", "true")
 
 	c := ingestion.SharedVCFK8sController()
 	c.InitNetworkingHandler()
