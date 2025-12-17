@@ -63,6 +63,33 @@ func SharedVCFK8sController() *VCFK8sController {
 	return controllerInstance
 }
 
+// shouldScheduleQuickSync determines if a quick sync should be scheduled based on namespace annotation changes.
+func shouldScheduleQuickSync(oldNs, newNs *corev1.Namespace) bool {
+	oldAnnotations := oldNs.Annotations
+	newAnnotations := newNs.Annotations
+
+	if oldAnnotations == nil {
+		oldAnnotations = make(map[string]string)
+	}
+	if newAnnotations == nil {
+		newAnnotations = make(map[string]string)
+	}
+
+	if oldAnnotations[lib.TenantAnnotation] != "" && oldAnnotations[lib.TenantAnnotation] != newAnnotations[lib.TenantAnnotation] {
+		return true
+	}
+
+	if oldAnnotations[lib.InfraSettingNameAnnotation] != "" && oldAnnotations[lib.InfraSettingNameAnnotation] != newAnnotations[lib.InfraSettingNameAnnotation] {
+		return true
+	}
+
+	if oldAnnotations[lib.WCPSEGroup] != newAnnotations[lib.WCPSEGroup] {
+		return true
+	}
+
+	return false
+}
+
 func (c *VCFK8sController) AddNamespaceEventHandler(stopCh <-chan struct{}) {
 	namespaceHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
@@ -72,7 +99,13 @@ func (c *VCFK8sController) AddNamespaceEventHandler(stopCh <-chan struct{}) {
 		UpdateFunc: func(old, obj interface{}) {
 			utils.AviLog.Info("Namespace Update Event")
 			if lib.GetVPCMode() {
-				avirest.ScheduleQuickSync()
+				oldNs, okOld := old.(*corev1.Namespace)
+				newNs, okNew := obj.(*corev1.Namespace)
+				if okOld && okNew {
+					if shouldScheduleQuickSync(oldNs, newNs) {
+						avirest.ScheduleQuickSync()
+					}
+				}
 			}
 			proxy.HandleNamespaceGrantUpdate(old, obj)
 		},

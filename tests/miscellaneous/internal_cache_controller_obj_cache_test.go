@@ -203,53 +203,6 @@ func TestNewAviObjCacheMultipleTimes(t *testing.T) {
 		}
 	}
 }
-
-func TestAviObjCacheAllFieldsAccessible(t *testing.T) {
-	objCache := cache.NewAviObjCache()
-
-	// Test that all fields are accessible and can be used
-	tests := []struct {
-		name     string
-		testFunc func() error
-	}{
-		{
-			name: "VsCacheMeta accessible",
-			testFunc: func() error {
-				if objCache.VsCacheMeta == nil {
-					return nil
-				}
-				return nil
-			},
-		},
-		{
-			name: "PoolCache accessible",
-			testFunc: func() error {
-				if objCache.PoolCache == nil {
-					return nil
-				}
-				return nil
-			},
-		},
-		{
-			name: "HTTPPolicyCache accessible",
-			testFunc: func() error {
-				if objCache.HTTPPolicyCache == nil {
-					return nil
-				}
-				return nil
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if err := tt.testFunc(); err != nil {
-				t.Errorf("Test failed: %v", err)
-			}
-		})
-	}
-}
-
 func TestAviObjCacheInitialization(t *testing.T) {
 	// Test that cache is properly initialized
 	objCache := cache.NewAviObjCache()
