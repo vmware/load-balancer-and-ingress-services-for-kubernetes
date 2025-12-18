@@ -616,3 +616,16 @@ func SetVipNetworkList(vipNetworks []akov1alpha1.AviInfraSettingVipNetwork) {
 func GetVipNetworkList() []akov1alpha1.AviInfraSettingVipNetwork {
 	return VipNetworkList
 }
+
+func GetUriEncoded(uri string) string {
+	newUri, err := url.Parse(uri)
+	if err != nil {
+		AviLog.Errorf("Error while parsing uri: %+v", err)
+	}
+	queryValues := newUri.Query()
+	if len(queryValues) == 0 {
+		return uri
+	}
+	newUri.RawQuery = queryValues.Encode()
+	return newUri.String()
+}
