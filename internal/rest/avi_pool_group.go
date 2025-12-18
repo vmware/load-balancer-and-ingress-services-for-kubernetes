@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -36,10 +36,10 @@ func (rest *RestOperations) AviPoolGroupBuild(pg_meta *nodes.AviPoolGroupNode, c
 	name := pg_meta.Name
 	cksum := pg_meta.CloudConfigCksum
 	cksumString := strconv.Itoa(int(cksum))
-	tenant := fmt.Sprintf("/api/tenant/?name=%s", lib.GetEscapedValue(pg_meta.Tenant))
+	tenant := fmt.Sprintf("/api/tenant/?name=%s", pg_meta.Tenant)
 	members := rest.SanitizePGMembers(pg_meta.Members, key)
 	cr := lib.AKOUser
-	cloudRef := fmt.Sprintf("/api/cloud?name=%s", utils.CloudName)
+	cloudRef := "/api/cloud?name=" + utils.CloudName
 
 	pg := avimodels.PoolGroup{Name: &name, CloudConfigCksum: &cksumString,
 		CreatedBy: &cr, TenantRef: &tenant, Members: members, CloudRef: &cloudRef, ImplicitPriorityLabels: &pg_meta.ImplicitPriorityLabel}
@@ -120,7 +120,7 @@ func (rest *RestOperations) AviPGDel(uuid string, tenant string, key string) *ut
 		Tenant: tenant,
 		Model:  "PoolGroup",
 	}
-	utils.AviLog.Infof(spew.Sprintf("key: %s, msg: PG DELETE Restop %v ", key, utils.Stringify(rest_op)))
+	utils.AviLog.Info(spew.Sprintf("key: %s, msg: PG DELETE Restop %v ", key, utils.Stringify(rest_op)))
 	return &rest_op
 }
 
@@ -167,7 +167,7 @@ func (rest *RestOperations) AviPGCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 			if poolsOk {
 				for _, poolIntf := range pools {
 					poolmap, _ := poolIntf.(map[string]interface{})
-					poolUuid := avicache.ExtractUUID(poolmap["pool_ref"].(string), "pool-.*.#")
+					poolUuid := avicache.ExtractUuid(poolmap["pool_ref"].(string), "pool-.*.#")
 					// Search the poolName using this Uuid in the poolcache.
 					poolName, found := rest.cache.PoolCache.AviCacheGetNameByUuid(poolUuid)
 					if found {
@@ -200,10 +200,10 @@ func (rest *RestOperations) AviPGCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 		} else {
 			vs_cache_obj := rest.cache.VsCacheMeta.AviCacheAddVS(vsKey)
 			vs_cache_obj.AddToPGKeyCollection(k)
-			utils.AviLog.Infof(spew.Sprintf("key: %s, msg: added VS cache key during poolgroup update %v val %v", key, vsKey,
+			utils.AviLog.Info(spew.Sprintf("key: %s, msg: added VS cache key during poolgroup update %v val %v", key, vsKey,
 				vs_cache_obj))
 		}
-		utils.AviLog.Infof(spew.Sprintf("key: %s, msg: added PG cache k %v val %v", key, k,
+		utils.AviLog.Info(spew.Sprintf("key: %s, msg: added PG cache k %v val %v", key, k,
 			pg_cache_obj))
 	}
 

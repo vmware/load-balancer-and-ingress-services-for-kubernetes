@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -29,7 +29,6 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/jinzhu/copier"
 	avimodels "github.com/vmware/alb-sdk/go/models"
 	"google.golang.org/protobuf/proto"
 )
@@ -38,15 +37,15 @@ import (
 func setDedicatedVSNodeProperties(vs *avimodels.VirtualService, vs_meta *nodes.AviVsNode) {
 	var datascriptCollection []*avimodels.VSDataScripts
 	// this overwrites the sslkeycert created from the Secret object, with the one mentioned in HostRule.TLS
-	if len(vs_meta.SslKeyAndCertificateRefs) != 0 {
-		vs.SslKeyAndCertificateRefs = append(vs.SslKeyAndCertificateRefs, vs_meta.SslKeyAndCertificateRefs...)
+	if len(vs_meta.SSLKeyCertAviRef) != 0 {
+		vs.SslKeyAndCertificateRefs = append(vs.SslKeyAndCertificateRefs, vs_meta.SSLKeyCertAviRef...)
 	} else {
 		for _, sslkeycert := range vs_meta.SSLKeyCertRefs {
 			certName := "/api/sslkeyandcertificate/?name=" + sslkeycert.Name
 			vs.SslKeyAndCertificateRefs = append(vs.SslKeyAndCertificateRefs, certName)
 		}
 	}
-	vs.SslProfileRef = vs_meta.SslProfileRef
+	vs.SslProfileRef = &vs_meta.SSLProfileRef
 	//set datascripts to VS from hostrule crd
 	for i, script := range vs_meta.VsDatascriptRefs {
 		j := int32(i)
@@ -55,18 +54,13 @@ func setDedicatedVSNodeProperties(vs *avimodels.VirtualService, vs_meta *nodes.A
 		datascriptCollection = append(datascriptCollection, datascripts)
 	}
 	vs.VsDatascripts = datascriptCollection
-	if vs_meta.ApplicationProfileRef != nil {
+	if vs_meta.AppProfileRef != "" {
 		// hostrule ref overrides defaults
-		vs.ApplicationProfileRef = vs_meta.ApplicationProfileRef
+		vs.ApplicationProfileRef = &vs_meta.AppProfileRef
 	}
-
-	if len(vs_meta.ICAPProfileRefs) != 0 {
-		vs.IcapRequestProfileRefs = vs_meta.ICAPProfileRefs
-	}
-
-	vs.WafPolicyRef = vs_meta.WafPolicyRef
+	vs.WafPolicyRef = &vs_meta.WafPolicyRef
 	vs.ErrorPageProfileRef = &vs_meta.ErrorPageProfileRef
-	vs.AnalyticsProfileRef = vs_meta.AnalyticsProfileRef
+	vs.AnalyticsProfileRef = &vs_meta.AnalyticsProfileRef
 	vs.EastWestPlacement = proto.Bool(false)
 	vs.Enabled = vs_meta.Enabled
 	normal_vs_type := utils.VS_TYPE_NORMAL
@@ -89,24 +83,20 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			Name:                  proto.String(vs_meta.Name),
 			CloudConfigCksum:      proto.String(strconv.Itoa(int(vs_meta.CloudConfigCksum))),
 			CreatedBy:             proto.String(lib.AKOUser),
-			CloudRef:              proto.String(fmt.Sprintf("/api/cloud?name=%s", utils.CloudName)),
-			TenantRef:             proto.String(fmt.Sprintf("/api/tenant/?name=%s", lib.GetEscapedValue(vs_meta.Tenant))),
+			CloudRef:              proto.String("/api/cloud?name=" + utils.CloudName),
+			TenantRef:             proto.String(fmt.Sprintf("/api/tenant/?name=%s", vs_meta.Tenant)),
 			ApplicationProfileRef: proto.String("/api/applicationprofile/?name=" + vs_meta.ApplicationProfile),
 			SeGroupRef:            proto.String("/api/serviceenginegroup?name=" + vs_meta.ServiceEngineGroup),
-			WafPolicyRef:          vs_meta.WafPolicyRef,
-			AnalyticsProfileRef:   vs_meta.AnalyticsProfileRef,
+			WafPolicyRef:          &vs_meta.WafPolicyRef,
+			AnalyticsProfileRef:   &vs_meta.AnalyticsProfileRef,
 			ErrorPageProfileRef:   &vs_meta.ErrorPageProfileRef,
 			Enabled:               vs_meta.Enabled,
 			ServiceMetadata:       &svc_mdata,
-			RevokeVipRoute:        vs_meta.RevokeVipRoute,
 		}
 
-		if vs_meta.TrafficEnabled != nil {
-			vs.TrafficEnabled = vs_meta.TrafficEnabled
-		}
-		if vs_meta.ApplicationProfileRef != nil {
+		if vs_meta.AppProfileRef != "" {
 			// hostrule ref overrides defaults
-			vs.ApplicationProfileRef = vs_meta.ApplicationProfileRef
+			vs.ApplicationProfileRef = proto.String(vs_meta.AppProfileRef)
 		}
 
 		if vs_meta.VrfContext != "" {
@@ -123,7 +113,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			vs.EnableRhi = &enableRhi
 		}
 
-		if utils.IsWCP() {
+		if lib.IsWCP() {
 			vs.IgnPoolNetReach = proto.Bool(true)
 		}
 
@@ -134,7 +124,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 		if len(vs_meta.VSVIPRefs) > 0 {
 			vs.VsvipRef = proto.String("/api/vsvip/?name=" + vs_meta.VSVIPRefs[0].Name)
 		} else {
-			utils.AviLog.Warnf("key: %s, msg: unable to set the vsvip reference", key)
+			utils.AviLog.Warnf("key: %s, msg: unable to set the vsvip reference")
 		}
 
 		if vs_meta.SNIParent {
@@ -143,41 +133,25 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			vh_parent := utils.VS_TYPE_VH_PARENT
 			vs.Type = &vh_parent
 		}
-		isTCPPortPresent := false
+
 		for i, pp := range vs_meta.PortProto {
-			port := uint32(pp.Port)
+			port := pp.Port
 			svc := avimodels.Service{
 				Port:         &port,
 				EnableSsl:    &vs_meta.PortProto[i].EnableSSL,
 				PortRangeEnd: &port,
-				EnableHttp2:  &vs_meta.PortProto[i].EnableHTTP2,
 			}
-			if vs_meta.NetworkProfile == utils.MIXED_NET_PROFILE {
-				if pp.Protocol == utils.UDP {
-					svc.OverrideNetworkProfileRef = proto.String("/api/networkprofile/?name=" + utils.SYSTEM_UDP_FAST_PATH)
-				} else if pp.Protocol == utils.SCTP {
-					svc.OverrideNetworkProfileRef = proto.String("/api/networkprofile/?name=" + utils.SYSTEM_SCTP_PROXY)
-				} else if pp.Protocol == utils.TCP {
-					isTCPPortPresent = true
-				}
+			if vs_meta.NetworkProfile == utils.MIXED_NET_PROFILE && pp.Protocol == utils.UDP {
+				svc.OverrideNetworkProfileRef = proto.String("/api/networkprofile/?name=" + utils.SYSTEM_UDP_FAST_PATH)
 			}
 			vs.Services = append(vs.Services, &svc)
 		}
 
-		// In case the VS has services that are a mix of TCP and UDP/SCTP sockets,
-		// we create the VS with global network profile TCP Proxy or Fast Path based on license,
-		// and override required services with UDP Fast Path or SCTP proxy.
+		// In case the VS has services that are a mix of TCP and UDP sockets,
+		// we create the VS with global network profile TCP Fast Path,
+		// and override required services with UDP Fast Path.
 		if vs_meta.NetworkProfile == utils.MIXED_NET_PROFILE {
-			if isTCPPortPresent {
-				license := lib.AKOControlConfig().GetLicenseType()
-				if license == lib.LicenseTypeEnterprise || license == lib.LicenseTypeEnterpriseCloudServices {
-					vs_meta.NetworkProfile = utils.DEFAULT_TCP_NW_PROFILE
-				} else {
-					vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
-				}
-			} else {
-				vs_meta.NetworkProfile = utils.SYSTEM_UDP_FAST_PATH
-			}
+			vs_meta.NetworkProfile = utils.TCP_NW_FAST_PATH
 		}
 		vs.NetworkProfileRef = proto.String("/api/networkprofile/?name=" + vs_meta.NetworkProfile)
 
@@ -194,7 +168,7 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 
 		// Overwrite datascript policies from hostrule to the Parent VS.
 		if len(vs_meta.VsDatascriptRefs) > 0 {
-			datascriptCollection = make([]*avimodels.VSDataScripts, 0, len(vs_meta.VsDatascriptRefs))
+			datascriptCollection = make([]*avimodels.VSDataScripts, len(vs_meta.VsDatascriptRefs))
 			for i, script := range vs_meta.VsDatascriptRefs {
 				j := int32(i)
 				datascript := script
@@ -258,28 +232,12 @@ func (rest *RestOperations) AviVsBuild(vs_meta *nodes.AviVsNode, rest_method uti
 			}
 			vs.L4Policies = l4Policies
 		}
-		if vs_meta.DefaultPool != "" {
-			pool_ref := "/api/pool/?name=" + vs_meta.DefaultPool
-			vs.PoolRef = &pool_ref
-		}
 		vs.AnalyticsPolicy = vs_meta.GetAnalyticsPolicy()
-
-		if vs_meta.SslProfileRef != nil {
-			vs.SslProfileRef = vs_meta.SslProfileRef
-		}
-
-		if len(vs_meta.SslKeyAndCertificateRefs) != 0 && !vs_meta.Dedicated {
-			vs.SslKeyAndCertificateRefs = append(vs.SslKeyAndCertificateRefs, vs_meta.SslKeyAndCertificateRefs...)
-		}
 
 		var rest_ops []*utils.RestOp
 
 		var rest_op utils.RestOp
 		var path string
-
-		if err := copier.CopyWithOption(&vs, &vs_meta.AviVsNodeGeneratedFields, copier.Option{IgnoreEmpty: true}); err != nil {
-			utils.AviLog.Warnf("key: %s, msg: unable to set few parameters in the VS, err: %v", key, err)
-		}
 
 		// VS objects cache can be created by other objects and they would just set VS name and not uud
 		// Do a POST call in that case
@@ -316,16 +274,16 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 	checksumstr := strconv.Itoa(int(cksum))
 	cr := lib.AKOUser
 
-	var app_prof *string
-	app_prof = proto.String("/api/applicationprofile/?name=" + utils.DEFAULT_L7_SECURE_APP_PROFILE)
-	if vs_meta.ApplicationProfileRef != nil {
+	var app_prof string
+	app_prof = "/api/applicationprofile/?name=" + utils.DEFAULT_L7_SECURE_APP_PROFILE
+	if vs_meta.AppProfileRef != "" {
 		// hostrule ref overrides defaults
-		app_prof = vs_meta.ApplicationProfileRef
+		app_prof = vs_meta.AppProfileRef
 	}
 
-	cloudRef := fmt.Sprintf("/api/cloud?name=%s", utils.CloudName)
+	cloudRef := "/api/cloud?name=" + utils.CloudName
 	network_prof := "/api/networkprofile/?name=" + "System-TCP-Proxy"
-	seGroupRef := fmt.Sprintf("/api/serviceenginegroup?name=%s", lib.GetSEGName())
+	seGroupRef := "/api/serviceenginegroup?name=" + lib.GetSEGName()
 	svc_mdata_json, _ := json.Marshal(&vs_meta.ServiceMetadata)
 	svc_mdata := string(svc_mdata_json)
 	sniChild := &avimodels.VirtualService{
@@ -333,14 +291,14 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 		CloudConfigCksum:      &checksumstr,
 		CreatedBy:             &cr,
 		NetworkProfileRef:     &network_prof,
-		ApplicationProfileRef: app_prof,
+		ApplicationProfileRef: &app_prof,
 		EastWestPlacement:     proto.Bool(false),
 		CloudRef:              &cloudRef,
 		SeGroupRef:            &seGroupRef,
 		ServiceMetadata:       &svc_mdata,
-		WafPolicyRef:          vs_meta.WafPolicyRef,
-		SslProfileRef:         vs_meta.SslProfileRef,
-		AnalyticsProfileRef:   vs_meta.AnalyticsProfileRef,
+		WafPolicyRef:          &vs_meta.WafPolicyRef,
+		SslProfileRef:         &vs_meta.SSLProfileRef,
+		AnalyticsProfileRef:   &vs_meta.AnalyticsProfileRef,
 		ErrorPageProfileRef:   &vs_meta.ErrorPageProfileRef,
 		Enabled:               vs_meta.Enabled,
 	}
@@ -348,11 +306,6 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 	if vs_meta.VrfContext != "" {
 		sniChild.VrfContextRef = proto.String("/api/vrfcontext?name=" + vs_meta.VrfContext)
 	}
-
-	if len(vs_meta.ICAPProfileRefs) != 0 {
-		sniChild.IcapRequestProfileRefs = vs_meta.ICAPProfileRefs
-	}
-
 	//This VS has a TLSKeyCert associated, we need to mark 'type': 'VS_TYPE_VH_PARENT'
 	vh_type := utils.VS_TYPE_VH_CHILD
 	sniChild.Type = &vh_type
@@ -382,8 +335,8 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 	// No need of HTTP rules for TLS passthrough.
 	if vs_meta.TLSType != utils.TLS_PASSTHROUGH {
 		// this overwrites the sslkeycert created from the Secret object, with the one mentioned in HostRule.TLS
-		if len(vs_meta.SslKeyAndCertificateRefs) != 0 {
-			sniChild.SslKeyAndCertificateRefs = append(sniChild.SslKeyAndCertificateRefs, vs_meta.SslKeyAndCertificateRefs...)
+		if len(vs_meta.SSLKeyCertAviRef) != 0 {
+			sniChild.SslKeyAndCertificateRefs = append(sniChild.SslKeyAndCertificateRefs, vs_meta.SSLKeyCertAviRef...)
 		} else {
 			for _, sslkeycert := range vs_meta.SSLKeyCertRefs {
 				certName := "/api/sslkeyandcertificate/?name=" + sslkeycert.Name
@@ -490,10 +443,6 @@ func AviVsHttpPSAdd(vs_meta interface{}, isEVH bool) []*avimodels.HTTPPolicies {
 }
 
 func (rest *RestOperations) StatusUpdateForPool(restMethod utils.RestMethod, vs_cache_obj *avicache.AviVsCache, key string) {
-	if !lib.AKOControlConfig().IsLeader() {
-		utils.AviLog.Debugf("key: %s, AKO is not running as a leader, will not publish the status", key)
-		return
-	}
 	if restMethod == utils.RestPost || restMethod == utils.RestDelete || restMethod == utils.RestPut {
 		for _, poolkey := range vs_cache_obj.PoolKeyCollection {
 			// Fetch the pool object from cache and check the service metadata
@@ -515,7 +464,6 @@ func (rest *RestOperations) StatusUpdateForPool(restMethod utils.RestMethod, vs_
 							Key:                key,
 							VirtualServiceUUID: vs_cache_obj.Uuid,
 							VSName:             vs_cache_obj.Name,
-							Tenant:             vs_cache_obj.Tenant,
 						}
 						statusOption := status.StatusOptions{
 							ObjType: utils.L4LBService,
@@ -532,7 +480,6 @@ func (rest *RestOperations) StatusUpdateForPool(restMethod utils.RestMethod, vs_
 							Key:                key,
 							VirtualServiceUUID: vs_cache_obj.Uuid,
 							VSName:             vs_cache_obj.Name,
-							Tenant:             vs_cache_obj.Tenant,
 						}
 						statusOption := status.StatusOptions{
 							ObjType: utils.Ingress,
@@ -546,8 +493,8 @@ func (rest *RestOperations) StatusUpdateForPool(restMethod utils.RestMethod, vs_
 						if pool_cache_obj.ServiceMetadataObj.IsMCIIngress {
 							statusOption.ObjType = lib.MultiClusterIngress
 						}
-						utils.AviLog.Debugf("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.HostNames[0], utils.Stringify(statusOption))
-						status.PublishToStatusQueue(updateOptions.ServiceMetadata.HostNames[0], statusOption)
+						utils.AviLog.Debugf("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.IngressName, utils.Stringify(statusOption))
+						status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
 					}
 				}
 			}
@@ -556,21 +503,15 @@ func (rest *RestOperations) StatusUpdateForPool(restMethod utils.RestMethod, vs_
 }
 
 func (rest *RestOperations) StatusUpdateForVS(restMethod utils.RestMethod, vsCacheObj *avicache.AviVsCache, key string) {
-	if !lib.AKOControlConfig().IsLeader() {
-		utils.AviLog.Debugf("key: %s, AKO is not running as a leader, will not publish the status", key)
-		return
-	}
 	IPAddrs := rest.GetIPAddrsFromCache(vsCacheObj)
 	serviceMetadataObj := vsCacheObj.ServiceMetadataObj
 	switch serviceMetadataObj.ServiceMetadataMapping("VS") {
 	case lib.GatewayVS:
 		updateOptions := status.UpdateOptions{
-			Vip:                IPAddrs,
-			ServiceMetadata:    serviceMetadataObj,
-			Key:                key,
-			VirtualServiceUUID: vsCacheObj.Uuid,
-			VSName:             vsCacheObj.Name,
-			Tenant:             vsCacheObj.Tenant,
+			Vip:             IPAddrs,
+			ServiceMetadata: serviceMetadataObj,
+			Key:             key,
+			VSName:          vsCacheObj.Name,
 		}
 		statusOption := status.StatusOptions{
 			ObjType: lib.Gateway,
@@ -583,11 +524,6 @@ func (rest *RestOperations) StatusUpdateForVS(restMethod utils.RestMethod, vsCac
 		}
 		utils.AviLog.Infof("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.Gateway, utils.Stringify(statusOption))
 		status.PublishToStatusQueue(updateOptions.ServiceMetadata.Gateway, statusOption)
-		if utils.IsVCFCluster() {
-			// Call StatusUpdateForPool to trigger L4 LB Service Status Update for adding VS UUID annotation for v1alpha1pre1 Gateways
-			// In case of GatewayAPI, this call will be a no-op since GatewayAPI does not support L4 LB Service Status Update
-			rest.StatusUpdateForPool(restMethod, vsCacheObj, key)
-		}
 	case lib.ServiceTypeLBVS:
 		updateOptions := status.UpdateOptions{
 			Vip:                IPAddrs,
@@ -595,7 +531,6 @@ func (rest *RestOperations) StatusUpdateForVS(restMethod utils.RestMethod, vsCac
 			Key:                key,
 			VirtualServiceUUID: vsCacheObj.Uuid,
 			VSName:             vsCacheObj.Name,
-			Tenant:             vsCacheObj.Tenant,
 		}
 		statusOption := status.StatusOptions{
 			ObjType: utils.L4LBService,
@@ -624,22 +559,6 @@ func (rest *RestOperations) StatusUpdateForVS(restMethod utils.RestMethod, vsCac
 		// }
 		// utils.AviLog.Infof("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.IngressName, utils.Stringify(statusOption))
 		// status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
-	case lib.HTTPRouteChildVS:
-		updateOptions := status.UpdateOptions{
-			ServiceMetadata:    serviceMetadataObj,
-			Key:                key,
-			VirtualServiceUUID: vsCacheObj.Uuid,
-			VSName:             vsCacheObj.Name,
-			Tenant:             vsCacheObj.Tenant,
-		}
-		statusOption := status.StatusOptions{
-			ObjType: utils.HTTPRoute,
-			Op:      lib.UpdateStatus,
-			Key:     key,
-			Options: &updateOptions,
-		}
-		utils.AviLog.Infof("key: %s Publishing HTTPRoute status to status queue, options: %v", key, utils.Stringify(statusOption))
-		status.PublishToStatusQueue(serviceMetadataObj.HTTPRoute, statusOption)
 	default:
 		rest.StatusUpdateForPool(restMethod, vsCacheObj, key)
 
@@ -688,7 +607,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 		var vhParentKey interface{}
 		if found_parent {
 			// the uuid is expected to be in the format: "https://IP:PORT/api/virtualservice/virtualservice-88fd9718-f4f9-4e2b-9552-d31336330e0e#mygateway"
-			vs_uuid := avicache.ExtractUUID(vh_parent_uuid.(string), "virtualservice-.*.#")
+			vs_uuid := avicache.ExtractUuid(vh_parent_uuid.(string), "virtualservice-.*.#")
 			utils.AviLog.Debugf("key: %s, msg: extracted the vs uuid from parent ref: %s", key, vs_uuid)
 			// Now let's get the VS key from this uuid
 			var foundvscache bool
@@ -701,7 +620,7 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				parentKey := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: ExtractVsName(vh_parent_uuid.(string))}
 				vs_cache_obj := rest.cache.VsCacheMeta.AviCacheAddVS(parentKey)
 				vs_cache_obj.AddToSNIChildCollection(uuid)
-				utils.AviLog.Infof(spew.Sprintf("key: %s, msg: added VS cache key during SNI update %v val %v", key, parentKey,
+				utils.AviLog.Info(spew.Sprintf("key: %s, msg: added VS cache key during SNI update %v val %v", key, parentKey,
 					vs_cache_obj))
 			}
 		}
@@ -725,7 +644,6 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 				vs_cache_obj.CloudConfigCksum = cksum
 
 				status.HostRuleEventBroadcast(vs_cache_obj.Name, vs_cache_obj.ServiceMetadataObj.CRDStatus, svc_mdata_obj.CRDStatus)
-				status.SSORuleEventBroadcast(vs_cache_obj.Name, vs_cache_obj.ServiceMetadataObj.CRDStatus, svc_mdata_obj.CRDStatus)
 				vs_cache_obj.ServiceMetadataObj = svc_mdata_obj
 				if val, ok := resp["enable_rhi"].(bool); ok {
 					vs_cache_obj.EnableRhi = val
@@ -769,7 +687,6 @@ func (rest *RestOperations) AviVsCacheAdd(rest_op *utils.RestOp, key string) err
 
 			rest.cache.VsCacheMeta.AviCacheAdd(k, vs_cache_obj)
 			status.HostRuleEventBroadcast(vs_cache_obj.Name, lib.CRDMetadata{}, svc_mdata_obj.CRDStatus)
-			status.SSORuleEventBroadcast(vs_cache_obj.Name, lib.CRDMetadata{}, svc_mdata_obj.CRDStatus)
 			utils.AviLog.Infof("key: %s, msg: added VS cache key %v val %v", key, k, utils.Stringify(vs_cache_obj))
 		}
 
@@ -783,10 +700,10 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 	// Delete the SNI Child ref
 	vs_cache, ok := rest.cache.VsCacheMeta.AviCacheGet(vsKey)
 	if ok {
-		vsCacheObj, found := vs_cache.(*avicache.AviVsCache)
+		vs_cache_obj, found := vs_cache.(*avicache.AviVsCache)
 		if found {
 			hostFoundInParentPool := false
-			parent_vs_cache, parent_ok := rest.cache.VsCacheMeta.AviCacheGet(vsCacheObj.ParentVSRef)
+			parent_vs_cache, parent_ok := rest.cache.VsCacheMeta.AviCacheGet(vs_cache_obj.ParentVSRef)
 			if parent_ok {
 				parent_vs_cache_obj, parent_found := parent_vs_cache.(*avicache.AviVsCache)
 				if parent_found {
@@ -795,8 +712,8 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 
 					// if we find a L7Shared pool that has the secure VS host then don't delete status
 					// update is also not required since the shard would not change, IP should remain same
-					if len(vsCacheObj.ServiceMetadataObj.HostNames) > 0 {
-						hostname := vsCacheObj.ServiceMetadataObj.HostNames[0]
+					if len(vs_cache_obj.ServiceMetadataObj.HostNames) > 0 {
+						hostname := vs_cache_obj.ServiceMetadataObj.HostNames[0]
 						hostFoundInParentPool = rest.isHostPresentInSharedPool(hostname, parent_vs_cache_obj, key)
 					}
 
@@ -805,21 +722,21 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 
 			// try to delete the vsvip from cache only if the vs is not of type insecure passthrough
 			// and if controller version is >= 20.1.1
-			if vsCacheObj.ServiceMetadataObj.PassthroughParentRef == "" {
-				if len(vsCacheObj.VSVipKeyCollection) > 0 {
-					vsvip := vsCacheObj.VSVipKeyCollection[0].Name
+			if vs_cache_obj.ServiceMetadataObj.PassthroughParentRef == "" {
+				if len(vs_cache_obj.VSVipKeyCollection) > 0 {
+					vsvip := vs_cache_obj.VSVipKeyCollection[0].Name
 					vsvipKey := avicache.NamespaceName{Namespace: vsKey.Namespace, Name: vsvip}
 					utils.AviLog.Infof("key: %s, msg: deleting vsvip cache for key: %s", key, vsvipKey)
 					rest.cache.VSVIPCache.AviCacheDelete(vsvipKey)
 				}
 			}
-			switch vsCacheObj.ServiceMetadataObj.ServiceMetadataMapping("VS") {
+
+			switch vs_cache_obj.ServiceMetadataObj.ServiceMetadataMapping("VS") {
 			case lib.GatewayVS:
 				updateOptions := status.UpdateOptions{
-					ServiceMetadata: vsCacheObj.ServiceMetadataObj,
+					ServiceMetadata: vs_cache_obj.ServiceMetadataObj,
 					Key:             key,
-					VSName:          vsCacheObj.Name,
-					Tenant:          vsCacheObj.Tenant,
+					VSName:          vs_cache_obj.Name,
 				}
 				statusOption := status.StatusOptions{
 					ObjType: lib.Gateway,
@@ -831,16 +748,15 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 				status.PublishToStatusQueue(updateOptions.ServiceMetadata.Gateway, statusOption)
 				// The pools would have service metadata for backend services, corresponding to which
 				// statuses need to be deleted.
-				for _, poolKey := range vsCacheObj.PoolKeyCollection {
-					rest.DeletePoolIngressStatus(poolKey, true, vsCacheObj.Name, key)
+				for _, poolKey := range vs_cache_obj.PoolKeyCollection {
+					rest.DeletePoolIngressStatus(poolKey, true, vs_cache_obj.Name, key)
 				}
 			case lib.ServiceTypeLBVS:
 				updateOptions := status.UpdateOptions{
-					ServiceMetadata:    vsCacheObj.ServiceMetadataObj,
+					ServiceMetadata:    vs_cache_obj.ServiceMetadataObj,
 					Key:                key,
-					VirtualServiceUUID: vsCacheObj.Uuid,
-					VSName:             vsCacheObj.Name,
-					Tenant:             vsCacheObj.Tenant,
+					VirtualServiceUUID: vs_cache_obj.Uuid,
+					VSName:             vs_cache_obj.Name,
 				}
 				statusOption := status.StatusOptions{
 					ObjType: utils.L4LBService,
@@ -848,8 +764,8 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 					Key:     key,
 					Options: &updateOptions,
 				}
-				utils.AviLog.Infof("key: %s Publishing to status queue, options: %v", vsCacheObj.ServiceMetadataObj.NamespaceServiceName[0], utils.Stringify(statusOption))
-				status.PublishToStatusQueue(vsCacheObj.ServiceMetadataObj.NamespaceServiceName[0], statusOption)
+				utils.AviLog.Infof("key: %s Publishing to status queue, options: %v", vs_cache_obj.ServiceMetadataObj.NamespaceServiceName[0], utils.Stringify(statusOption))
+				status.PublishToStatusQueue(vs_cache_obj.ServiceMetadataObj.NamespaceServiceName[0], statusOption)
 			case lib.ChildVS:
 				if !hostFoundInParentPool {
 					// TODO: revisit
@@ -869,33 +785,16 @@ func (rest *RestOperations) AviVsCacheDel(rest_op *utils.RestOp, vsKey avicache.
 					// }
 					// status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
 
-					for _, poolKey := range vsCacheObj.PoolKeyCollection {
-						rest.DeletePoolIngressStatus(poolKey, true, vsCacheObj.Name, key)
+					for _, poolKey := range vs_cache_obj.PoolKeyCollection {
+						rest.DeletePoolIngressStatus(poolKey, true, vs_cache_obj.Name, key)
 					}
 				}
 
-				status.HostRuleEventBroadcast(vsCacheObj.Name, vsCacheObj.ServiceMetadataObj.CRDStatus, lib.CRDMetadata{})
-				status.SSORuleEventBroadcast(vsCacheObj.Name, vsCacheObj.ServiceMetadataObj.CRDStatus, lib.CRDMetadata{})
-			case lib.HTTPRouteChildVS:
-				updateOptions := status.UpdateOptions{
-					ServiceMetadata:    vsCacheObj.ServiceMetadataObj,
-					Key:                key,
-					VirtualServiceUUID: vsCacheObj.Uuid,
-					VSName:             vsCacheObj.Name,
-					Tenant:             vsCacheObj.Tenant,
-				}
-				statusOption := status.StatusOptions{
-					ObjType: utils.HTTPRoute,
-					Op:      lib.DeleteStatus,
-					Key:     key,
-					Options: &updateOptions,
-				}
-				utils.AviLog.Infof("key: %s Publishing HTTPRoute status to status queue, options: %v", key, utils.Stringify(statusOption))
-				status.PublishToStatusQueue(vsCacheObj.ServiceMetadataObj.HTTPRoute, statusOption)
+				status.HostRuleEventBroadcast(vs_cache_obj.Name, vs_cache_obj.ServiceMetadataObj.CRDStatus, lib.CRDMetadata{})
 			default:
 				// insecure ingress status updates in regular AKO.
-				for _, poolKey := range vsCacheObj.PoolKeyCollection {
-					rest.DeletePoolIngressStatus(poolKey, true, vsCacheObj.Name, key)
+				for _, poolKey := range vs_cache_obj.PoolKeyCollection {
+					rest.DeletePoolIngressStatus(poolKey, true, vs_cache_obj.Name, key)
 				}
 			}
 		}
@@ -918,7 +817,7 @@ func (rest *RestOperations) AviVSDel(uuid string, tenant string, key string) (*u
 		Tenant: tenant,
 		Model:  "VirtualService",
 	}
-	utils.AviLog.Infof(spew.Sprintf("key: %s, msg: VirtualService DELETE Restop %v ",
+	utils.AviLog.Info(spew.Sprintf("key: %s, msg: VirtualService DELETE Restop %v ",
 		key, utils.Stringify(rest_op)))
 	return &rest_op, true
 }
@@ -985,16 +884,12 @@ func (rest *RestOperations) GetIPAddrsFromCache(vsCache *avicache.AviVsCache) []
 			vsvip_cache_obj, found := vsvip_cache.(*avicache.AviVSVIPCache)
 			if found {
 				if len(vsvip_cache_obj.Fips) != 0 {
-					IPAddrs = append(IPAddrs, vsvip_cache_obj.Fips...)
+					IPAddrs = vsvip_cache_obj.Fips
+				} else if len(vsvip_cache_obj.V6IPs) != 0 {
+					IPAddrs = vsvip_cache_obj.V6IPs
 				} else {
-					if len(vsvip_cache_obj.Vips) != 0 {
-						IPAddrs = append(IPAddrs, vsvip_cache_obj.Vips...)
-					}
-					if len(vsvip_cache_obj.V6IPs) != 0 {
-						IPAddrs = append(IPAddrs, vsvip_cache_obj.V6IPs...)
-					}
+					IPAddrs = vsvip_cache_obj.Vips
 				}
-
 			}
 		}
 	}

@@ -19,10 +19,8 @@ limitations under the License.
 package v1alpha1
 
 import (
-	http "net/http"
-
-	schedulingv1alpha1 "k8s.io/api/scheduling/v1alpha1"
-	scheme "k8s.io/client-go/kubernetes/scheme"
+	v1alpha1 "k8s.io/api/scheduling/v1alpha1"
+	"k8s.io/client-go/kubernetes/scheme"
 	rest "k8s.io/client-go/rest"
 )
 
@@ -41,24 +39,12 @@ func (c *SchedulingV1alpha1Client) PriorityClasses() PriorityClassInterface {
 }
 
 // NewForConfig creates a new SchedulingV1alpha1Client for the given config.
-// NewForConfig is equivalent to NewForConfigAndClient(c, httpClient),
-// where httpClient was generated with rest.HTTPClientFor(c).
 func NewForConfig(c *rest.Config) (*SchedulingV1alpha1Client, error) {
 	config := *c
-	setConfigDefaults(&config)
-	httpClient, err := rest.HTTPClientFor(&config)
-	if err != nil {
+	if err := setConfigDefaults(&config); err != nil {
 		return nil, err
 	}
-	return NewForConfigAndClient(&config, httpClient)
-}
-
-// NewForConfigAndClient creates a new SchedulingV1alpha1Client for the given config and http client.
-// Note the http client provided takes precedence over the configured transport values.
-func NewForConfigAndClient(c *rest.Config, h *http.Client) (*SchedulingV1alpha1Client, error) {
-	config := *c
-	setConfigDefaults(&config)
-	client, err := rest.RESTClientForConfigAndClient(&config, h)
+	client, err := rest.RESTClientFor(&config)
 	if err != nil {
 		return nil, err
 	}
@@ -80,15 +66,17 @@ func New(c rest.Interface) *SchedulingV1alpha1Client {
 	return &SchedulingV1alpha1Client{c}
 }
 
-func setConfigDefaults(config *rest.Config) {
-	gv := schedulingv1alpha1.SchemeGroupVersion
+func setConfigDefaults(config *rest.Config) error {
+	gv := v1alpha1.SchemeGroupVersion
 	config.GroupVersion = &gv
 	config.APIPath = "/apis"
-	config.NegotiatedSerializer = rest.CodecFactoryForGeneratedClient(scheme.Scheme, scheme.Codecs).WithoutConversion()
+	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 
 	if config.UserAgent == "" {
 		config.UserAgent = rest.DefaultKubernetesUserAgent()
 	}
+
+	return nil
 }
 
 // RESTClient returns a RESTClient that is used to communicate

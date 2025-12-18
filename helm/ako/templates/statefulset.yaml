@@ -6,10 +6,10 @@ metadata:
   labels:
     {{- include "ako.labels" . | nindent 4 }}
 spec:
-  {{ if gt (int (.Values.replicaCount)) 2 }}
+  {{ if gt .Values.replicaCount 2.0 }}
   {{ fail "ReplicaCount more than 2 is not supported." }}
   {{ end }}
-  {{ if and (gt (int (.Values.replicaCount)) 1) (eq .Values.AKOSettings.primaryInstance false) }}
+  {{ if and (gt .Values.replicaCount 1.0) (eq .Values.AKOSettings.primaryInstance false) }}
   {{ fail "ReplicaCount more than 1 is not supported for secondary AKO." }}
   {{ end }}
   replicas: {{ .Values.replicaCount }}
@@ -19,9 +19,8 @@ spec:
       {{- include "ako.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{ if or (.Values.AKOSettings.istioEnabled) (.Values.featureGates.EnablePrometheus) }}
+      {{ if .Values.AKOSettings.istioEnabled }}
       annotations:
-        {{ if .Values.AKOSettings.istioEnabled }}
         sidecar.istio.io/inject: "true"
         traffic.sidecar.istio.io/includeInboundPorts: ""
         traffic.sidecar.istio.io/includeOutboundIPRanges: ""
@@ -30,12 +29,6 @@ spec:
             OUTPUT_CERTS: /etc/istio-output-certs
         sidecar.istio.io/userVolume: '[{"name": "istio-certs", "emptyDir": {"medium":"Memory"}}]'
         sidecar.istio.io/userVolumeMount: '[{"name": "istio-certs", "mountPath": "/etc/istio-output-certs"}]'
-        {{ end }}
-        {{ if .Values.featureGates.EnablePrometheus }}
-        prometheus.io/scrape: "true"
-        prometheus.io/port: {{ .Values.AKOSettings.apiServerPort | quote}}
-        prometheus.io/path: "/metrics"
-        {{ end }}
       {{ end }}
       labels:
         {{- include "ako.selectorLabels" . | nindent 8 }}
@@ -43,21 +36,12 @@ spec:
       serviceAccountName: ako-sa
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
-      {{ if or .Values.persistentVolumeClaim .Values.AKOSettings.istioEnabled }}
-      volumes:
       {{ if .Values.persistentVolumeClaim }}
+      volumes:
       - name: ako-pv-storage
         persistentVolumeClaim:
           claimName: {{ .Values.persistentVolumeClaim }}
       {{ end }}
-      {{ if .Values.AKOSettings.istioEnabled }}
-      - name: istio-certs
-        emptyDir:
-          medium: Memory
-      {{ end }}
-      {{ end }}
-      imagePullSecrets:
-        {{- toYaml .Values.image.pullSecrets | nindent 8 }}
       containers:
         - name: {{ .Chart.Name }}
           {{ if or .Values.persistentVolumeClaim .Values.AKOSettings.istioEnabled }}
@@ -75,16 +59,18 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          {{ if .Values.featureGates.EnablePrometheus }}
-          ports:
-          - containerPort:  {{ default "8080" .Values.AKOSettings.apiServerPort }}
-            name: prometheus-port
-          {{ end }}
           lifecycle:
             preStop:
               exec:
                 command: ["/bin/sh","/var/pre_stop_hook.sh"]
           env:
+          {{ if .Values.avicredentials.certificateAuthorityData  }}
+          - name: CTRL_CA_DATA
+            valueFrom:
+              secretKeyRef:
+                name: avi-secret
+                key: certificateAuthorityData
+            {{ end }}
           - name: CTRL_IPADDRESS
             valueFrom:
               configMapKeyRef:
@@ -140,16 +126,6 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: tenantName
-          - name: DEDICATED_TENANT_MODE
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: dedicatedTenantMode
-          - name: VRF_NAME
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: vrfName
           - name: CLUSTER_NAME
             valueFrom:
               configMapKeyRef:
@@ -180,7 +156,7 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: disableStaticRouteSync
-          {{ if .Values.NetworkSettings.nsxtT1LR }}
+           {{ if .Values.NetworkSettings.nsxtT1LR }}
           - name: NSXT_T1_LR
             valueFrom:
               configMapKeyRef:
@@ -202,11 +178,6 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: defaultIngController
-          - name: DEFAULT_LB_CONTROLLER
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: defaultLBController
           - name: SEG_NAME
             valueFrom:
               configMapKeyRef:
@@ -290,26 +261,6 @@ spec:
               configMapKeyRef:
                 name: avi-k8s-config
                 key: useDefaultSecretsOnly
-          - name: VPC_MODE
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: vpcMode
-          - name: PROMETHEUS_ENABLED
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: enablePrometheus
-          - name: FQDN_REUSE_POLICY
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: fqdnReusePolicy
-          - name: AKO_CRD_OPERATOR_ENABLED
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: akoCRDOperatorEnabled
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           livenessProbe:
@@ -318,146 +269,7 @@ spec:
               port:  {{ default "8080" .Values.AKOSettings.apiServerPort }}
             initialDelaySeconds: 5
             periodSeconds: 10
-        {{ if eq .Values.featureGates.GatewayAPI true }}
-        - name: ako-gateway-api
-          {{ if .Values.persistentVolumeClaim }}
-          volumeMounts:
-          - mountPath: {{ .Values.mountPath }}
-            name: ako-pv-storage
-          {{ end }}
-          securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.GatewayAPI.image.repository }}:{{ .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.GatewayAPI.image.pullPolicy }}
-          env:
-          - name: CTRL_IPADDRESS
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: controllerIP
-          - name: CTRL_VERSION
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: controllerVersion
-          - name: CNI_PLUGIN
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: cniPlugin
-          - name: FULL_SYNC_INTERVAL
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: fullSyncFrequency
-          - name: PRIMARY_AKO_FLAG
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: primaryInstance
-          - name: CLOUD_NAME
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: cloudName
-          - name: TENANT_NAME
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: tenantName
-          - name: DEDICATED_TENANT_MODE
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: dedicatedTenantMode
-          - name: CLUSTER_NAME
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: clusterName
-          - name: ENABLE_RHI
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: enableRHI
-          - name: SEG_NAME
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: serviceEngineGroupName
-          - name: BGP_PEER_LABELS
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: bgpPeerLabels
-          - name: NODE_NETWORK_LIST
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: nodeNetworkList
-          - name: VIP_NETWORK_LIST
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: vipNetworkList
-          - name: SERVICE_TYPE
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: serviceType
-          {{ if eq .Values.L7Settings.serviceType "NodePort" }}
-          - name: NODE_KEY
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: nodeKey
-          - name: NODE_VALUE
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: nodeValue
-          {{ end }}
-          {{ if .Values.NetworkSettings.nsxtT1LR }}
-          - name: NSXT_T1_LR
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: nsxtT1LR
-          {{ end }}
-          - name: VPC_MODE
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: vpcMode
-          {{ if .Values.persistentVolumeClaim }}
-          - name: USE_PVC
-            value: "true"
-          {{ end }}
-          - name: LOG_FILE_PATH
-            value: {{ .Values.mountPath }}
-          - name: LOG_FILE_NAME
-            value: {{ .Values.akoGatewayLogFile }}
-          - name: POD_NAME
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.name
-          - name: POD_NAMESPACE
-            valueFrom:
-              fieldRef:
-                fieldPath: metadata.namespace
-          - name: ISTIO_ENABLED
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: istioEnabled
-          - name: AKO_CRD_OPERATOR_ENABLED
-            valueFrom:
-              configMapKeyRef:
-                name: avi-k8s-config
-                key: akoCRDOperatorEnabled
-          resources:
-            {{- toYaml .Values.resources | nindent 12 }}
-        {{ end }}
+        
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -25,12 +25,21 @@ import (
 	"sync"
 	"time"
 
+	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/rest"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/retry"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
+
 	routev1 "github.com/openshift/api/route/v1"
-	"github.com/vmware/alb-sdk/go/clients"
-	"github.com/vmware/alb-sdk/go/session"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
-	discovery "k8s.io/api/discovery/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,47 +48,31 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	servicesapi "sigs.k8s.io/service-apis/apis/v1alpha1"
-
-	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/rest"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/retry"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
-	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
 func PopulateCache() error {
-	aviRestClientPool := avicache.SharedAVIClients(lib.GetTenant())
-	if aviRestClientPool == nil || len(aviRestClientPool.AviClient) == 0 {
-		return fmt.Errorf("avi Rest client initialization failed")
-	}
-
+	var err error
+	aviRestClientPool := avicache.SharedAVIClients()
 	aviObjCache := avicache.SharedAviObjCache()
 	// Randomly pickup a client.
-	_, _, err := aviObjCache.AviObjCachePopulate(aviRestClientPool.AviClient, lib.AKOControlConfig().ControllerVersion(), utils.CloudName)
-	if err != nil {
-		utils.AviLog.Warnf("failed to populate avi cache with error: %v", err.Error())
-		return err
+	if aviRestClientPool != nil && len(aviRestClientPool.AviClient) > 0 {
+		_, _, err = aviObjCache.AviObjCachePopulate(aviRestClientPool.AviClient, lib.AKOControlConfig().ControllerVersion(), utils.CloudName)
+		if err != nil {
+			utils.AviLog.Warnf("failed to populate avi cache with error: %v", err.Error())
+			return err
+		}
+		if err = avicache.SetControllerClusterUUID(aviRestClientPool); err != nil {
+			utils.AviLog.Warnf("Failed to set the controller cluster uuid with error: %v", err)
+		}
 	}
 
-	if err = avicache.SetControllerClusterUUID(aviRestClientPool); err != nil {
-		utils.AviLog.Warnf("Failed to set the controller cluster uuid with error: %v", err)
-	}
 	return nil
 }
 
 func (c *AviController) CleanupStaleVSes() {
-	aviClient := avicache.SharedAVIClients(lib.GetTenant()).AviClient[0]
-	tenants := make(map[string]struct{})
-	err := lib.GetAllTenants(aviClient, tenants)
-	if err != nil {
-		return
-	}
-	aviObjCache := avicache.SharedAviObjCache()
 
+	aviRestClientPool := avicache.SharedAVIClients()
+	aviObjCache := avicache.SharedAviObjCache()
 	delModels, err := DeleteConfigFromConfigmap(c.informers.ClientSet)
 	if err != nil {
 		c.DisableSync = true
@@ -89,29 +82,28 @@ func (c *AviController) CleanupStaleVSes() {
 	if delModels {
 		go SetDeleteSyncChannel()
 		parentKeys := aviObjCache.VsCacheMeta.AviCacheGetAllParentVSKeys()
-		DeleteAviObjects(parentKeys, aviObjCache)
-		return
+		deleteAviObjects(parentKeys, aviObjCache, aviRestClientPool)
 	} else {
-		status.NewStatusPublisher().ResetStatefulSetAnnotation(status.ObjectDeletionStatus)
+		status.NewStatusPublisher().ResetStatefulSetAnnotation()
 	}
 
+	// Delete Stale objects by deleting model for dummy VS
 	if _, err := lib.IsClusterNameValid(); err != nil {
 		utils.AviLog.Errorf("AKO cluster name is invalid.")
 		return
 	}
-
-	for tenant := range tenants {
-		// Delete Stale objects by deleting model for dummy VS
+	if aviRestClientPool != nil && len(aviRestClientPool.AviClient) > 0 {
 		utils.AviLog.Infof("Starting clean up of stale objects")
-		restlayer := rest.NewRestOperations(aviObjCache)
-		staleVSKey := tenant + "/" + lib.DummyVSForStaleData
+		restlayer := rest.NewRestOperations(aviObjCache, aviRestClientPool)
+		staleVSKey := lib.GetTenant() + "/" + lib.DummyVSForStaleData
 		restlayer.CleanupVS(staleVSKey, true)
 		staleCacheKey := avicache.NamespaceName{
 			Name:      lib.DummyVSForStaleData,
-			Namespace: tenant,
+			Namespace: lib.GetTenant(),
 		}
 		aviObjCache.VsCacheMeta.AviCacheDelete(staleCacheKey)
 	}
+
 	vsKeysPending := aviObjCache.VsCacheMeta.AviGetAllKeys()
 	if delModels {
 		//Delete NPL annotations
@@ -124,7 +116,7 @@ func (c *AviController) CleanupStaleVSes() {
 	}
 }
 
-func DeleteAviObjects(parentVSKeys []avicache.NamespaceName, avi_obj_cache *avicache.AviObjCache) {
+func deleteAviObjects(parentVSKeys []avicache.NamespaceName, avi_obj_cache *avicache.AviObjCache, avi_rest_client_pool *utils.AviRestClientPool) {
 	for _, pvsKey := range parentVSKeys {
 		// Fetch the parent VS cache and update the SNI child
 		vsObj, parentFound := avi_obj_cache.VsCacheMeta.AviCacheGet(pvsKey)
@@ -134,7 +126,7 @@ func DeleteAviObjects(parentVSKeys []avicache.NamespaceName, avi_obj_cache *avic
 			if foundvs {
 				key := pvsKey.Namespace + "/" + pvsKey.Name
 				namespace, _ := utils.ExtractNamespaceObjectName(key)
-				restlayer := rest.NewRestOperations(avi_obj_cache)
+				restlayer := rest.NewRestOperations(avi_obj_cache, avi_rest_client_pool)
 				restlayer.DeleteVSOper(pvsKey, vs_cache_obj, namespace, key, false, false)
 			}
 		}
@@ -155,11 +147,7 @@ func PopulateControllerProperties(cs kubernetes.Interface) error {
 	ctrlPropCache := utils.SharedCtrlProp()
 	ctrlProps, err := lib.GetControllerPropertiesFromSecret(cs)
 	if err != nil {
-		// Fallback to local system properties when secret retrieval fails
-		ctrlProps, err = lib.GetControllerPropertiesFromLocalSystem()
-		if err != nil {
-			return err
-		}
+		return err
 	}
 	ctrlPropCache.PopulateCtrlProp(ctrlProps)
 	return nil
@@ -199,12 +187,6 @@ func (c *AviController) SetSEGroupCloudNameFromNSAnnotations() bool {
 
 	var ok bool
 	annotations := nsObj.GetAnnotations()
-	cloudName, ok = annotations[lib.WCPCloud]
-	if !ok {
-		utils.AviLog.Warnf("Failed to get cloud name from annotation in namespace")
-		return false
-	}
-	utils.SetCloudName(cloudName)
 
 	clusterName, ok := annotations[lib.WCPAKOUserClusterName]
 	if !ok {
@@ -213,17 +195,18 @@ func (c *AviController) SetSEGroupCloudNameFromNSAnnotations() bool {
 	}
 	lib.SetClusterName(clusterName)
 
-	if lib.GetVPCMode() {
-		utils.AviLog.Infof("Setting cloud %s for VS placement.", cloudName)
-		return true
-	}
-
 	seGroup, ok = annotations[lib.WCPSEGroup]
 	if !ok {
 		utils.AviLog.Warnf("Failed to get SEGroup from annotation in namespace")
 		return false
 	}
+	cloudName, ok = annotations[lib.WCPCloud]
+	if !ok {
+		utils.AviLog.Warnf("Failed to get cloud name from annotation in namespace")
+		return false
+	}
 	lib.SetSEGName(seGroup)
+	utils.SetCloudName(cloudName)
 	utils.AviLog.Infof("Setting SEGroup %s, cloud %s for VS placement.", seGroup, cloudName)
 	return true
 }
@@ -255,7 +238,7 @@ func (c *AviController) AddBootupNSEventHandler(stopCh <-chan struct{}, startSyn
 	if !cache.WaitForCacheSync(stopCh, c.informers.NSInformer.Informer().HasSynced) {
 		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
 	} else {
-		utils.AviLog.Infof("Caches synced for NS informer")
+		utils.AviLog.Info("Caches synced for NS informer")
 	}
 }
 
@@ -263,7 +246,7 @@ func (c *AviController) AddBootupNSEventHandler(stopCh <-chan struct{}, startSyn
 // When the configmap is created, enable sync for other k8s objects. When the configmap is disabled, disable sync.
 func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct{}, stopCh <-chan struct{}, quickSyncCh chan struct{}) error {
 	cs := k8sinfo.Cs
-	aviClientPool := avicache.SharedAVIClients(lib.GetTenant())
+	aviClientPool := avicache.SharedAVIClients()
 	if aviClientPool == nil || len(aviClientPool.AviClient) < 1 {
 		c.DisableSync = true
 		lib.SetDisableSync(true)
@@ -273,7 +256,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 	}
 	aviclient := aviClientPool.AviClient[0]
 
-	validateUserInput, err := avicache.ValidateUserInput(aviclient, false)
+	validateUserInput, err := avicache.ValidateUserInput(aviclient)
 	if err != nil {
 		utils.AviLog.Errorf("Error while validating input: %s", err.Error())
 		lib.AKOControlConfig().PodEventf(v1.EventTypeWarning, lib.SyncDisabled, "Invalid user input %s", err.Error())
@@ -284,11 +267,8 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 	if !validateUserInput {
 		return errors.New("sync is disabled because of configmap unavailability during bootup")
 	}
-	c.DisableSync, err = DeleteConfigFromConfigmap(cs)
+	c.DisableSync, _ = DeleteConfigFromConfigmap(cs)
 	lib.SetDisableSync(c.DisableSync)
-	if err != nil {
-		return err
-	}
 
 	configMapEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
@@ -306,7 +286,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 
 			delModels := delConfigFromData(cm.Data)
 
-			validateUserInput, err := avicache.ValidateUserInput(aviclient, false)
+			validateUserInput, err := avicache.ValidateUserInput(aviclient)
 			if err != nil {
 				utils.AviLog.Errorf("Error while validating input: %s", err.Error())
 				lib.AKOControlConfig().PodEventf(v1.EventTypeWarning, lib.SyncDisabled, "Invalid user input %s", err.Error())
@@ -338,7 +318,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 				return
 			}
 			// if DeleteConfig value has changed, then check if we need to enable/disable sync
-			isValidUserInput, err := avicache.ValidateUserInput(aviclient, false)
+			isValidUserInput, err := avicache.ValidateUserInput(aviclient)
 			if err != nil {
 				utils.AviLog.Errorf("Error while validating input: %s", err.Error())
 			}
@@ -354,7 +334,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 						avicache.DeConfigureSeGroupLabels()
 					}
 				} else {
-					status.NewStatusPublisher().ResetStatefulSetAnnotation(status.ObjectDeletionStatus)
+					status.NewStatusPublisher().ResetStatefulSetAnnotation()
 					lib.AKOControlConfig().PodEventf(corev1.EventTypeNormal, lib.AKODeleteConfigUnset, "DeleteConfig unset in configmap, sync would be enabled")
 					quickSyncCh <- struct{}{}
 				}
@@ -374,7 +354,7 @@ func (c *AviController) HandleConfigMap(k8sinfo K8sinformers, ctrlCh chan struct
 	) {
 		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
 	} else {
-		utils.AviLog.Infof("Caches synced")
+		utils.AviLog.Info("Caches synced")
 	}
 	return nil
 }
@@ -394,9 +374,8 @@ func (c *AviController) ValidAviSecret() bool {
 
 		transport, isSecure := utils.GetHTTPTransportWithCert(caData)
 		options := []func(*session.AviSession) error{
-			session.DisableControllerStatusCheckOnFailure(true),
+			session.SetNoControllerStatusCheck,
 			session.SetTransport(transport),
-			session.SetTimeout(120 * time.Second),
 		}
 		if !isSecure {
 			options = append(options, session.SetInsecure)
@@ -485,7 +464,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	if lib.GetNamespaceToSync() != "" {
 		informersArg[utils.INFORMERS_NAMESPACE] = lib.GetNamespaceToSync()
 	}
-	if !utils.IsVCFCluster() && utils.GetAdvancedL4() {
+	if !utils.IsVCFCluster() && lib.GetAdvancedL4() {
 		informersArg[utils.INFORMERS_ADVANCED_L4] = true
 	}
 	c.informers = utils.NewInformers(utils.KubeClientIntf{ClientSet: informers.Cs}, registeredInformers, informersArg)
@@ -536,13 +515,18 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 		utils.AviLog.Errorf("failed to populate cache, disabling sync")
 		lib.ShutdownApi()
 	}
+	// Setup and start event handlers for objects.
+	if utils.IsVCFCluster() {
+		// Adding NetworkInfo handler first as Gateways need T1 LR info
+		c.AddNetworkInfoEventHandlers()
+	}
 	c.addIndexers()
 	c.Start(stopCh)
 
 	fullSyncInterval := os.Getenv(utils.FULL_SYNC_INTERVAL)
 	interval, err := strconv.ParseInt(fullSyncInterval, 10, 64)
 
-	if utils.IsWCP() {
+	if lib.IsWCP() {
 		// Set the error to nil
 		err = nil
 		interval = 300 // seconds, hardcoded for now.
@@ -571,11 +555,7 @@ func (c *AviController) InitController(informers K8sinformers, registeredInforme
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	if utils.IsWCP() {
-		c.OnStartedLeading()
-	} else if utils.IsSingleReplica() {
-		// Skip leader election for single replica deployment - no competition for leadership
-		utils.AviLog.Infof("Single replica deployment detected, skipping leader election and directly becoming leader")
+	if lib.IsWCP() {
 		c.OnStartedLeading()
 	} else {
 		// Leader election happens after populating controller cache and fullsynck8s.
@@ -639,7 +619,7 @@ LABEL:
 	}
 
 	cancel()
-	if !utils.IsWCP() {
+	if !lib.IsWCP() {
 		// Cancel the Leader election goroutines
 		<-ctx.Done()
 	}
@@ -674,21 +654,6 @@ func (c *AviController) addIndexers() {
 			},
 		)
 	}
-	c.informers.EpSlicesInformer.Informer().AddIndexers(
-		cache.Indexers{
-			discovery.LabelServiceName: func(obj interface{}) ([]string, error) {
-				eps, ok := obj.(*discovery.EndpointSlice)
-				if !ok {
-					utils.AviLog.Debugf("error indexing epslice object by service name")
-					return []string{}, nil
-				}
-				if val, ok := eps.Labels[discovery.LabelServiceName]; ok && val != "" {
-					return []string{eps.Namespace + "/" + val}, nil
-				}
-				return []string{}, nil
-			},
-		},
-	)
 
 	c.informers.ServiceInformer.Informer().AddIndexers(
 		cache.Indexers{
@@ -701,39 +666,6 @@ func (c *AviController) addIndexers() {
 					if val, ok := service.Annotations[lib.InfraSettingNameAnnotation]; ok && val != "" {
 						return []string{val}, nil
 					}
-				}
-				return []string{}, nil
-			},
-			lib.L4RuleToServicesIndex: func(obj interface{}) ([]string, error) {
-				service, ok := obj.(*corev1.Service)
-				if !ok {
-					return []string{}, nil
-				}
-				if service.Spec.Type == corev1.ServiceTypeLoadBalancer {
-					if val, ok := service.Annotations[lib.L4RuleAnnotation]; ok && val != "" {
-						if len(strings.Split(val, "/")) != 2 {
-							// val can be of length 1 or 2
-							// if it is 1, Namespace is not prefixed to l4Rule name. so use service namespace for search
-							l4AnnotationValWithNamespace := fmt.Sprintf("%s/%s", service.Namespace, val)
-							val = l4AnnotationValWithNamespace
-						}
-						return []string{val}, nil
-					}
-				}
-				return []string{}, nil
-			},
-		},
-	)
-
-	c.informers.NSInformer.Informer().AddIndexers(
-		cache.Indexers{
-			lib.AviSettingNamespaceIndex: func(obj interface{}) ([]string, error) {
-				ns, ok := obj.(*corev1.Namespace)
-				if !ok {
-					return []string{}, nil
-				}
-				if val, ok := ns.Annotations[lib.InfraSettingNameAnnotation]; ok && val != "" {
-					return []string{val}, nil
 				}
 				return []string{}, nil
 			},
@@ -762,7 +694,7 @@ func (c *AviController) addIndexers() {
 		informer.AviInfraSettingInformer.Informer().AddIndexers(
 			cache.Indexers{
 				lib.SeGroupAviSettingIndex: func(obj interface{}) ([]string, error) {
-					infraSetting, ok := obj.(*akov1beta1.AviInfraSetting)
+					infraSetting, ok := obj.(*akov1alpha1.AviInfraSetting)
 					if !ok {
 						return []string{}, nil
 					}
@@ -806,17 +738,17 @@ func (c *AviController) addIndexers() {
 }
 
 func (c *AviController) FullSync() {
-	aviRestClientPool := avicache.SharedAVIClients(lib.GetTenant())
+	aviRestClientPool := avicache.SharedAVIClients()
 	aviObjCache := avicache.SharedAviObjCache()
 
 	// Randomly pickup a client.
 	if len(aviRestClientPool.AviClient) > 0 {
 		aviObjCache.AviClusterStatusPopulate(aviRestClientPool.AviClient[0])
-		if !utils.IsWCP() {
+		if !lib.IsWCP() {
 			aviObjCache.AviCacheRefresh(aviRestClientPool.AviClient[0], utils.CloudName)
 		} else {
 			// In this case we just sync the Gateway status to the LB status
-			restlayer := rest.NewRestOperations(aviObjCache)
+			restlayer := rest.NewRestOperations(aviObjCache, aviRestClientPool)
 			restlayer.SyncObjectStatuses()
 		}
 		allModelsMap := objects.SharedAviGraphLister().GetAll()
@@ -878,7 +810,6 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 					resVer := meta.GetResourceVersion()
 					objects.SharedResourceVerInstanceLister().Save(key, resVer)
 				}
-				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 				nodes.DequeueIngestion(key, true)
 			}
 			// Publish vrfcontext model now, this has to be processed first
@@ -904,122 +835,6 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 		}
 	}
 
-	// Re-order informer loading. all crds- then objects depends upon it.
-	if !utils.IsWCP() {
-		l7RuleObjs, err := lib.AKOControlConfig().CRDInformers().L7RuleInformer.Lister().List(labels.Set(nil).AsSelector())
-		if err != nil {
-			utils.AviLog.Errorf("Unable to retrieve the L7Rules during full sync: %s", err)
-		} else {
-			for _, l7Rule := range l7RuleObjs {
-				key := lib.L7Rule + "/" + utils.ObjKey(l7Rule)
-				meta, err := meta.Accessor(l7Rule)
-				if err == nil {
-					resVer := meta.GetResourceVersion()
-					objects.SharedResourceVerInstanceLister().Save(key, resVer)
-				}
-				if err := c.GetValidator().ValidateL7RuleObj(key, l7Rule); err != nil {
-					utils.AviLog.Warnf("key: %s, Error retrieved during validation of L7Rule: %v", key, err)
-				}
-			}
-		}
-
-		hostRuleObjs, err := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
-		if err != nil {
-			utils.AviLog.Errorf("Unable to retrieve the hostrules during full sync: %s", err)
-		} else {
-			for _, hostRuleObj := range hostRuleObjs {
-				key := lib.HostRule + "/" + utils.ObjKey(hostRuleObj)
-				meta, err := meta.Accessor(hostRuleObj)
-				if err == nil {
-					resVer := meta.GetResourceVersion()
-					objects.SharedResourceVerInstanceLister().Save(key, resVer)
-				}
-				if err := c.GetValidator().ValidateHostRuleObj(key, hostRuleObj); err != nil {
-					utils.AviLog.Warnf("key: %s, Error retrieved during validation of HostRule: %v", key, err)
-				}
-				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
-				nodes.DequeueIngestion(key, true)
-			}
-		}
-
-		httpRuleObjs, err := lib.AKOControlConfig().CRDInformers().HTTPRuleInformer.Lister().HTTPRules(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
-		if err != nil {
-			utils.AviLog.Errorf("Unable to retrieve the httprules during full sync: %s", err)
-		} else {
-			for _, httpRuleObj := range httpRuleObjs {
-				key := lib.HTTPRule + "/" + utils.ObjKey(httpRuleObj)
-				meta, err := meta.Accessor(httpRuleObj)
-				if err == nil {
-					resVer := meta.GetResourceVersion()
-					objects.SharedResourceVerInstanceLister().Save(key, resVer)
-				}
-				if err := c.GetValidator().ValidateHTTPRuleObj(key, httpRuleObj); err != nil {
-					utils.AviLog.Warnf("key: %s, Error retrieved during validation of HTTPRule: %v", key, err)
-				}
-				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
-				nodes.DequeueIngestion(key, true)
-			}
-		}
-
-		aviInfraObjs, err := lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().List(labels.Set(nil).AsSelector())
-		if err != nil {
-			utils.AviLog.Errorf("Unable to retrieve the avinfrasettings during full sync: %s", err)
-		} else {
-			for _, aviInfraObj := range aviInfraObjs {
-				key := lib.AviInfraSetting + "/" + utils.ObjKey(aviInfraObj)
-				meta, err := meta.Accessor(aviInfraObj)
-				if err == nil {
-					resVer := meta.GetResourceVersion()
-					objects.SharedResourceVerInstanceLister().Save(key, resVer)
-				}
-				if err := c.GetValidator().ValidateAviInfraSetting(key, aviInfraObj); err != nil {
-					utils.AviLog.Warnf("key: %s, Error retrieved during validation of AviInfraSetting: %v", key, err)
-				}
-				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
-				nodes.DequeueIngestion(key, true)
-			}
-		}
-
-		ssoRuleObjs, err := lib.AKOControlConfig().CRDInformers().SSORuleInformer.Lister().SSORules(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
-		if err != nil {
-			utils.AviLog.Errorf("Unable to retrieve the SsoRules during full sync: %s", err)
-		} else {
-			for _, ssoRuleObj := range ssoRuleObjs {
-				key := lib.SSORule + "/" + utils.ObjKey(ssoRuleObj)
-				meta, err := meta.Accessor(ssoRuleObj)
-				if err == nil {
-					resVer := meta.GetResourceVersion()
-					objects.SharedResourceVerInstanceLister().Save(key, resVer)
-				}
-				if err := c.GetValidator().ValidateSSORuleObj(key, ssoRuleObj); err != nil {
-					utils.AviLog.Warnf("key: %s, Error retrieved during validation of SSORule : %v", key, err)
-				}
-				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
-				nodes.DequeueIngestion(key, true)
-			}
-		}
-
-		l4RuleObjs, err := lib.AKOControlConfig().CRDInformers().L4RuleInformer.Lister().List(labels.Set(nil).AsSelector())
-		if err != nil {
-			utils.AviLog.Errorf("Unable to retrieve the L4Rules during full sync: %s", err)
-		} else {
-			for _, l4Rule := range l4RuleObjs {
-				key := lib.L4Rule + "/" + utils.ObjKey(l4Rule)
-				meta, err := meta.Accessor(l4Rule)
-				if err == nil {
-					resVer := meta.GetResourceVersion()
-					objects.SharedResourceVerInstanceLister().Save(key, resVer)
-				}
-				if err := c.GetValidator().ValidateL4RuleObj(key, l4Rule); err != nil {
-					utils.AviLog.Warnf("key: %s, Error retrieved during validation of L4Rule: %v", key, err)
-				}
-				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
-				nodes.DequeueIngestion(key, true)
-			}
-		}
-
-	}
-
 	for namespace := range acceptedNamespaces {
 		svcObjs, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).List(labels.Set(nil).AsSelector())
 		if err != nil {
@@ -1038,7 +853,7 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 					key = lib.SharedVipServiceKey + "/" + utils.ObjKey(svcObj)
 				}
 			} else {
-				if utils.IsWCP() {
+				if lib.IsWCP() {
 					continue
 				}
 				key = utils.Service + "/" + utils.ObjKey(svcObj)
@@ -1048,7 +863,6 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 				resVer := meta.GetResourceVersion()
 				objects.SharedResourceVerInstanceLister().Save(key, resVer)
 			}
-			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 			nodes.DequeueIngestion(key, true)
 		}
 	}
@@ -1075,12 +889,85 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 				resVer := meta.GetResourceVersion()
 				objects.SharedResourceVerInstanceLister().Save(key, resVer)
 			}
-			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 			nodes.DequeueIngestion(key, true)
 		}
 	}
 
-	if !utils.IsWCP() {
+	if utils.GetInformers().IngressInformer != nil {
+		for namespace := range acceptedNamespaces {
+			ingObjs, err := utils.GetInformers().IngressInformer.Lister().Ingresses(namespace).List(labels.Set(nil).AsSelector())
+			if err != nil {
+				utils.AviLog.Errorf("Unable to retrieve the ingresses during full sync: %s", err)
+			} else {
+				for _, ingObj := range ingObjs {
+					key := utils.Ingress + "/" + utils.ObjKey(ingObj)
+					meta, err := meta.Accessor(ingObj)
+					if err == nil {
+						resVer := meta.GetResourceVersion()
+						objects.SharedResourceVerInstanceLister().Save(key, resVer)
+					}
+					utils.AviLog.Debugf("Dequeue for ingress key: %v", key)
+					nodes.DequeueIngestion(key, true)
+				}
+			}
+		}
+	}
+
+	if !lib.IsWCP() {
+		hostRuleObjs, err := lib.AKOControlConfig().CRDInformers().HostRuleInformer.Lister().HostRules(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
+		if err != nil {
+			utils.AviLog.Errorf("Unable to retrieve the hostrules during full sync: %s", err)
+		} else {
+			for _, hostRuleObj := range hostRuleObjs {
+				key := lib.HostRule + "/" + utils.ObjKey(hostRuleObj)
+				meta, err := meta.Accessor(hostRuleObj)
+				if err == nil {
+					resVer := meta.GetResourceVersion()
+					objects.SharedResourceVerInstanceLister().Save(key, resVer)
+				}
+				if err := c.GetValidator().ValidateHostRuleObj(key, hostRuleObj); err != nil {
+					utils.AviLog.Warnf("key: %s, Error retrieved during validation of HostRule: %v", key, err)
+				}
+				nodes.DequeueIngestion(key, true)
+			}
+		}
+
+		httpRuleObjs, err := lib.AKOControlConfig().CRDInformers().HTTPRuleInformer.Lister().HTTPRules(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
+		if err != nil {
+			utils.AviLog.Errorf("Unable to retrieve the httprules during full sync: %s", err)
+		} else {
+			for _, httpRuleObj := range httpRuleObjs {
+				key := lib.HTTPRule + "/" + utils.ObjKey(httpRuleObj)
+				meta, err := meta.Accessor(httpRuleObj)
+				if err == nil {
+					resVer := meta.GetResourceVersion()
+					objects.SharedResourceVerInstanceLister().Save(key, resVer)
+				}
+				if err := c.GetValidator().ValidateHTTPRuleObj(key, httpRuleObj); err != nil {
+					utils.AviLog.Warnf("key: %s, Error retrieved during validation of HTTPRule: %v", key, err)
+				}
+				nodes.DequeueIngestion(key, true)
+			}
+		}
+
+		aviInfraObjs, err := lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().List(labels.Set(nil).AsSelector())
+		if err != nil {
+			utils.AviLog.Errorf("Unable to retrieve the avinfrasettings during full sync: %s", err)
+		} else {
+			for _, aviInfraObj := range aviInfraObjs {
+				key := lib.AviInfraSetting + "/" + utils.ObjKey(aviInfraObj)
+				meta, err := meta.Accessor(aviInfraObj)
+				if err == nil {
+					resVer := meta.GetResourceVersion()
+					objects.SharedResourceVerInstanceLister().Save(key, resVer)
+				}
+				if err := c.GetValidator().ValidateAviInfraSetting(key, aviInfraObj); err != nil {
+					utils.AviLog.Warnf("key: %s, Error retrieved during validation of AviInfraSetting: %v", key, err)
+				}
+				nodes.DequeueIngestion(key, true)
+			}
+		}
+
 		// IngressClass Section
 		if utils.GetInformers().IngressClassInformer != nil {
 			ingClassObjs, err := utils.GetInformers().IngressClassInformer.Lister().List(labels.Set(nil).AsSelector())
@@ -1095,89 +982,31 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 						objects.SharedResourceVerInstanceLister().Save(key, resVer)
 					}
 					utils.AviLog.Debugf("Dequeue for ingressClass key: %v", key)
-					lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 					nodes.DequeueIngestion(key, true)
 				}
 			}
 		}
-		//Ingress Section
-		if utils.GetInformers().IngressInformer != nil {
-			ingObjList := make([]*networkingv1.Ingress, 0)
-			// create list of ingresses.
-			for namespace := range acceptedNamespaces {
-				ingObjs, err := utils.GetInformers().IngressInformer.Lister().Ingresses(namespace).List(labels.Set(nil).AsSelector())
-				if err != nil {
-					utils.AviLog.Errorf("Unable to retrieve the ingresses during full sync: %s", err)
-					continue
-				}
-				ingObjList = append(ingObjList, ingObjs...)
-			}
-			// sort the list as per the timestamp. Sorting logic can be kept irrespective of strict or non-strict policy
-			sort.Slice(ingObjList, func(i, j int) bool { return lib.IngressLessthan(ingObjList[i], ingObjList[j]) })
 
-			for _, ingObj := range ingObjList {
-				key := utils.Ingress + "/" + ingObj.Namespace + "/" + ingObj.Name
-				isValid := true
-
-				if lib.AKOControlConfig().GetAKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
-					// get the hostnames in the ingress
-					isValid, _ = isIngAcceptedWithFQDNRestriction(key, ingObj)
-				}
-				if isValid {
-					meta, err := meta.Accessor(ingObj)
-					if err == nil {
-						resVer := meta.GetResourceVersion()
-						objects.SharedResourceVerInstanceLister().Save(key, resVer)
-					}
-					utils.AviLog.Debugf("Dequeue for ingress key: %v", key)
-					lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
-					nodes.DequeueIngestion(key, true)
-				} else {
-					utils.AviLog.Warnf("key: %s, msg: Ingress is not accepted due to FQDN restriction policy", key)
-				}
-			}
-			// TODO: free ingObjList
-		}
 		//Route Section
 		if utils.GetInformers().RouteInformer != nil {
-			routeObjList := make([]*routev1.Route, 0)
-			for namespace := range acceptedNamespaces {
-				routeObjs, err := utils.GetInformers().RouteInformer.Lister().Routes(namespace).List(labels.Set(nil).AsSelector())
-				if err != nil {
-					utils.AviLog.Errorf("Unable to retrieve the ingresses during full sync: %s", err)
-					continue
-				}
-				routeObjList = append(routeObjList, routeObjs...)
-			}
-
-			// sort on timestamp
-			sort.Slice(routeObjList, func(i, j int) bool { return lib.RouteLessthan(routeObjList[i], routeObjList[j]) })
-
-			for _, routeObj := range routeObjList {
-				key := utils.OshiftRoute + "/" + utils.ObjKey(routeObj)
-				isValid := true
-
-				if lib.AKOControlConfig().GetAKOFQDNReusePolicy() == lib.FQDNReusePolicyStrict {
-					isValid = isRouteAcceptedWithFQDNRestriction(key, routeObj)
-					if isValid {
-						utils.AviLog.Debugf("Route %s is added to active list. Enqueuing it", key)
+			routeObjs, err := utils.GetInformers().RouteInformer.Lister().List(labels.Set(nil).AsSelector())
+			if err != nil {
+				utils.AviLog.Errorf("Unable to retrieve the routes during full sync: %s", err)
+			} else {
+				for _, routeObj := range routeObjs {
+					if _, ok := acceptedNamespaces[routeObj.Namespace]; !ok {
+						continue
 					}
-				}
-				if isValid {
-					// Enqueue it only in case of valid
+					key := utils.OshiftRoute + "/" + utils.ObjKey(routeObj)
 					meta, err := meta.Accessor(routeObj)
 					if err == nil {
 						resVer := meta.GetResourceVersion()
 						objects.SharedResourceVerInstanceLister().Save(key, resVer)
 					}
 					utils.AviLog.Debugf("Dequeue for route key: %v", key)
-					lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 					nodes.DequeueIngestion(key, true)
-				} else {
-					utils.AviLog.Warnf("key: %s, msg: Route is not accepted due to FQDN restriction policy", key)
 				}
 			}
-			// TODO: Free routelist
 		}
 		if lib.UseServicesAPI() {
 			gatewayObjs, err := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Lister().Gateways(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
@@ -1196,7 +1025,6 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 						objects.SharedResourceVerInstanceLister().Save(key, resVer)
 					}
 					InformerStatusUpdatesForSvcApiGateway(key, gatewayObj)
-					lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 					nodes.DequeueIngestion(key, true)
 				}
 			}
@@ -1213,7 +1041,6 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 					resVer := meta.GetResourceVersion()
 					objects.SharedResourceVerInstanceLister().Save(key, resVer)
 				}
-				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 				nodes.DequeueIngestion(key, true)
 			}
 		}
@@ -1233,7 +1060,6 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 						resVer := meta.GetResourceVersion()
 						objects.SharedResourceVerInstanceLister().Save(key, resVer)
 					}
-					lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 					nodes.DequeueIngestion(key, true)
 				}
 			}
@@ -1252,101 +1078,12 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 						resVer := meta.GetResourceVersion()
 						objects.SharedResourceVerInstanceLister().Save(key, resVer)
 					}
-					lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
 					nodes.DequeueIngestion(key, true)
 				}
 			}
 		}
 	} else {
-		aviInfraObjs, err := lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().List(labels.Set(nil).AsSelector())
-		if err != nil {
-			utils.AviLog.Errorf("Unable to retrieve the avinfrasettings during full sync: %s", err)
-		} else {
-			for _, aviInfraObj := range aviInfraObjs {
-				key := lib.AviInfraSetting + "/" + utils.ObjKey(aviInfraObj)
-				meta, err := meta.Accessor(aviInfraObj)
-				if err == nil {
-					resVer := meta.GetResourceVersion()
-					objects.SharedResourceVerInstanceLister().Save(key, resVer)
-				}
-				if err := c.GetValidator().ValidateAviInfraSetting(key, aviInfraObj); err != nil {
-					utils.AviLog.Warnf("key: %s, Error retrieved during validation of AviInfraSetting: %v", key, err)
-				}
-				lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
-				nodes.DequeueIngestion(key, true)
-			}
-		}
-
-		if lib.AKOControlConfig().L4RuleEnabled() {
-			l4RuleObjs, err := lib.AKOControlConfig().CRDInformers().L4RuleInformer.Lister().List(labels.Set(nil).AsSelector())
-			if err != nil {
-				utils.AviLog.Errorf("Unable to retrieve the L4Rules during full sync: %s", err)
-			} else {
-				for _, l4Rule := range l4RuleObjs {
-					key := lib.L4Rule + "/" + utils.ObjKey(l4Rule)
-					meta, err := meta.Accessor(l4Rule)
-					if err == nil {
-						resVer := meta.GetResourceVersion()
-						objects.SharedResourceVerInstanceLister().Save(key, resVer)
-					}
-					if err := c.GetValidator().ValidateL4RuleObj(key, l4Rule); err != nil {
-						utils.AviLog.Warnf("key: %s, Error retrieved during validation of L4Rule: %v", key, err)
-					}
-					lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
-					nodes.DequeueIngestion(key, true)
-				}
-			}
-		}
-
-		// Proxy Enabled Application Profile GET/CREATE/UPDATE
-		aviClientPool := avicache.SharedAVIClients(lib.GetAdminTenant())
-		if aviClientPool == nil || len(aviClientPool.AviClient) == 0 {
-			return fmt.Errorf("avi Rest client initialization failed")
-		}
-		err = lib.ProxyEnabledAppProfileCU(aviClientPool.AviClient[0])
-		if err != nil {
-			utils.AviLog.Errorf("Proxy enabled application profile Get/Create/Update failed: %s", err)
-			return err
-		}
-		// TCP Half-Open Connection Health Monitor GET/CREATE/UPDATE
-		err = lib.TcpHalfOpenHealthMonitorCU(aviClientPool.AviClient[0])
-		if err != nil {
-			utils.AviLog.Errorf("TCP Half-Open connection health monitor Get/Create/Update failed: %s", err)
-			return err
-		}
-
-		//Ingress Section
-		if utils.GetInformers().IngressInformer != nil {
-			for namespace := range acceptedNamespaces {
-				ingObjs, err := utils.GetInformers().IngressInformer.Lister().Ingresses(namespace).List(labels.Set(nil).AsSelector())
-				if err != nil {
-					utils.AviLog.Errorf("Unable to retrieve the ingresses during full sync: %s", err)
-				} else {
-					for _, ingObj := range ingObjs {
-						key := utils.Ingress + "/" + utils.ObjKey(ingObj)
-						meta, err := meta.Accessor(ingObj)
-						if err == nil {
-							resVer := meta.GetResourceVersion()
-							objects.SharedResourceVerInstanceLister().Save(key, resVer)
-						}
-						utils.AviLog.Debugf("Dequeue for ingress key: %v", key)
-						lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
-						nodes.DequeueIngestion(key, true)
-					}
-				}
-			}
-		}
 		//Gateway Section
-		gwClassObjs, err := lib.AKOControlConfig().AdvL4Informers().GatewayClassInformer.Lister().List(labels.Set(nil).AsSelector())
-		if err != nil {
-			utils.AviLog.Errorf("Unable to retrieve the gatewayclasses during full sync: %s", err)
-			return err
-		}
-		for _, gwClassObj := range gwClassObjs {
-			key := lib.GatewayClass + "/" + utils.ObjKey(gwClassObj)
-			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
-			nodes.DequeueIngestion(key, true)
-		}
 
 		gatewayObjs, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(metav1.NamespaceAll).List(labels.Set(nil).AsSelector())
 		if err != nil {
@@ -1361,7 +1098,16 @@ func (c *AviController) FullSyncK8s(sync bool) error {
 			}
 			key := lib.Gateway + "/" + utils.ObjKey(gatewayObj)
 			InformerStatusUpdatesForGateway(key, gatewayObj)
-			lib.IncrementQueueCounter(utils.ObjectIngestionLayer)
+			nodes.DequeueIngestion(key, true)
+		}
+
+		gwClassObjs, err := lib.AKOControlConfig().AdvL4Informers().GatewayClassInformer.Lister().List(labels.Set(nil).AsSelector())
+		if err != nil {
+			utils.AviLog.Errorf("Unable to retrieve the gatewayclasses during full sync: %s", err)
+			return err
+		}
+		for _, gwClassObj := range gwClassObjs {
+			key := lib.GatewayClass + "/" + utils.ObjKey(gwClassObj)
 			nodes.DequeueIngestion(key, true)
 		}
 	}
@@ -1423,12 +1169,12 @@ func (c *AviController) publishAllParentVSKeysToRestLayer() {
 func (c *AviController) DeleteModels() {
 	utils.AviLog.Infof("Deletion of all avi objects triggered")
 	publisher := status.NewStatusPublisher()
-	publisher.AddStatefulSetAnnotation(status.ObjectDeletionStatus, lib.ObjectDeletionStartStatus)
+	publisher.AddStatefulSetAnnotation(lib.ObjectDeletionStartStatus)
 	allModels := objects.SharedAviGraphLister().GetAll()
 	allModelsMap := allModels.(map[string]interface{})
 	if len(allModelsMap) == 0 {
 		utils.AviLog.Infof("No Avi Object to delete, status would be updated in Statefulset")
-		publisher.AddStatefulSetAnnotation(status.ObjectDeletionStatus, lib.ObjectDeletionDoneStatus)
+		publisher.AddStatefulSetAnnotation(lib.ObjectDeletionDoneStatus)
 		return
 	}
 	sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
@@ -1450,7 +1196,6 @@ func (c *AviController) DeleteModels() {
 		}
 		bkt := utils.Bkt(modelName, sharedQueue.NumWorkers)
 		utils.AviLog.Infof("Deleting objects for model: %s", modelName)
-		//graph queue prometheus
 		sharedQueue.Workqueue[bkt].AddRateLimited(modelName)
 	}
 
@@ -1465,12 +1210,12 @@ func SetDeleteSyncChannel() {
 
 	select {
 	case <-lib.ConfigDeleteSyncChan:
-		status.NewStatusPublisher().AddStatefulSetAnnotation(status.ObjectDeletionStatus, lib.ObjectDeletionDoneStatus)
+		status.NewStatusPublisher().AddStatefulSetAnnotation(lib.ObjectDeletionDoneStatus)
 		utils.AviLog.Infof("Processing done for deleteConfig, user would be notified through statefulset update")
 		lib.AKOControlConfig().PodEventf(corev1.EventTypeNormal, lib.AKODeleteConfigDone, "AKO has removed all objects from Avi Controller")
 
 	case <-time.After(lib.AviObjDeletionTime * time.Minute):
-		status.NewStatusPublisher().AddStatefulSetAnnotation(status.ObjectDeletionStatus, lib.ObjectDeletionTimeoutStatus)
+		status.NewStatusPublisher().AddStatefulSetAnnotation(lib.ObjectDeletionTimeoutStatus)
 		utils.AviLog.Warnf("Timed out while waiting for rest layer to respond for delete config")
 		lib.AKOControlConfig().PodEventf(corev1.EventTypeNormal, lib.AKODeleteConfigTimeout, "Timed out while waiting for rest layer to respond for delete config")
 	}
@@ -1516,7 +1261,6 @@ func SyncFromIngestionLayer(key interface{}, wg *sync.WaitGroup) error {
 	keyStr, ok := key.(string)
 	if !ok {
 		utils.AviLog.Warnf("Unexpected object type: expected string, got %T", key)
-		lib.DecrementQueueCounter(utils.ObjectIngestionLayer)
 		return nil
 	}
 	nodes.DequeueIngestion(keyStr, false)
@@ -1525,7 +1269,6 @@ func SyncFromIngestionLayer(key interface{}, wg *sync.WaitGroup) error {
 
 func SyncFromFastRetryLayer(key interface{}, wg *sync.WaitGroup) error {
 	keyStr, ok := key.(string)
-	lib.DecrementQueueCounter(lib.FAST_RETRY_LAYER)
 	if !ok {
 		utils.AviLog.Warnf("Unexpected object type: expected string, got %T", key)
 		return nil
@@ -1536,7 +1279,6 @@ func SyncFromFastRetryLayer(key interface{}, wg *sync.WaitGroup) error {
 
 func SyncFromSlowRetryLayer(key interface{}, wg *sync.WaitGroup) error {
 	keyStr, ok := key.(string)
-	lib.DecrementQueueCounter(lib.SLOW_RETRY_LAYER)
 	if !ok {
 		utils.AviLog.Warnf("Unexpected object type: expected string, got %T", key)
 		return nil
@@ -1549,11 +1291,11 @@ func SyncFromNodesLayer(key interface{}, wg *sync.WaitGroup) error {
 	keyStr, ok := key.(string)
 	if !ok {
 		utils.AviLog.Warnf("Unexpected object type: expected string, got %T", key)
-		lib.DecrementQueueCounter(utils.GraphLayer)
 		return nil
 	}
 	cache := avicache.SharedAviObjCache()
-	restlayer := rest.NewRestOperations(cache)
+	aviclient := avicache.SharedAVIClients()
+	restlayer := rest.NewRestOperations(cache, aviclient)
 	restlayer.DequeueNodes(keyStr)
 	return nil
 }
@@ -1573,11 +1315,11 @@ func (c *AviController) InitializeNamespaceSync() {
 	}
 	nsFilterObj := utils.GetGlobalNSFilter()
 	if !nsFilterObj.EnableMigration {
-		utils.AviLog.Infof("Namespace Sync is disabled.")
+		utils.AviLog.Info("Namespace Sync is disabled.")
 		return
 	}
 	populateNamespaceList()
-	utils.AviLog.Infof("Namespace Sync is enabled")
+	utils.AviLog.Info("Namespace Sync is enabled")
 }
 
 // Add namespaces with correct labels to list of valid Namespaces. This is used while populating status of k8s objects.
@@ -1622,7 +1364,8 @@ func (c *AviController) IstioBootstrap() {
 		newAviModel.AddModelNode(sslNode)
 
 		cache := avicache.SharedAviObjCache()
-		restlayer := rest.NewRestOperations(cache)
+		aviclient := avicache.SharedAVIClients()
+		restlayer := rest.NewRestOperations(cache, aviclient)
 
 		key := utils.Secret + "/" + utils.GetAKONamespace() + "/" + lib.IstioSecret
 		restlayer.IstioCU(key, newAviModel)

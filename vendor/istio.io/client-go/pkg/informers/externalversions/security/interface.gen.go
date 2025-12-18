@@ -18,7 +18,6 @@ package security
 
 import (
 	internalinterfaces "istio.io/client-go/pkg/informers/externalversions/internalinterfaces"
-	v1 "istio.io/client-go/pkg/informers/externalversions/security/v1"
 	v1beta1 "istio.io/client-go/pkg/informers/externalversions/security/v1beta1"
 )
 
@@ -26,8 +25,6 @@ import (
 type Interface interface {
 	// V1beta1 provides access to shared informers for resources in V1beta1.
 	V1beta1() v1beta1.Interface
-	// V1 provides access to shared informers for resources in V1.
-	V1() v1.Interface
 }
 
 type group struct {
@@ -44,9 +41,4 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 // V1beta1 returns a new v1beta1.Interface.
 func (g *group) V1beta1() v1beta1.Interface {
 	return v1beta1.New(g.factory, g.namespace, g.tweakListOptions)
-}
-
-// V1 returns a new v1.Interface.
-func (g *group) V1() v1.Interface {
-	return v1.New(g.factory, g.namespace, g.tweakListOptions)
 }

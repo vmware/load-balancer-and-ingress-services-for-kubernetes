@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2022-2023 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -15,36 +15,22 @@
 package k8s
 
 import (
-	"context"
 	"fmt"
-	"net"
 	"regexp"
-	"strings"
 
-	v1 "k8s.io/api/core/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
-	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
-	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
 type Validator interface {
-	ValidateHTTPRuleObj(key string, httprule *akov1beta1.HTTPRule) error
-	ValidateHostRuleObj(key string, hostrule *akov1beta1.HostRule) error
-	ValidateAviInfraSetting(key string, infraSetting *akov1beta1.AviInfraSetting) error
+	ValidateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error
+	ValidateHostRuleObj(key string, hostrule *akov1alpha1.HostRule) error
+	ValidateAviInfraSetting(key string, infraSetting *akov1alpha1.AviInfraSetting) error
 	ValidateMultiClusterIngressObj(key string, multiClusterIngress *akov1alpha1.MultiClusterIngress) error
 	ValidateServiceImportObj(key string, serviceImport *akov1alpha1.ServiceImport) error
-	ValidateSSORuleObj(key string, ssoRule *akov1alpha2.SSORule) error
-	ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) error
-	ValidateL7RuleObj(key string, l7Rule *akov1alpha2.L7Rule) error
 }
 
 type (
@@ -61,7 +47,7 @@ func NewValidator() Validator {
 
 // validateHostRuleObj would do validation checks
 // update internal CRD caches, and push relevant ingresses to ingestion
-func (l *leader) ValidateHostRuleObj(key string, hostrule *akov1beta1.HostRule) error {
+func (l *leader) ValidateHostRuleObj(key string, hostrule *akov1alpha1.HostRule) error {
 
 	var err error
 	fqdn := hostrule.Spec.VirtualHost.Fqdn
@@ -114,7 +100,7 @@ func (l *leader) ValidateHostRuleObj(key string, hostrule *akov1beta1.HostRule) 
 	}
 
 	if hostrule.Spec.VirtualHost.Aliases != nil {
-		if hostrule.Spec.VirtualHost.FqdnType != akov1beta1.Exact {
+		if hostrule.Spec.VirtualHost.FqdnType != akov1alpha1.Exact {
 			err = fmt.Errorf("Aliases is supported only when FQDN type is set as Exact")
 			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
 			return err
@@ -161,11 +147,11 @@ func (l *leader) ValidateHostRuleObj(key string, hostrule *akov1beta1.HostRule) 
 		hostrule.Spec.VirtualHost.AnalyticsProfile:   "AnalyticsProfile",
 		hostrule.Spec.VirtualHost.ErrorPageProfile:   "ErrorPageProfile",
 	}
-	if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Type == akov1beta1.HostRuleSecretTypeAviReference {
+	if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Type == akov1alpha1.HostRuleSecretTypeAviReference {
 		refData[hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name] = "SslKeyCert"
 	}
 
-	if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Type == akov1beta1.HostRuleSecretTypeSecretReference {
+	if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Type == akov1alpha1.HostRuleSecretTypeSecretReference {
 		secretName := hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.Name
 		err := validateSecretReferenceInHostrule(hostrule.Namespace, secretName)
 		if err != nil {
@@ -173,24 +159,16 @@ func (l *leader) ValidateHostRuleObj(key string, hostrule *akov1beta1.HostRule) 
 			return err
 		}
 	}
-	if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Type == akov1beta1.HostRuleSecretTypeAviReference {
+	if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Type == akov1alpha1.HostRuleSecretTypeAviReference {
 		refData[hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Name] = "SslKeyCert"
 	}
 
-	if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Type == akov1beta1.HostRuleSecretTypeSecretReference {
+	if hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Type == akov1alpha1.HostRuleSecretTypeSecretReference {
 		secretName := hostrule.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Name
 		err := validateSecretReferenceInHostrule(hostrule.Namespace, secretName)
 		if err != nil {
 			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
 			return err
-		}
-	}
-	if len(hostrule.Spec.VirtualHost.ICAPProfile) > 1 {
-		status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: "Can only have 1 ICAP profile associated with VS"})
-		return fmt.Errorf("Can only have 1 ICAP profile associated with VS")
-	} else {
-		for _, icapprofile := range hostrule.Spec.VirtualHost.ICAPProfile {
-			refData[icapprofile] = "ICAPProfile"
 		}
 	}
 
@@ -202,35 +180,7 @@ func (l *leader) ValidateHostRuleObj(key string, hostrule *akov1beta1.HostRule) 
 		refData[script] = "VsDatascript"
 	}
 
-	// Validation for Network Security Policy
-	// Check networkSecurityPolicy is of type ref.
-	if hostrule.Spec.VirtualHost.NetworkSecurityPolicy != "" {
-		refData[hostrule.Spec.VirtualHost.NetworkSecurityPolicy] = "NetworkSecurityPolicy"
-	}
-	tenant := lib.GetTenantInNamespace(hostrule.Namespace)
-
-	if err := checkRefsOnController(key, refData, tenant); err != nil {
-		status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
-		return err
-	}
-
-	if hostrule.Spec.VirtualHost.L7Rule != "" {
-		objects.SharedCRDLister().UpdateL7RuleToHostRuleMapping(hostrule.Namespace+"/"+hostrule.Spec.VirtualHost.L7Rule, hostrule.Name)
-		_, err := lib.AKOControlConfig().CRDInformers().L7RuleInformer.Lister().L7Rules(hostrule.Namespace).Get(hostrule.Spec.VirtualHost.L7Rule)
-		if err != nil {
-			status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
-			return err
-		}
-	}
-
-	if strings.Contains(fqdn, lib.ShardVSSubstring) && hostrule.Spec.VirtualHost.UseRegex {
-		err = fmt.Errorf("hostrule useRegex with fqdn %s cannot be applied to shared virtualservices", fqdn)
-		status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
-		return err
-	}
-
-	if strings.Contains(fqdn, lib.ShardVSSubstring) && hostrule.Spec.VirtualHost.ApplicationRootPath != "" {
-		err = fmt.Errorf("hostrule applicationRootPath with fqdn %s cannot be applied to shared virtualservices", fqdn)
+	if err := checkRefsOnController(key, refData); err != nil {
 		status.UpdateHostRuleStatus(key, hostrule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
 		return err
 	}
@@ -259,24 +209,9 @@ func validateSecretReferenceInHostrule(namespace, secretName string) error {
 	return err
 }
 
-func validateSecretReferenceInSSORule(namespace, secretName string) (*v1.Secret, error) {
-
-	// reject the SSORule if the secret handling is restricted to the namespace where
-	// AKO is installed.
-	if utils.GetInformers().RouteInformer != nil &&
-		namespace != utils.GetAKONamespace() &&
-		utils.IsSecretsHandlingRestrictedToAKONS() {
-		err := fmt.Errorf("secret handling is restricted to %s namespace only", utils.GetAKONamespace())
-		return nil, err
-	}
-
-	secretObj, err := utils.GetInformers().SecretInformer.Lister().Secrets(namespace).Get(secretName)
-	return secretObj, err
-}
-
 // validateHTTPRuleObj would do validation checks
 // update internal CRD caches, and push relevant ingresses to ingestion
-func (l *leader) ValidateHTTPRuleObj(key string, httprule *akov1beta1.HTTPRule) error {
+func (l *leader) ValidateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error {
 
 	refData := make(map[string]string)
 	for _, path := range httprule.Spec.Paths {
@@ -298,9 +233,8 @@ func (l *leader) ValidateHTTPRuleObj(key string, httprule *akov1beta1.HTTPRule) 
 			refData[hm] = "HealthMonitor"
 		}
 	}
-	tenant := lib.GetTenantInNamespace(httprule.Namespace)
 
-	if err := checkRefsOnController(key, refData, tenant); err != nil {
+	if err := checkRefsOnController(key, refData); err != nil {
 		status.UpdateHTTPRuleStatus(key, httprule, status.UpdateCRDStatusOptions{
 			Status: lib.StatusRejected,
 			Error:  err.Error(),
@@ -322,7 +256,7 @@ func (l *leader) ValidateHTTPRuleObj(key string, httprule *akov1beta1.HTTPRule) 
 
 // validateAviInfraSetting would do validaion checks on the
 // ingested AviInfraSetting objects
-func (l *leader) ValidateAviInfraSetting(key string, infraSetting *akov1beta1.AviInfraSetting) error {
+func (l *leader) ValidateAviInfraSetting(key string, infraSetting *akov1alpha1.AviInfraSetting) error {
 
 	if ((infraSetting.Spec.Network.EnableRhi != nil && !*infraSetting.Spec.Network.EnableRhi) || infraSetting.Spec.Network.EnableRhi == nil) &&
 		len(infraSetting.Spec.Network.BgpPeerLabels) > 0 {
@@ -358,61 +292,14 @@ func (l *leader) ValidateAviInfraSetting(key string, infraSetting *akov1beta1.Av
 				return err
 			}
 		}
-		// Give preference to network uuid
-		if vipNetwork.NetworkUUID != "" {
-			refData[vipNetwork.NetworkUUID] = "NetworkUUID"
-		} else if vipNetwork.NetworkName != "" {
-			refData[vipNetwork.NetworkName] = "Network"
-		}
+		refData[vipNetwork.NetworkName] = "Network"
 	}
 
-	// Node network validation
-	for _, nodeNetwork := range infraSetting.Spec.Network.NodeNetworks {
-		if nodeNetwork.NetworkUUID != "" {
-			refData[nodeNetwork.NetworkUUID] = "NetworkUUID"
-		} else if nodeNetwork.NetworkName != "" {
-			refData[nodeNetwork.NetworkName] = "Network"
-		}
-	}
-	tenant := lib.GetTenant()
-	var err error
 	if infraSetting.Spec.SeGroup.Name != "" {
-		// In case of WCP/VCF deployments in VPC mode, NS can have SeGroup(shared/dedicated)
-		// annotation which results in setting SeGroup in infrasetting and for validation of SeGroup,
-		// tenant needs to be determined through vpc path in infrasetting cr.
-		if lib.GetVPCMode() && infraSetting.Spec.NSXSettings.T1LR != nil {
-			aviClientPool := cache.SharedAVIClients(lib.GetTenant())
-			vpcArr := strings.Split(*infraSetting.Spec.NSXSettings.T1LR, "/vpcs/")
-			projectArr := strings.Split(vpcArr[0], "/projects/")
-			tenant, err = lib.GetTenantForProject(projectArr[len(projectArr)-1], aviClientPool.AviClient[0])
-			if err != nil {
-				status.UpdateAviInfraSettingStatus(key, infraSetting, status.UpdateCRDStatusOptions{
-					Status: lib.StatusRejected,
-					Error:  err.Error(),
-				})
-				return err
-			}
-		}
 		refData[infraSetting.Spec.SeGroup.Name] = "ServiceEngineGroup"
 	}
-	if len(infraSetting.Spec.Network.Listeners) > 0 {
-		sslEnabled := false
-		for _, listener := range infraSetting.Spec.Network.Listeners {
-			if listener.EnableSSL != nil && *listener.EnableSSL {
-				sslEnabled = true
-				break
-			}
-		}
-		if !sslEnabled {
-			err := fmt.Errorf("One of the port in aviInfraSetting must have SSL enabled")
-			status.UpdateAviInfraSettingStatus(key, infraSetting, status.UpdateCRDStatusOptions{
-				Status: lib.StatusRejected,
-				Error:  err.Error(),
-			})
-			return err
-		}
-	}
-	if err := checkRefsOnController(key, refData, tenant); err != nil {
+
+	if err := checkRefsOnController(key, refData); err != nil {
 		status.UpdateAviInfraSettingStatus(key, infraSetting, status.UpdateCRDStatusOptions{
 			Status: lib.StatusRejected,
 			Error:  err.Error(),
@@ -423,29 +310,8 @@ func (l *leader) ValidateAviInfraSetting(key string, infraSetting *akov1beta1.Av
 	// This would add SEG labels only if they are not configured yet. In case there is a label mismatch
 	// to any pre-existing SEG labels, the AviInfraSettig CR will get Rejected from the checkRefsOnController
 	// step before this.
-	segMgmtNetworK := ""
 	if infraSetting.Spec.SeGroup.Name != "" {
 		addSeGroupLabel(key, infraSetting.Spec.SeGroup.Name)
-		// Not required for NO access cloud
-		if lib.GetCloudType() == lib.CLOUD_VCENTER {
-			segMgmtNetworK = GetSEGManagementNetwork(infraSetting.Spec.SeGroup.Name)
-		}
-	}
-
-	if len(infraSetting.Spec.Network.VipNetworks) > 0 {
-		SetAviInfrasettingVIPNetworks(infraSetting.Name, segMgmtNetworK, infraSetting.Spec.SeGroup.Name, infraSetting.Spec.Network.VipNetworks)
-	}
-
-	if len(infraSetting.Spec.Network.NodeNetworks) > 0 {
-		SetAviInfrasettingNodeNetworks(infraSetting.Name, segMgmtNetworK, infraSetting.Spec.SeGroup.Name, infraSetting.Spec.Network.NodeNetworks)
-	}
-
-	namespaces, err := utils.GetInformers().NSInformer.Informer().GetIndexer().ByIndex(lib.AviSettingNamespaceIndex, infraSetting.GetName())
-	if err == nil && len(namespaces) > 0 {
-		objects.InfraSettingL7Lister().UpdateInfraSettingToNamespaceMapping(infraSetting.GetName(), namespaces)
-	} else {
-		// This handles the case where an NS scoped infrasetting was deleted and later recreated without NS scope.
-		objects.InfraSettingL7Lister().DeleteInfraSettingToNamespaceMapping(infraSetting.GetName())
 	}
 
 	// No need to update status of infra setting object as accepted since it was accepted before.
@@ -505,412 +371,18 @@ func (l *leader) ValidateServiceImportObj(key string, serviceImport *akov1alpha1
 	return nil
 }
 
-// ValidateSSORuleObj would do validation checks
-// update internal CRD caches, and push relevant ingresses to ingestion
-func (l *leader) ValidateSSORuleObj(key string, ssoRule *akov1alpha2.SSORule) error {
-	var err error
-	fqdn := *ssoRule.Spec.Fqdn
-	foundHost, foundSR := objects.SharedCRDLister().GetFQDNToSSORuleMapping(fqdn)
-	if foundHost && foundSR != ssoRule.Namespace+"/"+ssoRule.Name {
-		err = fmt.Errorf("duplicate fqdn %s found in %s", fqdn, foundSR)
-		status.UpdateSSORuleStatus(key, ssoRule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
-		return err
-	}
-
-	refData := make(map[string]string)
-
-	if ssoRule.Spec.SsoPolicyRef == nil {
-		err = fmt.Errorf("SsoPolicyRef is not specified")
-		status.UpdateSSORuleStatus(key, ssoRule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
-		return err
-	}
-	refData[*ssoRule.Spec.SsoPolicyRef] = "SSOPolicy"
-
-	if ssoRule.Spec.OauthVsConfig != nil {
-		oauthConfigObj := ssoRule.Spec.OauthVsConfig
-
-		if len(oauthConfigObj.OauthSettings) != 0 {
-			for _, profile := range oauthConfigObj.OauthSettings {
-				refData[*profile.AuthProfileRef] = "AuthProfile"
-
-				if profile.AppSettings != nil {
-					clientSecret := *profile.AppSettings.ClientSecret
-					clientSecretObj, err := validateSecretReferenceInSSORule(ssoRule.Namespace, clientSecret)
-					if err != nil {
-						err = fmt.Errorf("Got error while fetching %s secret : %s", clientSecret, err.Error())
-						status.UpdateSSORuleStatus(key, ssoRule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
-						return err
-					}
-					if clientSecretObj == nil {
-						err = fmt.Errorf("specified client secret is empty : %s", clientSecret)
-						status.UpdateSSORuleStatus(key, ssoRule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
-						return err
-					}
-					clientSecretString := string(clientSecretObj.Data["clientSecret"])
-					if clientSecretString == "" {
-						err = fmt.Errorf("clientSecret field not found in %s secret", clientSecret)
-						status.UpdateSSORuleStatus(key, ssoRule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
-						return err
-					}
-				}
-
-				if profile.ResourceServer != nil {
-					if *profile.ResourceServer.AccessType == lib.ACCESS_TOKEN_TYPE_JWT && profile.ResourceServer.JwtParams == nil {
-						err = fmt.Errorf("Access Type is %s, but Jwt Params have not been specified", *profile.ResourceServer.AccessType)
-						status.UpdateSSORuleStatus(key, ssoRule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
-						return err
-					}
-					if *profile.ResourceServer.AccessType == lib.ACCESS_TOKEN_TYPE_OPAQUE && profile.ResourceServer.OpaqueTokenParams == nil {
-						err = fmt.Errorf("Access Type is %s, but Opaque Token Params have not been specified", *profile.ResourceServer.AccessType)
-						status.UpdateSSORuleStatus(key, ssoRule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
-						return err
-					}
-
-					if profile.ResourceServer.OpaqueTokenParams != nil {
-						serverSecret := *profile.ResourceServer.OpaqueTokenParams.ServerSecret
-						serverSecretObj, err := utils.GetInformers().ClientSet.CoreV1().Secrets(ssoRule.Namespace).Get(context.TODO(), serverSecret, metav1.GetOptions{})
-						if err != nil {
-							err = fmt.Errorf("Got error while fetching %s secret : %s", serverSecret, err.Error())
-							status.UpdateSSORuleStatus(key, ssoRule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
-							return err
-						}
-						if serverSecretObj == nil {
-							err = fmt.Errorf("specified server secret is empty : %s", serverSecret)
-							status.UpdateSSORuleStatus(key, ssoRule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
-							return err
-						}
-						serverSecretString := string(serverSecretObj.Data["serverSecret"])
-						if serverSecretString == "" {
-							err = fmt.Errorf("serverSecret field not found in %s secret", serverSecret)
-							status.UpdateSSORuleStatus(key, ssoRule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
-							return err
-						}
-					}
-				}
-			}
-		}
-	}
-	if ssoRule.Spec.SamlSpConfig != nil {
-		samlConfigObj := ssoRule.Spec.SamlSpConfig
-
-		if samlConfigObj.SigningSslKeyAndCertificateRef != nil {
-			refData[*samlConfigObj.SigningSslKeyAndCertificateRef] = "SslKeyCert"
-		}
-	}
-	tenant := lib.GetTenantInNamespace(ssoRule.Namespace)
-
-	if err := checkRefsOnController(key, refData, tenant); err != nil {
-		status.UpdateSSORuleStatus(key, ssoRule, status.UpdateCRDStatusOptions{Status: lib.StatusRejected, Error: err.Error()})
-		return err
-	}
-
-	// No need to update status of ssoRule object as accepted since it was accepted before.
-	if ssoRule.Status.Status == lib.StatusAccepted {
-		return nil
-	}
-
-	status.UpdateSSORuleStatus(key, ssoRule, status.UpdateCRDStatusOptions{Status: lib.StatusAccepted, Error: ""})
-	return nil
-}
-
-// ValidateL4RuleObj would do validation checks and updates the status before
-// pushing to ingestion
-func (l *leader) ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) error {
-
-	l4RuleSpec := l4Rule.Spec
-
-	if l4RuleSpec.LoadBalancerIP != nil &&
-		net.ParseIP(*l4RuleSpec.LoadBalancerIP) == nil {
-		err := fmt.Errorf("loadBalancerIP %s is not valid", *l4RuleSpec.LoadBalancerIP)
-		rejectL4Rule(key, l4Rule, err)
-		return err
-	}
-
-	tenant := lib.GetTenantInNamespace(l4Rule.Namespace)
-	refData := make(map[string]string)
-
-	if l4RuleSpec.AnalyticsProfileRef != nil {
-		refData[*l4RuleSpec.AnalyticsProfileRef] = "AnalyticsProfile"
-	}
-
-	var isNetworkProfileTypeTCP bool
-	if l4RuleSpec.ApplicationProfileRef != nil {
-		isSSLEnabled := false
-		for _, svc := range l4RuleSpec.Services {
-			if *svc.EnableSsl {
-				isSSLEnabled = true
-			}
-		}
-		isL4SSL, err := checkForL4SSLAppProfile(key, *l4RuleSpec.ApplicationProfileRef, tenant)
-		if err != nil {
-			rejectL4Rule(key, l4Rule, err)
-			return err
-		}
-		if isL4SSL {
-			if !isSSLEnabled {
-				sslErr := fmt.Errorf("SSL is not enabled in l4rule listener Spec but App Profile %s is of type SSL", *l4RuleSpec.ApplicationProfileRef)
-				rejectL4Rule(key, l4Rule, sslErr)
-				return sslErr
-			}
-			if l4RuleSpec.SslProfileRef != nil {
-				refData[*l4RuleSpec.SslProfileRef] = "SslProfile"
-			}
-			for _, ref := range l4RuleSpec.SslKeyAndCertificateRefs {
-				refData[ref] = "SslKeyCert"
-			}
-			if l4RuleSpec.NetworkProfileRef != nil {
-				isNetworkProfileTypeTCP, err = checkForNetworkProfileTypeTCP(key, *l4RuleSpec.NetworkProfileRef, tenant)
-				if err != nil {
-					rejectL4Rule(key, l4Rule, err)
-					return err
-				}
-			}
-		} else {
-			if *l4RuleSpec.ApplicationProfileRef != utils.DEFAULT_L4_APP_PROFILE {
-				if isSSLEnabled {
-					sslErr := fmt.Errorf("SSL is enabled in l4rule listener Spec but App Profile %s is not of type SSL", *l4RuleSpec.ApplicationProfileRef)
-					rejectL4Rule(key, l4Rule, sslErr)
-					return sslErr
-				}
-			}
-			if l4RuleSpec.SslProfileRef != nil {
-				sslProfileErr := fmt.Errorf("App Profile %s is not of type SSL but SslProfileRef is set", *l4RuleSpec.ApplicationProfileRef)
-				rejectL4Rule(key, l4Rule, sslProfileErr)
-				return sslProfileErr
-			}
-			if len(l4RuleSpec.SslKeyAndCertificateRefs) != 0 {
-				sslKeyCertErr := fmt.Errorf("App Profile %s is not of type SSL but SslKeyAndCertificateRefs are set", *l4RuleSpec.ApplicationProfileRef)
-				rejectL4Rule(key, l4Rule, sslKeyCertErr)
-				return sslKeyCertErr
-			}
-		}
-	}
-
-	if l4RuleSpec.NetworkProfileRef != nil && !isNetworkProfileTypeTCP {
-		refData[*l4RuleSpec.NetworkProfileRef] = "NetworkProfile"
-	}
-
-	if l4RuleSpec.NetworkSecurityPolicyRef != nil {
-		refData[*l4RuleSpec.NetworkSecurityPolicyRef] = "NetworkSecurityPolicy"
-	}
-
-	if l4RuleSpec.SecurityPolicyRef != nil {
-		refData[*l4RuleSpec.SecurityPolicyRef] = "SecurityPolicy"
-	}
-
-	for _, ref := range l4RuleSpec.VsDatascriptRefs {
-		refData[ref] = "VsDatascript"
-	}
-
-	for _, backendProperties := range l4RuleSpec.BackendProperties {
-
-		if backendProperties.ApplicationPersistenceProfileRef != nil {
-			refData[*backendProperties.ApplicationPersistenceProfileRef] = "ApplicationPersistence"
-		}
-
-		for _, hm := range backendProperties.HealthMonitorRefs {
-			refData[hm] = "HealthMonitor"
-		}
-
-		if backendProperties.PkiProfileRef != nil {
-			refData[*backendProperties.PkiProfileRef] = "PKIProfile"
-		}
-
-		if backendProperties.SslKeyAndCertificateRef != nil {
-			refData[*backendProperties.SslKeyAndCertificateRef] = "SslKeyCert"
-		}
-
-		if backendProperties.SslProfileRef != nil {
-			refData[*backendProperties.SslProfileRef] = "SslProfile"
-		}
-
-		if err := validateLBAlgorithm(backendProperties); err != nil {
-			rejectL4Rule(key, l4Rule, err)
-			return err
-		}
-
-		// Validate HealthMonitor CRDs referenced through healthMonitorCrdRefs
-		for _, healthMonitorName := range backendProperties.HealthMonitorCrdRefs {
-			if healthMonitorName == "" {
-				err := fmt.Errorf("Empty HealthMonitor name in healthMonitorCrdRefs")
-				rejectL4Rule(key, l4Rule, err)
-				return err
-			}
-
-			// Check if AKO CRD Operator is enabled when HealthMonitor CRDs are referenced
-			if !lib.IsAKOCRDOperatorEnabled() {
-				err := fmt.Errorf("HealthMonitor CRD %s/%s referenced but AKO CRD Operator is not enabled", l4Rule.Namespace, healthMonitorName)
-				rejectL4Rule(key, l4Rule, err)
-				return err
-			}
-
-			// Create HealthMonitor to L4Rule mapping (regardless of validation result)
-			// This ensures that even rejected L4Rules can be re-evaluated when HealthMonitors change
-			healthMonitorNsName := l4Rule.Namespace + "/" + healthMonitorName
-			l4RuleNsName := l4Rule.Namespace + "/" + l4Rule.Name
-			objects.SharedCRDLister().UpdateHealthMonitorToL4RuleMapping(healthMonitorNsName, l4RuleNsName)
-
-			// Validate HealthMonitor CRD exists, is processed, and type is compatible with backend protocol
-			if err := validateHealthMonitorForL4Rule(key, l4Rule.Namespace, healthMonitorName, *backendProperties.Protocol); err != nil {
-				rejectL4Rule(key, l4Rule, err)
-				return err
-			}
-		}
-	}
-
-	if err := checkRefsOnController(key, refData, tenant); err != nil {
-		rejectL4Rule(key, l4Rule, err)
-		return err
-	}
-
-	revokeVipRoute := l4Rule.Spec.RevokeVipRoute
-	if lib.GetCloudType() != lib.CLOUD_NSXT && revokeVipRoute != nil && *revokeVipRoute {
-		revokeVipRouteErr := fmt.Errorf("RevokeVipRoute is only supported in NSX-T Cloud")
-		rejectL4Rule(key, l4Rule, revokeVipRouteErr)
-		return revokeVipRouteErr
-	}
-
-	// No need to update status of l4rule object as accepted since it was accepted before.
-	if l4Rule.Status.Status == lib.StatusAccepted {
-		return nil
-	}
-
-	status.UpdateL4RuleStatus(key, l4Rule, status.UpdateCRDStatusOptions{
-		Status: lib.StatusAccepted,
-		Error:  "",
-	})
-
-	return nil
-}
-
-// ValidateL7RuleObj would do validation checks and updates the status before
-// pushing to ingestion
-func (l *leader) ValidateL7RuleObj(key string, l7Rule *akov1alpha2.L7Rule) error {
-	l7RuleSpec := l7Rule.Spec
-
-	refData := make(map[string]string)
-	if l7RuleSpec.BotPolicyRef != nil {
-		refData[*l7RuleSpec.BotPolicyRef] = "BotPolicy"
-	}
-
-	if l7RuleSpec.SecurityPolicyRef != nil {
-		refData[*l7RuleSpec.SecurityPolicyRef] = "SecurityPolicy"
-	}
-
-	if l7RuleSpec.TrafficCloneProfileRef != nil {
-		refData[*l7RuleSpec.TrafficCloneProfileRef] = "TrafficCloneProfile"
-	}
-	// Analytics Profile
-	if l7RuleSpec.AnalyticsProfile != nil {
-		if *l7RuleSpec.AnalyticsProfile.Kind == lib.AVI_REF {
-			refData[*l7RuleSpec.AnalyticsProfile.Name] = "AnalyticsProfile"
-		}
-	}
-	// Waf Policy
-	if l7RuleSpec.WafPolicy != nil {
-		if *l7RuleSpec.WafPolicy.Kind == lib.AVI_REF {
-			refData[*l7RuleSpec.WafPolicy.Name] = "WafPolicy"
-		}
-	}
-	// IcapProfile
-	if l7RuleSpec.IcapProfile != nil {
-		if *l7RuleSpec.IcapProfile.Kind == lib.AVI_REF {
-			refData[*l7RuleSpec.IcapProfile.Name] = "ICAPProfile"
-		}
-	}
-	// ErrorPageProfile
-	if l7RuleSpec.ErrorPageProfile != nil {
-		if *l7RuleSpec.ErrorPageProfile.Kind == lib.AVI_REF {
-			refData[*l7RuleSpec.ErrorPageProfile.Name] = "ErrorPageProfile"
-		}
-	}
-	// ApplicationProfile - same check
-	if l7RuleSpec.ApplicationProfile != nil {
-		if *l7RuleSpec.ApplicationProfile.Kind == lib.AVI_REF {
-			refData[*l7RuleSpec.ApplicationProfile.Name] = "AppProfile"
-		}
-	}
-
-	if l7RuleSpec.HTTPPolicy != nil {
-		for _, policyName := range l7RuleSpec.HTTPPolicy.PolicySets {
-			refData[*policyName] = "HttpPolicySet"
-		}
-	}
-	tenant := lib.GetTenantInNamespace(l7Rule.Namespace)
-
-	if err := checkRefsOnController(key, refData, tenant); err != nil {
-		status.UpdateL7RuleStatus(key, l7Rule, status.UpdateCRDStatusOptions{
-			Status: lib.StatusRejected,
-			Error:  err.Error(),
-		})
-		return err
-	}
-	// No need to update status of l7rule object as accepted since it was accepted before.
-	if l7Rule.Status.Status == lib.StatusAccepted {
-		return nil
-	}
-	status.UpdateL7RuleStatus(key, l7Rule, status.UpdateCRDStatusOptions{Status: lib.StatusAccepted, Error: ""})
-	return nil
-}
-
-func validateLBAlgorithm(backendProperties *akov1alpha2.BackendProperties) error {
-	if backendProperties.LbAlgorithm == nil {
-		return nil
-	}
-	switch *backendProperties.LbAlgorithm {
-	case lib.LB_ALGORITHM_CONSISTENT_HASH:
-		if backendProperties.LbAlgorithmHash == nil {
-			return fmt.Errorf("lbAlgorithmHash must be specified when lbAlgorithm is \"%s\"", lib.LB_ALGORITHM_CONSISTENT_HASH)
-		} else {
-			if *backendProperties.LbAlgorithmHash == lib.LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER &&
-				backendProperties.LbAlgorithmConsistentHashHdr == nil {
-				return fmt.Errorf("lbAlgorithmConsistentHashHdr must be specified when lbAlgorithmHash is \"%s\"", lib.LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER)
-			}
-		}
-	default:
-		if backendProperties.LbAlgorithmHash != nil {
-			return fmt.Errorf("lbAlgorithmHash must not be specified when lbAlgorithm is \"%s\"", *backendProperties.LbAlgorithm)
-		}
-		if backendProperties.LbAlgorithmConsistentHashHdr != nil {
-			return fmt.Errorf("lbAlgorithmConsistentHashHdr must not be specified when lbAlgorithm is \"%s\"", *backendProperties.LbAlgorithm)
-		}
-	}
-	return nil
-}
-
-func (f *follower) ValidateHTTPRuleObj(key string, httprule *akov1beta1.HTTPRule) error {
+func (f *follower) ValidateHTTPRuleObj(key string, httprule *akov1alpha1.HTTPRule) error {
 	utils.AviLog.Debugf("key: %s, AKO is not a leader, not validating HTTPRule object", key)
 	return nil
 }
 
-func (f *follower) ValidateHostRuleObj(key string, hostrule *akov1beta1.HostRule) error {
+func (f *follower) ValidateHostRuleObj(key string, hostrule *akov1alpha1.HostRule) error {
 	utils.AviLog.Debugf("key: %s, AKO is not a leader, not validating HostRule object", key)
 	return nil
 }
 
-func (f *follower) ValidateAviInfraSetting(key string, infraSetting *akov1beta1.AviInfraSetting) error {
-
+func (f *follower) ValidateAviInfraSetting(key string, infraSetting *akov1alpha1.AviInfraSetting) error {
 	utils.AviLog.Debugf("key: %s, AKO is not a leader, not validating AviInfraSetting object", key)
-	// During AKO bootup as leader is not set, crd validation is not done.
-	// This creates problem in vip network and pool network population.
-	if infraSetting.Status.Status == lib.StatusAccepted {
-		segMgmtNetworK := ""
-		if infraSetting.Spec.SeGroup.Name != "" {
-			addSeGroupLabel(key, infraSetting.Spec.SeGroup.Name)
-			// Not required for no access cloud
-			if lib.GetCloudType() == lib.CLOUD_VCENTER {
-				segMgmtNetworK = GetSEGManagementNetwork(infraSetting.Spec.SeGroup.Name)
-			}
-		}
-
-		if len(infraSetting.Spec.Network.VipNetworks) > 0 {
-			SetAviInfrasettingVIPNetworks(infraSetting.Name, segMgmtNetworK, infraSetting.Spec.SeGroup.Name, infraSetting.Spec.Network.VipNetworks)
-		}
-
-		if len(infraSetting.Spec.Network.NodeNetworks) > 0 {
-			SetAviInfrasettingNodeNetworks(infraSetting.Name, segMgmtNetworK, infraSetting.Spec.SeGroup.Name, infraSetting.Spec.Network.NodeNetworks)
-		}
-	}
 	return nil
 }
 
@@ -924,92 +396,5 @@ func (f *follower) ValidateServiceImportObj(key string, serviceImport *akov1alph
 	// CHECK ME: AMKO creates this and validation required?
 	// TODO: validations needs a status field
 	utils.AviLog.Debugf("key: %s, AKO is not a leader, not validating ServiceImport object", key)
-	return nil
-}
-
-func (f *follower) ValidateSSORuleObj(key string, ssoRule *akov1alpha2.SSORule) error {
-	utils.AviLog.Debugf("key: %s, AKO is not a leader, not validating SSORule object", key)
-	return nil
-}
-
-func (l *follower) ValidateL4RuleObj(key string, l4Rule *akov1alpha2.L4Rule) error {
-	utils.AviLog.Debugf("key: %s, AKO is not a leader, not validating L4Rule object", key)
-	return nil
-}
-
-func (f *follower) ValidateL7RuleObj(key string, l7Rule *akov1alpha2.L7Rule) error {
-	utils.AviLog.Debugf("key: %s, AKO is not a leader, not validating L7Rule object", key)
-	return nil
-}
-
-// rejectL4Rule updates the status of L4Rule CR to "rejected" and adds error message
-func rejectL4Rule(key string, l4Rule *akov1alpha2.L4Rule, err error) {
-	status.UpdateL4RuleStatus(key, l4Rule, status.UpdateCRDStatusOptions{
-		Status: lib.StatusRejected,
-		Error:  err.Error(),
-	})
-}
-
-// validateHealthMonitorForL4Rule validates that HealthMonitor exists, is processed by AKO CRD Operator, and type is compatible with backend protocol
-func validateHealthMonitorForL4Rule(key, namespace, healthMonitorName, protocol string) error {
-	// Get HealthMonitor object using dynamic client (single fetch for all validations)
-	clientSet := lib.GetDynamicClientSet()
-	if clientSet == nil {
-		return fmt.Errorf("internal error in fetching HealthMonitor %s/%s object", namespace, healthMonitorName)
-	}
-
-	object, err := clientSet.Resource(lib.HealthMonitorGVR).Namespace(namespace).Get(context.TODO(), healthMonitorName, metav1.GetOptions{})
-	if err != nil {
-		if k8serrors.IsNotFound(err) {
-			return fmt.Errorf("HealthMonitor %s/%s not found", namespace, healthMonitorName)
-		}
-		return fmt.Errorf("failed to get HealthMonitor %s/%s: %v", namespace, healthMonitorName, err)
-	}
-
-	// Check if HealthMonitor is processed by AKO CRD Operator using existing function
-	processed, ready, err := lib.IsHealthMonitorProcessedWithOptions(key, namespace, healthMonitorName, clientSet, true, object)
-	if err != nil {
-		return fmt.Errorf("HealthMonitor validation failed for %s/%s: %v", namespace, healthMonitorName, err)
-	}
-	if !processed {
-		return fmt.Errorf("HealthMonitor %s/%s is not processed by ako-crd-operator", namespace, healthMonitorName)
-	}
-	if !ready {
-		return fmt.Errorf("HealthMonitor %s/%s is not in ready state", namespace, healthMonitorName)
-	}
-
-	// Extract HealthMonitor type from spec for compatibility validation
-	spec, found, err := unstructured.NestedMap(object.UnstructuredContent(), "spec")
-	if err != nil || !found {
-		return fmt.Errorf("failed to get spec from HealthMonitor %s/%s: %v", namespace, healthMonitorName, err)
-	}
-
-	hmType, found, err := unstructured.NestedString(spec, "type")
-	if err != nil || !found {
-		return fmt.Errorf("failed to get type from HealthMonitor %s/%s spec: %v", namespace, healthMonitorName, err)
-	}
-
-	// Get backend protocol (protocol is a required field in CRD schema, so it's guaranteed to be non-empty)
-	backendProtocol := strings.ToUpper(protocol)
-
-	// Validate HealthMonitor type compatibility with backend protocol
-	switch backendProtocol {
-	case "TCP":
-		if hmType != lib.AllowedTCPHealthMonitorType {
-			return fmt.Errorf("HealthMonitor %s/%s has type '%s' which is not compatible with TCP protocol. Valid types: %s", namespace, healthMonitorName, hmType, lib.AllowedTCPHealthMonitorType)
-		}
-	case "UDP":
-		if hmType != lib.AllowedUDPHealthMonitorType {
-			return fmt.Errorf("HealthMonitor %s/%s has type '%s' which is not compatible with UDP protocol. Valid types: %s", namespace, healthMonitorName, hmType, lib.AllowedUDPHealthMonitorType)
-		}
-	case "SCTP":
-		if hmType != lib.AllowedSCTPHealthMonitorType {
-			return fmt.Errorf("HealthMonitor %s/%s has type '%s' which is not compatible with SCTP protocol. Valid types: %s", namespace, healthMonitorName, hmType, lib.AllowedSCTPHealthMonitorType)
-		}
-	default:
-		return fmt.Errorf("unknown backend protocol '%s' for HealthMonitor %s/%s validation", backendProtocol, namespace, healthMonitorName)
-	}
-
-	utils.AviLog.Debugf("key: %s, HealthMonitor %s/%s type '%s' is compatible with backend protocol '%s'", key, namespace, healthMonitorName, hmType, backendProtocol)
 	return nil
 }

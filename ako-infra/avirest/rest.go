@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2022 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -15,26 +15,13 @@
 package avirest
 
 import (
-	"fmt"
-	"strings"
 	"sync"
-	"time"
 
-	"github.com/vmware/alb-sdk/go/clients"
-	"github.com/vmware/alb-sdk/go/session"
-
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
-)
-
-const (
-	// VKS Management Service APIs were introduced in 32.1.1
-	VKSAviVersion = "32.1.1"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
 )
 
 var infraAviClientInstance *clients.AviClient
 var ctrlClientOnce sync.Once
-
-var vksAviClientInstance *clients.AviClient
 
 func InfraAviClientInstance(c ...*clients.AviClient) *clients.AviClient {
 	if len(c) > 0 {
@@ -43,80 +30,4 @@ func InfraAviClientInstance(c ...*clients.AviClient) *clients.AviClient {
 		})
 	}
 	return infraAviClientInstance
-}
-
-// VKSAviClientInstance returns a VKS-specific AVI client with API version
-// This client is specifically for VKS Management Service and Grant APIs
-func VKSAviClientInstance(c ...*clients.AviClient) *clients.AviClient {
-	if len(c) > 0 && vksAviClientInstance == nil {
-		vksAviClientInstance = c[0]
-	}
-	return vksAviClientInstance
-}
-
-// IsVKSAviClientAvailable returns true if VKS AVI client has been successfully initialized
-// This indicates that the controller version supports VKS Management Service APIs
-func IsVKSAviClientAvailable() bool {
-	return vksAviClientInstance != nil
-}
-
-// CreateVKSAviClient creates a new AVI client specifically for VKS operations
-// with API version set to support Management Service APIs
-func CreateVKSAviClient(controllerIP, username, authToken, caData string) (*clients.AviClient, error) {
-	if controllerIP == "" {
-		return nil, fmt.Errorf("VKS: Controller IP not available for VKS client initialization")
-	}
-
-	if username == "" || authToken == "" {
-		return nil, fmt.Errorf("VKS: Controller credentials not available for VKS client initialization")
-	}
-
-	// Set X-Avi-UserAgent header for rate limiting identification
-	userHeaders := utils.SharedCtrlProp().GetCtrlUserHeader()
-	userHeaders[utils.XAviUserAgentHeader] = "AKO"
-
-	transport, isSecure := utils.GetHTTPTransportWithCert(caData)
-	options := []func(*session.AviSession) error{
-		session.SetAuthToken(authToken),
-		session.DisableControllerStatusCheckOnFailure(true),
-		session.SetTransport(transport),
-		session.SetTimeout(120 * time.Second),
-		session.SetVersion(VKSAviVersion),
-		session.SetUserHeader(userHeaders),
-	}
-
-	if !isSecure {
-		options = append(options, session.SetInsecure)
-	}
-
-	aviClient, err := clients.NewAviClient(controllerIP, username, options...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create VKS AVI client: %v", err)
-	}
-
-	return aviClient, nil
-}
-
-// IsRetryableError determines if an error should trigger a retry
-func IsRetryableError(err error) bool {
-	if err == nil {
-		return false
-	}
-
-	// For AviError, check if it's session expired
-	if strings.Contains(err.Error(), "Rest request error, returning to caller") {
-		return true
-	}
-
-	if aviError, ok := err.(session.AviError); ok {
-		switch aviError.HttpStatusCode {
-		case 400, 401, 403, 404, 409, 412, 422, 501:
-			return false
-		default:
-			// For 5xx errors and other transient issues, retry
-			return true
-		}
-	}
-
-	return false
 }

@@ -1,0 +1,55 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: clustersets.ako.vmware.com
+spec:
+  conversion:
+    strategy: None
+  group: ako.vmware.com
+  names:
+    kind: ClusterSet
+    listKind: ClusterSetList
+    plural: clustersets
+    shortNames:
+    - cs
+    singular: clusterset
+  scope: Namespaced
+
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        type: object
+        properties:
+          spec:
+            type: object
+            properties:
+              secretName:
+                description: "Kubeconfig secret containing the configuration for all the clusters defined in the clusters field"
+                type: string
+              clusters:
+                description: "Cluster context names in the cluster set boundary"
+                type: array
+                items:
+                  type: object
+                  properties:
+                    context:
+                      description: "Context name for a kubernetes cluster as defined in the kubeconfig secret"
+                      type: string
+          status:
+            type: object
+            properties:
+              serviceDiscoveryStatus:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    cluster:
+                      type: string
+                    status:
+                      type: string
+
+        required:
+        - spec
+    served: true
+    storage: true

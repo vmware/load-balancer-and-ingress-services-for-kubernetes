@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -31,9 +31,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/jinzhu/copier"
 	avimodels "github.com/vmware/alb-sdk/go/models"
-	k8net "k8s.io/utils/net"
 )
 
 func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj *avicache.AviPoolCache, key string) *utils.RestOp {
@@ -44,17 +42,17 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 	name := pool_meta.Name
 	cksum := pool_meta.CloudConfigCksum
 	cksumString := strconv.Itoa(int(cksum))
-	tenant := fmt.Sprintf("/api/tenant/?name=%s", lib.GetEscapedValue(pool_meta.Tenant))
+	tenant := fmt.Sprintf("/api/tenant/?name=%s", pool_meta.Tenant)
 	cr := lib.AKOUser
 	svc_mdata_json, _ := json.Marshal(&pool_meta.ServiceMetadata)
 	svc_mdata := string(svc_mdata_json)
-	cloudRef := fmt.Sprintf("/api/cloud?name=%s", utils.CloudName)
+	cloudRef := "/api/cloud?name=" + utils.CloudName
 	placementNetworks := []*avimodels.PlacementNetwork{}
 
 	// set pool placement network if node network details are present and cloud type is CLOUD_VCENTER or CLOUD_NSXT (vlan)
 	if len(pool_meta.NetworkPlacementSettings) != 0 && lib.IsNodeNetworkAllowedCloud() {
-		for network, nwMap := range pool_meta.NetworkPlacementSettings {
-			for _, cidr := range nwMap.Cidrs {
+		for network, cidrs := range pool_meta.NetworkPlacementSettings {
+			for _, cidr := range cidrs {
 				_, ipnet, err := net.ParseCIDR(cidr)
 				if err != nil {
 					utils.AviLog.Warnf("The value of CIDR couldn't be parsed. Failed with error: %v.", err.Error())
@@ -62,7 +60,7 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 				}
 				addr := ipnet.IP.String()
 				atype := "V4"
-				if k8net.IsIPv6CIDR(ipnet) {
+				if !utils.IsV4(addr) {
 					atype = "V6"
 				}
 
@@ -73,13 +71,9 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 					break
 				}
 				int32Cidr := int32(intCidr)
-				networkRef := "/api/network/?name=" + network
-				if nwMap.NetworkUUID != "" {
-					networkRef = "/api/network/" + nwMap.NetworkUUID
-				}
-				utils.AviLog.Debugf("Pool: %s, Network ref for pool placement setting is: %s", name, networkRef)
+
 				placementNetworks = append(placementNetworks, &avimodels.PlacementNetwork{
-					NetworkRef: proto.String(networkRef),
+					NetworkRef: proto.String("/api/network/?name=" + network),
 					Subnet: &avimodels.IPAddrPrefix{
 						IPAddr: &avimodels.IPAddr{
 							Addr: &addr,
@@ -101,13 +95,10 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 		CloudRef:                &cloudRef,
 		ServiceMetadata:         &svc_mdata,
 		SniEnabled:              &pool_meta.SniEnabled,
-		SslProfileRef:           pool_meta.SslProfileRef,
-		SslKeyAndCertificateRef: pool_meta.SslKeyAndCertificateRef,
-		PkiProfileRef:           pool_meta.PkiProfileRef,
-		HostCheckEnabled:        pool_meta.HostCheckEnabled,
-		//TODO: Deprecated in 31.2.1, replace with GracefulDisableTimeoutSeconds which is currently not supported by AVI SDK
-		GracefulDisableTimeout: proto.Int32(1),
-		PlacementNetworks:      placementNetworks,
+		SslProfileRef:           &pool_meta.SslProfileRef,
+		SslKeyAndCertificateRef: &pool_meta.SslKeyAndCertificateRef,
+		PkiProfileRef:           &pool_meta.PkiProfileRef,
+		PlacementNetworks:       placementNetworks,
 	}
 
 	var vrfContextRef string
@@ -120,11 +111,6 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 		pool.Tier1Lr = &pool_meta.T1Lr
 	}
 
-	// Set domain name for SSL hostname verification if provided
-	if len(pool_meta.DomainName) > 0 {
-		pool.DomainName = pool_meta.DomainName
-	}
-
 	if !pool_meta.AttachedWithSharedVS {
 		pool.Markers = lib.GetAllMarkers(pool_meta.AviMarkers)
 	} else {
@@ -135,28 +121,20 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 		pkiProfileName := "/api/pkiprofile?name=" + pool_meta.PkiProfile.Name
 		pool.PkiProfileRef = &pkiProfileName
 	}
-	if pool_meta.ApplicationPersistenceProfile != nil {
-		appPersProfileName := "/api/applicationpersistenceprofile?name=" + pool_meta.ApplicationPersistenceProfile.Name
-		pool.ApplicationPersistenceProfileRef = &appPersProfileName
-	}
 
 	// there are defaults set by the Avi controller internally
-	if pool_meta.LbAlgorithm != nil {
-		pool.LbAlgorithm = pool_meta.LbAlgorithm
+	if pool_meta.LbAlgorithm != "" {
+		pool.LbAlgorithm = &pool_meta.LbAlgorithm
 	}
-	if pool_meta.LbAlgorithmHash != nil {
-		pool.LbAlgorithmHash = pool_meta.LbAlgorithmHash
+	if pool_meta.LbAlgorithmHash != "" {
+		pool.LbAlgorithmHash = &pool_meta.LbAlgorithmHash
 		if *pool.LbAlgorithmHash == lib.LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER {
-			pool.LbAlgorithmConsistentHashHdr = pool_meta.LbAlgorithmConsistentHashHdr
+			pool.LbAlgorithmConsistentHashHdr = &pool_meta.LbAlgoHostHeader
 		}
 	}
 
-	if pool_meta.ApplicationPersistenceProfileRef != nil {
-		pool.ApplicationPersistenceProfileRef = pool_meta.ApplicationPersistenceProfileRef
-	}
-
-	if pool_meta.EnableHttp2 != nil {
-		pool.EnableHttp2 = pool_meta.EnableHttp2
+	if pool_meta.ApplicationPersistence != "" {
+		pool.ApplicationPersistenceProfileRef = &pool_meta.ApplicationPersistence
 	}
 
 	for i, server := range pool_meta.Servers {
@@ -166,8 +144,7 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 			port = pool_meta.Servers[i].Port
 		}
 		uuid := fmt.Sprintf("%s:%d", *sip.Addr, port)
-
-		s := avimodels.Server{IP: &sip, Port: &port, ExternalUUID: &uuid, Enabled: server.Enabled}
+		s := avimodels.Server{IP: &sip, Port: &port, ExternalUUID: &uuid}
 		if server.ServerNode != "" {
 			sn := server.ServerNode
 			s.ServerNode = &sn
@@ -176,8 +153,8 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 	}
 
 	// overwrite with healthmonitors provided by CRD
-	if len(pool_meta.HealthMonitorRefs) > 0 {
-		pool.HealthMonitorRefs = pool_meta.HealthMonitorRefs
+	if len(pool_meta.HealthMonitors) > 0 {
+		pool.HealthMonitorRefs = pool_meta.HealthMonitors
 	} else {
 		var hm string
 		if pool_meta.Protocol == utils.UDP {
@@ -188,10 +165,6 @@ func (rest *RestOperations) AviPoolBuild(pool_meta *nodes.AviPoolNode, cache_obj
 			hm = fmt.Sprintf("/api/healthmonitor/?name=%s", utils.AVI_DEFAULT_TCP_HM)
 		}
 		pool.HealthMonitorRefs = append(pool.HealthMonitorRefs, hm)
-	}
-
-	if err := copier.CopyWithOption(&pool, &pool_meta.AviPoolGeneratedFields, copier.Option{IgnoreEmpty: true}); err != nil {
-		utils.AviLog.Warnf("key: %s, msg: unable to set few parameters in the Pool, err: %v", key, err)
 	}
 
 	// TODO Version should be latest from configmap
@@ -300,21 +273,13 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 
 		var pkiKey avicache.NamespaceName
 		if pkiprof, ok := resp["pki_profile_ref"]; ok && pkiprof != "" {
-			pkiUuid := avicache.ExtractUUID(pkiprof.(string), "pkiprofile-.*.#")
+			pkiUuid := avicache.ExtractUuid(pkiprof.(string), "pkiprofile-.*.#")
 			pkiName, foundPki := rest.cache.PKIProfileCache.AviCacheGetNameByUuid(pkiUuid)
 			if foundPki {
-				pkiKey = avicache.NamespaceName{Namespace: rest_op.Tenant, Name: pkiName.(string)}
+				pkiKey = avicache.NamespaceName{Namespace: lib.GetTenant(), Name: pkiName.(string)}
 			}
 		}
 
-		var persistentProfileKey avicache.NamespaceName
-		if appPersProfileRef, ok := resp["application_persistence_profile_ref"]; ok && appPersProfileRef != "" {
-			persistentProfileUuid := avicache.ExtractUUID(appPersProfileRef.(string), "applicationpersistenceprofile-.*.#")
-			persistentProfileName, foundPersistentProfile := rest.cache.AppPersProfileCache.AviCacheGetNameByUuid(persistentProfileUuid)
-			if foundPersistentProfile {
-				persistentProfileKey = avicache.NamespaceName{Namespace: rest_op.Tenant, Name: persistentProfileName.(string)}
-			}
-		}
 		k := avicache.NamespaceName{Namespace: rest_op.Tenant, Name: name}
 		oldCacheServiceMetadataCRD := lib.CRDMetadata{}
 		if poolCache, ok := rest.cache.PoolCache.AviCacheGet(k); ok {
@@ -330,7 +295,6 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 			CloudConfigCksum:     cksum,
 			ServiceMetadataObj:   svc_mdata_obj,
 			PkiProfileCollection: pkiKey,
-			PersistenceProfile:   persistentProfileKey,
 			LastModified:         lastModifiedStr,
 		}
 		if lastModifiedStr == "" {
@@ -361,7 +325,6 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 							Key:                key,
 							VirtualServiceUUID: vs_cache_obj.Uuid,
 							VSName:             vs_cache_obj.Name,
-							Tenant:             vs_cache_obj.Tenant,
 						}
 						statusOption := status.StatusOptions{
 							ObjType: utils.L4LBService,
@@ -379,7 +342,6 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 								Key:                key,
 								VirtualServiceUUID: vs_cache_obj.Uuid,
 								VSName:             vs_cache_obj.Name,
-								Tenant:             vs_cache_obj.Tenant,
 							}
 							statusOption := status.StatusOptions{
 								ObjType: utils.Ingress,
@@ -392,8 +354,8 @@ func (rest *RestOperations) AviPoolCacheAdd(rest_op *utils.RestOp, vsKey avicach
 							if pool_cache_obj.ServiceMetadataObj.IsMCIIngress {
 								statusOption.ObjType = lib.MultiClusterIngress
 							}
-							utils.AviLog.Debugf("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.HostNames[0], utils.Stringify(statusOption))
-							status.PublishToStatusQueue(updateOptions.ServiceMetadata.HostNames[0], statusOption)
+							utils.AviLog.Debugf("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.IngressName, utils.Stringify(statusOption))
+							status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
 						}
 					}
 				}
@@ -446,7 +408,6 @@ func (rest *RestOperations) DeletePoolIngressStatus(poolKey avicache.NamespaceNa
 					ServiceMetadata: pool_cache_obj.ServiceMetadataObj,
 					Key:             key,
 					VSName:          vsName,
-					Tenant:          pool_cache_obj.Tenant,
 				}
 				statusOption := status.StatusOptions{
 					ObjType: utils.L4LBService,
@@ -461,7 +422,6 @@ func (rest *RestOperations) DeletePoolIngressStatus(poolKey avicache.NamespaceNa
 					ServiceMetadata: pool_cache_obj.ServiceMetadataObj,
 					Key:             key,
 					VSName:          vsName,
-					Tenant:          pool_cache_obj.Tenant,
 				}
 				statusOption := status.StatusOptions{
 					ObjType: utils.Ingress,
@@ -476,8 +436,8 @@ func (rest *RestOperations) DeletePoolIngressStatus(poolKey avicache.NamespaceNa
 				if pool_cache_obj.ServiceMetadataObj.IsMCIIngress {
 					statusOption.ObjType = lib.MultiClusterIngress
 				}
-				utils.AviLog.Debugf("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.HostNames[0], utils.Stringify(statusOption))
-				status.PublishToStatusQueue(updateOptions.ServiceMetadata.HostNames[0], statusOption)
+				utils.AviLog.Debugf("key: %s Publishing to status queue, options: %v", updateOptions.ServiceMetadata.IngressName, utils.Stringify(statusOption))
+				status.PublishToStatusQueue(updateOptions.ServiceMetadata.IngressName, statusOption)
 			}
 		}
 	}

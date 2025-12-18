@@ -12,9 +12,6 @@ type PKIprofile struct {
 	// Read Only: true
 	LastModified *string `json:"_last_modified,omitempty"`
 
-	// Exempt errors during certificate verification. Enum options - ALLOW_EXPIRED_CRL, ALLOW_ALL_ERRORS. Field introduced in 30.1.1. Maximum of 1 items allowed. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	AllowPkiErrors []string `json:"allow_pki_errors,omitempty"`
-
 	// List of Certificate Authorities (Root and Intermediate) trusted that is used for certificate validation. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CaCerts []*SSLCertificate `json:"ca_certs,omitempty"`
 
@@ -27,10 +24,7 @@ type PKIprofile struct {
 	// When enabled, Avi will verify via CRL checks that certificates in the trust chain have not been revoked. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CrlCheck *bool `json:"crl_check,omitempty"`
 
-	// Refers to FileObject containing CRL body. It is a reference to an object of type FileObject. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	CrlFileRefs []string `json:"crl_file_refs,omitempty"`
-
-	// List of Certificate Revocation Lists.This field is now represented by a file via the fileobject semantics. Field deprecated in 30.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
+	// Certificate Revocation Lists. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Crls []*CRL `json:"crls,omitempty"`
 
 	// When enabled, Avi will not trust Intermediate and Root certs presented by a client.  Instead, only the chain certs configured in the Certificate Authority section will be used to verify trust of the client's cert. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- true), Basic edition(Allowed values- true), Enterprise with Cloud Services edition. Special default for Essentials edition is true, Basic edition is true, Enterprise is False.

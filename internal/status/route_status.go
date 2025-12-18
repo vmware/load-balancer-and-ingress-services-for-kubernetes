@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -21,8 +21,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
-	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
@@ -43,10 +41,6 @@ func ParseOptionsFromMetadata(options []UpdateOptions, bulk bool) ([]string, map
 	updateIngressOptions := make(map[string]UpdateOptions)
 
 	for _, option := range options {
-		if option.ServiceMetadata.InsecureEdgeTermAllow {
-			utils.AviLog.Infof("Skipping update of parent VS annotation since the route :%v has InsecureEdgeTerminationAllow set to true", option.ServiceMetadata.IngressName)
-			continue
-		}
 		if len(option.ServiceMetadata.NamespaceIngressName) > 0 {
 			// secure VSes, service metadata comes from SNI VS.
 			for _, ingressns := range option.ServiceMetadata.NamespaceIngressName {
@@ -149,10 +143,6 @@ func (l *leader) UpdateRouteStatus(options []UpdateOptions, bulk bool) {
 			if val, ok := skipDelete[routeNSName]; ok && val {
 				continue
 			}
-			if checkIfVsPresentInCache(route) {
-				utils.AviLog.Infof("key: %s, msg: Skipping status delete of route %s since vs is present in cache", lib.SyncStatusKey, routeNSName)
-				continue
-			}
 			l.DeleteRouteStatus([]UpdateOptions{{
 				ServiceMetadata: lib.ServiceMetadataObj{
 					NamespaceIngressName: []string{routeNSName},
@@ -180,8 +170,8 @@ func getRoutes(routeNSNames []string, bulk bool, retryNum ...int) map[string]*ro
 		routeList, err := utils.GetInformers().RouteInformer.Lister().List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Warnf("Could not get the route object for UpdateStatus: %s", err)
-			// retry get if request timeout or Unauthorized
-			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) || strings.Contains(err.Error(), utils.K8S_UNAUTHORIZED) {
+			// retry get if request timeout
+			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
 				return getRoutes(routeNSNames, bulk, retry+1)
 			}
 		}
@@ -202,11 +192,11 @@ func getRoutes(routeNSNames []string, bulk bool, retryNum ...int) map[string]*ro
 			continue
 		}
 
-		route, err := utils.GetInformers().OshiftClient.RouteV1().Routes(nsNameSplit[0]).Get(context.TODO(), nsNameSplit[1], metav1.GetOptions{})
+		route, err := utils.GetInformers().RouteInformer.Lister().Routes(nsNameSplit[0]).Get(nsNameSplit[1])
 		if err != nil {
 			utils.AviLog.Warnf("msg: Could not get the route object for UpdateStatus: %s", err)
-			// retry get if request timeout or Unauthorized
-			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) || strings.Contains(err.Error(), utils.K8S_UNAUTHORIZED) {
+			// retry get if request timeout
+			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
 				return getRoutes(routeNSNames, bulk, retry+1)
 			}
 			continue
@@ -243,13 +233,8 @@ func UpdateRouteStatusWithErrMsg(key, routeName, namespace, msg string, retryNum
 		Type:               routev1.RouteAdmitted,
 	}
 
-	routeHost := mRoute.Spec.Host
-	if routeHost == "" {
-		routeHost = lib.GetHostnameforSubdomain(mRoute.Spec.Subdomain)
-	}
-
 	rtIngress := routev1.RouteIngress{
-		Host:       routeHost,
+		Host:       mRoute.Spec.Host,
 		RouterName: lib.AKOUser,
 		Conditions: []routev1.RouteIngressCondition{
 			condition,
@@ -278,29 +263,6 @@ func UpdateRouteStatusWithErrMsg(key, routeName, namespace, msg string, retryNum
 	return
 }
 
-func routeVsUUIDStatus(key, hostname, namespace string, updateOption UpdateOptions) string {
-	vsAnnotations := make(map[string]string)
-	ctrlAnnotationValStr := avicache.GetControllerClusterUUID()
-	for i := 0; i < len(updateOption.ServiceMetadata.HostNames); i++ {
-		// only update for given hostname
-		if updateOption.ServiceMetadata.HostNames[i] == hostname {
-			vsAnnotations[hostname] = updateOption.VirtualServiceUUID
-		}
-	}
-	vsAnnotationsBytes, err := json.Marshal(vsAnnotations)
-	if err != nil {
-		utils.AviLog.Errorf("error in marshalling vs annotations: %v", err)
-		return ""
-	}
-	vsAnnotationsStrStr := string(vsAnnotationsBytes)
-	patchPayload := map[string]string{
-		lib.VSAnnotation:         vsAnnotationsStrStr,
-		lib.ControllerAnnotation: ctrlAnnotationValStr,
-		lib.TenantAnnotation:     updateOption.Tenant,
-	}
-	return utils.Stringify(patchPayload)
-}
-
 func routeStatusCheck(key string, oldStatus []routev1.RouteIngress, hostname string) bool {
 	for _, status := range oldStatus {
 		if len(status.Conditions) < 1 {
@@ -322,6 +284,10 @@ func routeStatusCheck(key string, oldStatus []routev1.RouteIngress, hostname str
 
 func updateRouteObject(mRoute *routev1.Route, updateOption UpdateOptions, retryNum ...int) error {
 	if len(updateOption.Vip) == 0 {
+		return nil
+	}
+	if updateOption.ServiceMetadata.InsecureEdgeTermAllow {
+		utils.AviLog.Infof("Skipping update of parent VS annotation since the route :%v has InsecureEdgeTerminationAllow set to true", mRoute.Name)
 		return nil
 	}
 
@@ -348,15 +314,11 @@ func updateRouteObject(mRoute *routev1.Route, updateOption UpdateOptions, retryN
 	for _, host := range hostnames {
 		now := metav1.Now()
 		for _, vip := range updateOption.Vip {
-			// In 1.12.1, populate both reason and annotation fields.
-			//So that during upgrade there will not be any issue of GSLB pools going down.
-			reason := routeVsUUIDStatus(key, host, mRoute.Namespace, updateOption)
 			condition := routev1.RouteIngressCondition{
 				Message:            vip,
 				Status:             corev1.ConditionTrue,
 				LastTransitionTime: &now,
 				Type:               routev1.RouteAdmitted,
-				Reason:             reason,
 			}
 			rtIngress := routev1.RouteIngress{
 				Host:       host,
@@ -370,12 +332,8 @@ func updateRouteObject(mRoute *routev1.Route, updateOption UpdateOptions, retryN
 	}
 
 	// remove the host from status which is not in spec
-	routeHost := mRoute.Spec.Host
-	if routeHost == "" {
-		routeHost = lib.GetHostnameforSubdomain(mRoute.Spec.Subdomain)
-	}
 	for i := len(mRoute.Status.Ingress) - 1; i >= 0; i-- {
-		if mRoute.Status.Ingress[i].RouterName == lib.AKOUser && routeHost != mRoute.Status.Ingress[i].Host {
+		if mRoute.Status.Ingress[i].RouterName == lib.AKOUser && mRoute.Spec.Host != mRoute.Status.Ingress[i].Host {
 			mRoute.Status.Ingress = append(mRoute.Status.Ingress[:i], mRoute.Status.Ingress[i+1:]...)
 		}
 	}
@@ -412,7 +370,7 @@ func updateRouteObject(mRoute *routev1.Route, updateOption UpdateOptions, retryN
 		utils.AviLog.Debugf("key: %s, msg: No changes detected in route status. old: %+v new: %+v",
 			key, oldRouteStatus.Ingress, mRoute.Status.Ingress)
 	}
-	err = updateRouteAnnotations(updatedRoute, updateOption, mRoute, key, routeHost)
+	err = updateRouteAnnotations(updatedRoute, updateOption, mRoute, key, mRoute.Spec.Host)
 
 	return err
 }
@@ -448,13 +406,11 @@ func updateRouteAnnotations(mRoute *routev1.Route, updateOption UpdateOptions, o
 			delete(vsAnnotations, k)
 		}
 	}
+
 	// compare the VirtualService annotations for this Route object
-	if req := isAnnotationsUpdateRequired(mRoute.Annotations, vsAnnotations, updateOption.Tenant, false); req {
-		if err := patchRouteAnnotations(mRoute, vsAnnotations, updateOption.Tenant); err != nil {
+	if req := isAnnotationsUpdateRequired(mRoute.Annotations, vsAnnotations); req {
+		if err := patchRouteAnnotations(mRoute, vsAnnotations); err != nil && k8serrors.IsNotFound(err) {
 			utils.AviLog.Errorf("key: %s, msg: error in updating the route annotations: %v", key, err)
-			if k8serrors.IsNotFound(err) {
-				return err
-			}
 			// fetch updated route and retry for updating annotations
 			mRoutes := getRoutes([]string{mRoute.Namespace + "/" + mRoute.Name}, false)
 			if len(mRoutes) > 0 {
@@ -471,8 +427,8 @@ func updateRouteAnnotations(mRoute *routev1.Route, updateOption UpdateOptions, o
 	return nil
 }
 
-func patchRouteAnnotations(mRoute *routev1.Route, vsAnnotations map[string]string, tenant string) error {
-	patchPayloadBytes, err := getAnnotationsPayload(vsAnnotations, tenant)
+func patchRouteAnnotations(mRoute *routev1.Route, vsAnnotations map[string]string) error {
+	patchPayloadBytes, err := getAnnotationsPayload(vsAnnotations, mRoute.GetAnnotations())
 	if err != nil {
 		return fmt.Errorf("error in generating payload for vs annotations %v: %v", vsAnnotations, err)
 	}
@@ -597,18 +553,13 @@ func deleteRouteObject(option UpdateOptions, key string, isVSDelete bool, retryN
 
 	utils.AviLog.Infof("key: %s, deleting hostnames %v from Route status %s/%s", key, option.ServiceMetadata.HostNames, option.ServiceMetadata.Namespace, option.ServiceMetadata.IngressName)
 	svcMdataHostname := option.ServiceMetadata.HostNames[0]
-	routeHost := mRoute.Spec.Host
-	if routeHost == "" {
-		routeHost = lib.GetHostnameforSubdomain(mRoute.Spec.Subdomain)
-	}
 	for i := len(mRoute.Status.Ingress) - 1; i >= 0; i-- {
 		if mRoute.Status.Ingress[i].Host != svcMdataHostname {
 			continue
 		}
 		// Check if this host is still present in the spec, if so - don't delete it
 		// NS migration case: if false -> ns invalid event happened so remove status
-		// Blocked namespace case: if namespace is in blockedNamespaceList, remove status
-		if mRoute.Status.Ingress[i].RouterName == lib.AKOUser && (routeHost != svcMdataHostname || isVSDelete || !utils.CheckIfNamespaceAccepted(option.ServiceMetadata.Namespace) || lib.IsNamespaceBlocked(option.ServiceMetadata.Namespace)) {
+		if mRoute.Status.Ingress[i].RouterName == lib.AKOUser && (mRoute.Spec.Host != svcMdataHostname || isVSDelete || !utils.CheckIfNamespaceAccepted(option.ServiceMetadata.Namespace)) {
 			mRoute.Status.Ingress = append(mRoute.Status.Ingress[:i], mRoute.Status.Ingress[i+1:]...)
 		} else {
 			utils.AviLog.Debugf("key: %s, msg: skipping status update since host is present in the route: %v", key, svcMdataHostname)
@@ -642,11 +593,11 @@ func deleteRouteObject(option UpdateOptions, key string, isVSDelete bool, retryN
 		}
 	}
 
-	return deleteRouteAnnotation(updatedRoute, option.ServiceMetadata, isVSDelete, routeHost, key, option.Tenant, mRoute)
+	return deleteRouteAnnotation(updatedRoute, option.ServiceMetadata, isVSDelete, mRoute.Spec.Host, key, mRoute)
 }
 
 func deleteRouteAnnotation(routeObj *routev1.Route, svcMeta lib.ServiceMetadataObj, isVSDelete bool,
-	routeHost string, key, tenant string, oldRoute *routev1.Route, retryNum ...int) error {
+	routeHost string, key string, oldRoute *routev1.Route, retryNum ...int) error {
 	if routeObj == nil {
 		routeObj = oldRoute
 	}
@@ -674,10 +625,8 @@ func deleteRouteAnnotation(routeObj *routev1.Route, svcMeta lib.ServiceMetadataO
 				// 1. this host is still present in the spec, if so - don't delete it from annotations
 				// 2. in case of NS migration, if NS is moved from selected to rejected, this host then
 				//    has to be removed from the annotations list.
-				// 3. if namespace is in blockedNamespaceList, remove annotations
 				nsMigrationFilterFlag := utils.CheckIfNamespaceAccepted(svcMeta.Namespace)
-				nsBlockedFlag := lib.IsNamespaceBlocked(svcMeta.Namespace)
-				if routeHost != host || isVSDelete || !nsMigrationFilterFlag || nsBlockedFlag {
+				if routeHost != host || isVSDelete || !nsMigrationFilterFlag {
 					delete(existingAnnotations, k)
 				} else {
 					utils.AviLog.Debugf("key: %s, msg: skipping annotation update since host is present in the route: %v", key, host)
@@ -685,76 +634,16 @@ func deleteRouteAnnotation(routeObj *routev1.Route, svcMeta lib.ServiceMetadataO
 			}
 		}
 	}
-	if isAnnotationsUpdateRequired(routeObj.Annotations, existingAnnotations, tenant, isVSDelete) {
-		if err := patchRouteAnnotations(routeObj, existingAnnotations, tenant); err != nil && k8serrors.IsNotFound(err) {
+
+	if isAnnotationsUpdateRequired(routeObj.Annotations, existingAnnotations) {
+		if err := patchRouteAnnotations(routeObj, existingAnnotations); err != nil && k8serrors.IsNotFound(err) {
 			utils.AviLog.Errorf("key: %s, msg: error in updating route annotations: %v, will retry", err)
-			return deleteRouteAnnotation(routeObj, svcMeta, isVSDelete, routeHost, key, tenant, oldRoute, retry+1)
+			return deleteRouteAnnotation(routeObj, svcMeta, isVSDelete, routeHost, key, oldRoute, retry+1)
 		}
 		utils.AviLog.Debugf("key: %s, msg: annotations updated for route", key)
 	}
 
 	return nil
-}
-
-func checkIfVsPresentInCache(route *routev1.Route) bool {
-	hostname := route.Spec.Host
-	if hostname == "" {
-		hostname = lib.GetHostnameforSubdomain(route.Spec.Subdomain)
-	}
-
-	for _, ingress := range route.Status.Ingress {
-		if ingress.Host != hostname {
-			continue
-		}
-
-		if ingress.RouterName != lib.AKOUser {
-			utils.AviLog.Debugf("Skipping non-AKO managed ingress for host %s in route %s/%s", ingress.Host, route.Namespace, route.Name)
-			continue
-		}
-
-		if len(ingress.Conditions) == 0 {
-			utils.AviLog.Debugf("No conditions found for ingress %s in route %s/%s", ingress.Host, route.Namespace, route.Name)
-			continue
-		}
-
-		if ingress.Conditions[0].Reason == "" {
-			utils.AviLog.Debugf("Empty reason field found for ingress %s in route %s/%s", ingress.Host, route.Namespace, route.Name)
-			continue
-		}
-
-		var akoVSControllerUUID map[string]string
-		err := json.Unmarshal([]byte(ingress.Conditions[0].Reason), &akoVSControllerUUID)
-		if err != nil {
-			utils.AviLog.Debugf("Error unmarshalling Status reason for ingress %s in route %s/%s: %v", ingress.Host, route.Namespace, route.Name, err)
-			continue
-		}
-
-		vsUUIDStr, exists := akoVSControllerUUID[lib.VSAnnotation]
-		if !exists {
-			utils.AviLog.Debugf("No VS UUID found in status reason for ingress %s in route %s/%s: %v", ingress.Host, route.Namespace, route.Name, akoVSControllerUUID)
-			continue
-		}
-
-		var vsUUIDs map[string]string
-		if err := json.Unmarshal([]byte(vsUUIDStr), &vsUUIDs); err != nil {
-			utils.AviLog.Debugf("Error in unmarshalling VS UUID for ingress %s in route %s/%s : %v", ingress.Host, route.Namespace, route.Name, err)
-			continue
-		}
-
-		vsUUID, exists := vsUUIDs[hostname]
-		if !exists {
-			utils.AviLog.Debugf("No vsUUID found for host %s in  vsUUIDs: %v", hostname, vsUUIDs)
-			continue
-		}
-
-		_, exists = cache.SharedAviObjCache().VsCacheMeta.AviCacheGetKeyByUuid(vsUUID)
-		if exists {
-			return true
-		}
-		utils.AviLog.Debugf("No entry found in cache for vs uuid %s for host %s in route %s/%s", vsUUID, hostname, route.Namespace, route.Name)
-	}
-
-	return false
 }
 
 func (f *follower) UpdateRouteStatus(options []UpdateOptions, bulk bool) {

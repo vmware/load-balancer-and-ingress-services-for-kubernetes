@@ -18,23 +18,20 @@ type BackupConfiguration struct {
 	// AWS bucket. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	AwsBucketID *string `json:"aws_bucket_id,omitempty"`
 
-	// The name of the AWS region associated with the bucket. Field introduced in 21.1.5, 22.1.1, 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	AwsBucketRegion *string `json:"aws_bucket_region,omitempty"`
-
 	// AWS Secret Access Key. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	AwsSecretAccess *string `json:"aws_secret_access,omitempty"`
 
 	// Prefix of the exported configuration file. Field introduced in 17.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	BackupFilePrefix *string `json:"backup_file_prefix,omitempty"`
 
-	// Default passphrase to encrypt sensitive fields for configuration export and periodic backup. The same passphrase must be provided to import the configuration. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
+	// Default passphrase for configuration export and periodic backup. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	BackupPassphrase *string `json:"backup_passphrase,omitempty"`
 
 	// Protobuf versioning for config pbs. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
 	ConfigpbAttributes *ConfigPbAttributes `json:"configpb_attributes,omitempty"`
 
 	// Rotate the backup files based on this count. Allowed values are 1-20. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MaximumBackupsStored *uint32 `json:"maximum_backups_stored,omitempty"`
+	MaximumBackupsStored *int32 `json:"maximum_backups_stored,omitempty"`
 
 	// Name of backup configuration. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
@@ -48,9 +45,6 @@ type BackupConfiguration struct {
 
 	// Remote Destination. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	RemoteHostname *string `json:"remote_hostname,omitempty"`
-
-	// The folder name in s3 bucket where backup will be stored. Field introduced in 30.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	S3BucketFolder *string `json:"s3_bucket_folder,omitempty"`
 
 	// Local Backup. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SaveLocal *bool `json:"save_local,omitempty"`

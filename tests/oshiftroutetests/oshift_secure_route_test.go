@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -16,12 +16,10 @@ package oshiftroutetests
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
@@ -224,8 +222,8 @@ func TestSecureRouteMultiNamespace(t *testing.T) {
 	AddLabelToNamespace(defaultKey, defaultValue, "test", defaultModelName, t)
 	defer integrationtest.DeleteNamespace("test")
 
-	integrationtest.CreateSVC(t, "test", "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPS(t, "test", "avisvc", false, false, "1.1.1")
+	integrationtest.CreateSVC(t, "test", "avisvc", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEP(t, "test", "avisvc", false, false, "1.1.1")
 	route2 := FakeRoute{Namespace: "test", Path: "/bar"}.SecureRoute()
 	_, err = OshiftClient.RouteV1().Routes("test").Create(context.TODO(), route2, metav1.CreateOptions{})
 	if err != nil {
@@ -243,7 +241,7 @@ func TestSecureRouteMultiNamespace(t *testing.T) {
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
 	TearDownTestForRoute(t, defaultModelName)
 	integrationtest.DelSVC(t, "test", "avisvc")
-	integrationtest.DelEPS(t, "test", "avisvc")
+	integrationtest.DelEP(t, "test", "avisvc")
 }
 
 func TestMultiSecureRouteSameNamespace(t *testing.T) {
@@ -292,8 +290,8 @@ func TestMultiSecureRouteSameNamespace(t *testing.T) {
 func TestSecureRouteAlternateBackend(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, defaultModelName)
-	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPS(t, "default", "absvc2", false, false, "3.3.3")
+	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEP(t, "default", "absvc2", false, false, "3.3.3")
 	routeExample := FakeRoute{Path: "/foo"}.SecureABRoute()
 	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
@@ -326,9 +324,9 @@ func TestSecureRouteAlternateBackend(t *testing.T) {
 	}
 	for _, pgmember := range sniVS.PoolGroupRefs[0].Members {
 		if *pgmember.PoolRef == "/api/pool?name=cluster--default-foo.com_foo-foo-avisvc" {
-			g.Expect(*pgmember.Ratio).To(gomega.Equal(uint32(100)))
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(100)))
 		} else if *pgmember.PoolRef == "/api/pool?name=cluster--default-foo.com_foo-foo-absvc2" {
-			g.Expect(*pgmember.Ratio).To(gomega.Equal(uint32(200)))
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(200)))
 		} else {
 			t.Fatalf("Unexpected pg member: %s", *pgmember.PoolRef)
 		}
@@ -337,14 +335,14 @@ func TestSecureRouteAlternateBackend(t *testing.T) {
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
 	TearDownTestForRoute(t, defaultModelName)
 	integrationtest.DelSVC(t, "default", "absvc2")
-	integrationtest.DelEPS(t, "default", "absvc2")
+	integrationtest.DelEP(t, "default", "absvc2")
 }
 
 func TestSecureRouteAlternateBackendUpdateRatio(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, defaultModelName)
-	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPS(t, "default", "absvc2", false, false, "3.3.3")
+	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEP(t, "default", "absvc2", false, false, "3.3.3")
 	routeExample := FakeRoute{Path: "/foo"}.SecureABRoute()
 	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
@@ -381,9 +379,9 @@ func TestSecureRouteAlternateBackendUpdateRatio(t *testing.T) {
 	}
 	for _, pgmember := range sniVS.PoolGroupRefs[0].Members {
 		if *pgmember.PoolRef == "/api/pool?name=cluster--default-foo.com_foo-foo-avisvc" {
-			g.Expect(*pgmember.Ratio).To(gomega.Equal(uint32(100)))
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(100)))
 		} else if *pgmember.PoolRef == "/api/pool?name=cluster--default-foo.com_foo-foo-absvc2" {
-			g.Expect(*pgmember.Ratio).To(gomega.Equal(uint32(150)))
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(150)))
 		} else {
 			t.Fatalf("Unexpected pg member: %s", *pgmember.PoolRef)
 		}
@@ -392,14 +390,14 @@ func TestSecureRouteAlternateBackendUpdateRatio(t *testing.T) {
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
 	TearDownTestForRoute(t, defaultModelName)
 	integrationtest.DelSVC(t, "default", "absvc2")
-	integrationtest.DelEPS(t, "default", "absvc2")
+	integrationtest.DelEP(t, "default", "absvc2")
 }
 
 func TestSecureRouteAlternateBackendUpdatePath(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, defaultModelName)
-	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPS(t, "default", "absvc2", false, false, "3.3.3")
+	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEP(t, "default", "absvc2", false, false, "3.3.3")
 	routeExample := FakeRoute{Path: "/foo"}.SecureABRoute()
 	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
@@ -436,9 +434,9 @@ func TestSecureRouteAlternateBackendUpdatePath(t *testing.T) {
 	}
 	for _, pgmember := range sniVS.PoolGroupRefs[0].Members {
 		if *pgmember.PoolRef == "/api/pool?name=cluster--default-foo.com_bar-foo-avisvc" {
-			g.Expect(*pgmember.Ratio).To(gomega.Equal(uint32(100)))
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(100)))
 		} else if *pgmember.PoolRef == "/api/pool?name=cluster--default-foo.com_bar-foo-absvc2" {
-			g.Expect(*pgmember.Ratio).To(gomega.Equal(uint32(200)))
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(200)))
 		} else {
 			t.Fatalf("Unexpected pg member: %s", *pgmember.PoolRef)
 		}
@@ -447,14 +445,14 @@ func TestSecureRouteAlternateBackendUpdatePath(t *testing.T) {
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
 	TearDownTestForRoute(t, defaultModelName)
 	integrationtest.DelSVC(t, "default", "absvc2")
-	integrationtest.DelEPS(t, "default", "absvc2")
+	integrationtest.DelEP(t, "default", "absvc2")
 }
 
 func TestSecureRouteRemoveAlternateBackend(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, defaultModelName)
-	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPS(t, "default", "absvc2", false, false, "3.3.3")
+	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEP(t, "default", "absvc2", false, false, "3.3.3")
 	routeExample := FakeRoute{Path: "/foo"}.SecureABRoute()
 	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
@@ -491,7 +489,7 @@ func TestSecureRouteRemoveAlternateBackend(t *testing.T) {
 	}
 	for _, pgmember := range sniVS.PoolGroupRefs[0].Members {
 		if *pgmember.PoolRef == "/api/pool?name=cluster--default-foo.com_foo-foo-avisvc" {
-			g.Expect(*pgmember.Ratio).To(gomega.Equal(uint32(100)))
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(100)))
 		} else {
 			t.Fatalf("Unexpected pg member: %s", *pgmember.PoolRef)
 		}
@@ -500,7 +498,7 @@ func TestSecureRouteRemoveAlternateBackend(t *testing.T) {
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
 	TearDownTestForRoute(t, defaultModelName)
 	integrationtest.DelSVC(t, "default", "absvc2")
-	integrationtest.DelEPS(t, "default", "absvc2")
+	integrationtest.DelEP(t, "default", "absvc2")
 }
 
 func TestSecureRouteInsecureRedirect(t *testing.T) {
@@ -731,8 +729,8 @@ func TestSecureRouteInsecureRedirectMultiNamespace(t *testing.T) {
 	AddLabelToNamespace(defaultKey, defaultValue, "test", defaultModelName, t)
 	defer integrationtest.DeleteNamespace("test")
 
-	integrationtest.CreateSVC(t, "test", "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPS(t, "test", "avisvc", false, false, "1.1.1")
+	integrationtest.CreateSVC(t, "test", "avisvc", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEP(t, "test", "avisvc", false, false, "1.1.1")
 	route2 := FakeRoute{Namespace: "test", Path: "/bar"}.SecureRoute()
 	route2.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyRedirect
 	_, err = OshiftClient.RouteV1().Routes("test").Create(context.TODO(), route2, metav1.CreateOptions{})
@@ -751,7 +749,7 @@ func TestSecureRouteInsecureRedirectMultiNamespace(t *testing.T) {
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
 	TearDownTestForRoute(t, defaultModelName)
 	integrationtest.DelSVC(t, "test", "avisvc")
-	integrationtest.DelEPS(t, "test", "avisvc")
+	integrationtest.DelEP(t, "test", "avisvc")
 }
 
 func TestSecureRouteInsecureAllowMultiNamespace(t *testing.T) {
@@ -768,8 +766,8 @@ func TestSecureRouteInsecureAllowMultiNamespace(t *testing.T) {
 	AddLabelToNamespace(defaultKey, defaultValue, "test", defaultModelName, t)
 	defer integrationtest.DeleteNamespace("test")
 
-	integrationtest.CreateSVC(t, "test", "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPS(t, "test", "avisvc", false, false, "1.1.1")
+	integrationtest.CreateSVC(t, "test", "avisvc", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEP(t, "test", "avisvc", false, false, "1.1.1")
 	route2 := FakeRoute{Namespace: "test", Path: "/bar"}.SecureRoute()
 	route2.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyAllow
 	_, err = OshiftClient.RouteV1().Routes("test").Create(context.TODO(), route2, metav1.CreateOptions{})
@@ -814,7 +812,7 @@ func TestSecureRouteInsecureAllowMultiNamespace(t *testing.T) {
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
 	TearDownTestForRoute(t, defaultModelName)
 	integrationtest.DelSVC(t, "test", "avisvc")
-	integrationtest.DelEPS(t, "test", "avisvc")
+	integrationtest.DelEP(t, "test", "avisvc")
 }
 
 func TestReencryptRoute(t *testing.T) {
@@ -838,7 +836,7 @@ func TestReencryptRoute(t *testing.T) {
 	VerifySniNode(g, sniVS)
 
 	g.Expect(sniVS.PoolRefs[0].SniEnabled).To(gomega.Equal(true))
-	g.Expect(*sniVS.PoolRefs[0].SslProfileRef).To(gomega.Equal("/api/sslprofile?name=System-Standard"))
+	g.Expect(sniVS.PoolRefs[0].SslProfileRef).To(gomega.Equal("/api/sslprofile?name=System-Standard"))
 
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
 	TearDownTestForRoute(t, defaultModelName)
@@ -881,8 +879,8 @@ func TestRemoveReencryptRoute(t *testing.T) {
 func TestRencryptRouteAlternateBackend(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, defaultModelName)
-	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPS(t, "default", "absvc2", false, false, "3.3.3")
+	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEP(t, "default", "absvc2", false, false, "3.3.3")
 	routeExample := FakeRoute{Path: "/foo"}.SecureABRoute()
 	routeExample.Spec.TLS.Termination = routev1.TLSTerminationReencrypt
 	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
@@ -912,15 +910,15 @@ func TestRencryptRouteAlternateBackend(t *testing.T) {
 			g.Eventually(func() bool {
 				return pool.SniEnabled
 			}, 60*time.Second).Should(gomega.Equal(true))
-			g.Expect(*pool.SslProfileRef).To(gomega.Equal("/api/sslprofile?name=System-Standard"))
+			g.Expect(pool.SslProfileRef).To(gomega.Equal("/api/sslprofile?name=System-Standard"))
 		}
 		g.Expect(pool.Servers).To(gomega.HaveLen(1))
 	}
 	for _, pgmember := range sniVS.PoolGroupRefs[0].Members {
 		if *pgmember.PoolRef == "/api/pool?name=cluster--default-foo.com_foo-foo-avisvc" {
-			g.Expect(*pgmember.Ratio).To(gomega.Equal(uint32(100)))
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(100)))
 		} else if *pgmember.PoolRef == "/api/pool?name=cluster--default-foo.com_foo-foo-absvc2" {
-			g.Expect(*pgmember.Ratio).To(gomega.Equal(uint32(200)))
+			g.Expect(*pgmember.Ratio).To(gomega.Equal(int32(200)))
 		} else {
 			t.Fatalf("Unexpected pg member: %s", *pgmember.PoolRef)
 		}
@@ -929,7 +927,7 @@ func TestRencryptRouteAlternateBackend(t *testing.T) {
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
 	TearDownTestForRoute(t, defaultModelName)
 	integrationtest.DelSVC(t, "default", "absvc2")
-	integrationtest.DelEPS(t, "default", "absvc2")
+	integrationtest.DelEP(t, "default", "absvc2")
 }
 
 func TestSecureOshiftNamingConvention(t *testing.T) {
@@ -988,7 +986,7 @@ func TestReencryptRouteWithDestinationCA(t *testing.T) {
 		return sniVS.PoolRefs[0].SniEnabled
 	}, 60*time.Second).Should(gomega.Equal(true))
 
-	g.Expect(*sniVS.PoolRefs[0].SslProfileRef).To(gomega.Equal("/api/sslprofile?name=System-Standard"))
+	g.Expect(sniVS.PoolRefs[0].SslProfileRef).To(gomega.Equal("/api/sslprofile?name=System-Standard"))
 	g.Expect(sniVS.PoolRefs[0].PkiProfile.Name).To(gomega.Equal("cluster--default-foo.com_foo-foo-avisvc-pkiprofile"))
 
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
@@ -1025,7 +1023,7 @@ func TestReencryptRouteRemoveDestinationCA(t *testing.T) {
 	g.Eventually(func() bool {
 		return sniVS.PoolRefs[0].SniEnabled
 	}, 60*time.Second).Should(gomega.Equal(true))
-	g.Expect(*sniVS.PoolRefs[0].SslProfileRef).To(gomega.Equal("/api/sslprofile?name=System-Standard"))
+	g.Expect(sniVS.PoolRefs[0].SslProfileRef).To(gomega.Equal("/api/sslprofile?name=System-Standard"))
 
 	var nilPki *avinodes.AviPkiProfileNode
 	g.Eventually(func() *avinodes.AviPkiProfileNode {
@@ -1044,7 +1042,7 @@ func TestAddPathSecureRouteNoKeyCert(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
-	integrationtest.AddSecret(integrationtest.DefaultRouteCert, utils.GetAKONamespace(), "tlsCert", "tlsKey")
+	integrationtest.AddSecret("router-certs-default", utils.GetAKONamespace(), "tlsCert", "tlsKey")
 
 	aviModel := ValidateSniModel(t, g, defaultModelName)
 
@@ -1056,7 +1054,7 @@ func TestAddPathSecureRouteNoKeyCert(t *testing.T) {
 	}, 20*time.Second).Should(gomega.Equal(defaultHostname))
 	VerifySniNodeNoCA(g, sniVS)
 
-	KubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Delete(context.TODO(), integrationtest.DefaultRouteCert, metav1.DeleteOptions{})
+	KubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Delete(context.TODO(), "router-certs-default", metav1.DeleteOptions{})
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
 	TearDownTestForRoute(t, defaultModelName)
 }
@@ -1069,7 +1067,7 @@ func TestUpdatePathSecureRouteNoKeyCert(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error in adding route: %v", err)
 	}
-	integrationtest.AddSecret(integrationtest.DefaultRouteCert, utils.GetAKONamespace(), "tlsCert", "tlsKey")
+	integrationtest.AddSecret("router-certs-default", utils.GetAKONamespace(), "tlsCert", "tlsKey")
 
 	routeExample = FakeRoute{Path: "/bar"}.SecureRoute()
 	routeExample.ObjectMeta.ResourceVersion = "2"
@@ -1088,7 +1086,7 @@ func TestUpdatePathSecureRouteNoKeyCert(t *testing.T) {
 	}, 20*time.Second).Should(gomega.Equal(defaultHostname))
 	VerifySniNodeNoCA(g, sniVS)
 
-	KubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Delete(context.TODO(), integrationtest.DefaultRouteCert, metav1.DeleteOptions{})
+	KubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Delete(context.TODO(), "router-certs-default", metav1.DeleteOptions{})
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
 	TearDownTestForRoute(t, defaultModelName)
 }
@@ -1096,7 +1094,7 @@ func TestUpdatePathSecureRouteNoKeyCert(t *testing.T) {
 func TestUpdateSecureRouteToNoKeyCert(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, defaultModelName)
-	integrationtest.AddSecret(integrationtest.DefaultRouteCert, utils.GetAKONamespace(), "tlsCert", "tlsKey")
+	integrationtest.AddSecret("router-certs-default", utils.GetAKONamespace(), "tlsCert", "tlsKey")
 	routeExample := FakeRoute{Path: "/foo"}.SecureRoute()
 	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
@@ -1125,7 +1123,7 @@ func TestUpdateSecureRouteToNoKeyCert(t *testing.T) {
 	}, 20*time.Second).Should(gomega.Equal(defaultHostname))
 	VerifySniNodeNoCA(g, sniVS)
 
-	KubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Delete(context.TODO(), integrationtest.DefaultRouteCert, metav1.DeleteOptions{})
+	KubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Delete(context.TODO(), "router-certs-default", metav1.DeleteOptions{})
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
 	TearDownTestForRoute(t, defaultModelName)
 }
@@ -1133,7 +1131,7 @@ func TestUpdateSecureRouteToNoKeyCert(t *testing.T) {
 func TestUpdateSecureRouteNoKeyCertToKeyCert(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, defaultModelName)
-	integrationtest.AddSecret(integrationtest.DefaultRouteCert, utils.GetAKONamespace(), "tlsCert", "tlsKey")
+	integrationtest.AddSecret("router-certs-default", utils.GetAKONamespace(), "tlsCert", "tlsKey")
 	routeExample := FakeRoute{Path: "/foo"}.SecureRouteNoCertKey()
 	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
 	if err != nil {
@@ -1162,93 +1160,7 @@ func TestUpdateSecureRouteNoKeyCertToKeyCert(t *testing.T) {
 	}, 20*time.Second).Should(gomega.Equal(defaultHostname))
 	VerifySniNodeNoCA(g, sniVS)
 
-	KubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Delete(context.TODO(), integrationtest.DefaultRouteCert, metav1.DeleteOptions{})
-	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
-	TearDownTestForRoute(t, defaultModelName)
-}
-
-func TestSecureRouteMultiNamespaceWithStrictRestrictFqdn(t *testing.T) {
-	g := gomega.NewGomegaWithT(t)
-	lib.AKOControlConfig().SetAKOFQDNReusePolicy("strict")
-	integrationtest.DeleteNamespace("test")
-	SetUpTestForRoute(t, defaultModelName)
-	route1 := FakeRoute{Path: "/foo"}.SecureRoute()
-	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), route1, metav1.CreateOptions{})
-	if err != nil {
-		t.Fatalf("error in adding route: %v", err)
-	}
-	defer integrationtest.DeleteNamespace("test")
-
-	integrationtest.CreateSVC(t, "test", "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPS(t, "test", "avisvc", false, false, "1.1.1")
-	route2 := FakeRoute{Namespace: "test", Path: "/bar"}.SecureRoute()
-	_, err = OshiftClient.RouteV1().Routes("test").Create(context.TODO(), route2, metav1.CreateOptions{})
-	if err != nil {
-		t.Fatalf("error in adding route: %v", err)
-	}
-
-	aviModel := ValidateSniModel(t, g, defaultModelName)
-
-	g.Expect(aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes).To(gomega.HaveLen(1))
-	sniVS := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
-	g.Eventually(func() string {
-		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
-		return sniVS.VHDomainNames[0]
-	}, 40*time.Second).Should(gomega.Equal(defaultHostname))
-
-	g.Expect(sniVS.CACertRefs).To(gomega.HaveLen(1))
-	g.Expect(sniVS.SSLKeyCertRefs).To(gomega.HaveLen(1))
-
-	g.Eventually(func() int {
-		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
-		return len(sniVS.PoolRefs)
-	}, 40*time.Second).Should(gomega.Equal(1))
-	g.Expect(sniVS.HttpPolicyRefs).To(gomega.HaveLen(1))
-	g.Expect(sniVS.HttpPolicyRefs[0].HppMap).To(gomega.HaveLen(1))
-	g.Expect(sniVS.PoolGroupRefs).To(gomega.HaveLen(1))
-
-	for _, pool := range sniVS.PoolRefs {
-		if pool.Name != "cluster--default-foo.com_foo-foo-avisvc" {
-			t.Fatalf("Unexpected poolName found: %s", pool.Name)
-		}
-	}
-	for _, httpps := range sniVS.HttpPolicyRefs {
-		if httpps.Name != "cluster--default-foo.com" {
-			t.Fatalf("Unexpected http policyset found: %s", httpps.Name)
-		}
-	}
-
-	err = OshiftClient.RouteV1().Routes("test").Delete(context.TODO(), defaultRouteName, metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("Couldn't DELETE the route %v", err)
-	}
-	lib.AKOControlConfig().SetAKOFQDNReusePolicy("internamespaceallowed")
-	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
-	TearDownTestForRoute(t, defaultModelName)
-	integrationtest.DelSVC(t, "test", "avisvc")
-	integrationtest.DelEPS(t, "test", "avisvc")
-}
-
-func TestSecureRouteWithSubdomainNoHost(t *testing.T) {
-	g := gomega.NewGomegaWithT(t)
-	SetUpTestForRoute(t, defaultModelName)
-	routeExample := FakeRoute{Path: "/foo"}.SecureRouteWithSubdomainNoHost()
-	_, err := OshiftClient.RouteV1().Routes(defaultNamespace).Create(context.TODO(), routeExample, metav1.CreateOptions{})
-	if err != nil {
-		t.Fatalf("error in adding route: %v", err)
-	}
-
-	aviModel := ValidateSniModel(t, g, defaultModelName)
-
-	g.Expect(aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes).To(gomega.HaveLen(1))
-	sniVS := aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
-	fqdnFromSubdomain := defaultSubdomain + "." + os.Getenv("DEFAULT_DOMAIN")
-	g.Eventually(func() string {
-		sniVS = aviModel.(*avinodes.AviObjectGraph).GetAviVS()[0].SniNodes[0]
-		return sniVS.VHDomainNames[0]
-	}, 20*time.Second).Should(gomega.Equal(fqdnFromSubdomain))
-	VerifySniNode(g, sniVS)
-
+	KubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Delete(context.TODO(), "router-certs-default", metav1.DeleteOptions{})
 	VerifySecureRouteDeletion(t, g, defaultModelName, 0, 0)
 	TearDownTestForRoute(t, defaultModelName)
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2021 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -21,19 +21,20 @@ import (
 	"sync"
 	"time"
 
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/addon"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/avirest"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/proxy"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/webhook"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
-	"github.com/vmware/alb-sdk/go/clients"
-	"github.com/vmware/alb-sdk/go/session"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -42,13 +43,20 @@ var ctrlonce sync.Once
 var tzonce sync.Once
 var transportZone string
 
+var WorkloadNamespaceCount int = 0
+var countLock sync.RWMutex
+
 type VCFK8sController struct {
 	worker_id        uint32
 	informers        *utils.Informers
 	dynamicInformers *lib.DynamicInformers
 	//workqueue        []workqueue.RateLimitingInterface
 	DisableSync bool
-	NetHandler  avirest.NetworkingHandler
+}
+
+type K8sinformers struct {
+	Cs            kubernetes.Interface
+	DynamicClient dynamic.Interface
 }
 
 func SharedVCFK8sController() *VCFK8sController {
@@ -63,18 +71,33 @@ func SharedVCFK8sController() *VCFK8sController {
 	return controllerInstance
 }
 
+// Run will set up the event handlers for types we are interested in, as well
+// as syncing informer caches and starting workers. It will block until stopCh
+// is closed, at which point it will shutdown the workqueue and wait for
+// workers to finish processing their current work items.
+func (c *VCFK8sController) Run(stopCh <-chan struct{}) error {
+	defer runtime.HandleCrash()
+
+	utils.AviLog.Info("Started the Kubernetes Controller")
+	<-stopCh
+	utils.AviLog.Info("Shutting down the Kubernetes Controller")
+	return nil
+}
+
 func (c *VCFK8sController) AddNamespaceEventHandler(stopCh <-chan struct{}) {
+	// Saves the initial workload namespace count during reboot,
+	// before the config handlers are started.
+	if err := c.addWorkloadNamespaceCount(); err != nil {
+		utils.AviLog.Fatalf("Unable to list Namespaces: %s", err.Error())
+	}
+
 	namespaceHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			utils.AviLog.Infof("Namespace ADD Event")
-			proxy.HandleNamespaceGrantAdd(obj)
+			c.handleNamespaceAdd()
 		},
 		UpdateFunc: func(old, obj interface{}) {
-			utils.AviLog.Info("Namespace Update Event")
-			if lib.GetVPCMode() {
-				avirest.ScheduleQuickSync()
-			}
-			proxy.HandleNamespaceGrantUpdate(old, obj)
+			utils.AviLog.Infof("Namespace Update Event")
 		},
 		DeleteFunc: func(obj interface{}) {
 			utils.AviLog.Infof("Namespace Delete Event")
@@ -87,7 +110,7 @@ func (c *VCFK8sController) AddNamespaceEventHandler(stopCh <-chan struct{}) {
 					return
 				}
 			}
-			proxy.HandleNamespaceGrantDelete(obj)
+			c.handleNamespaceDelete()
 		},
 	}
 	c.informers.NSInformer.Informer().AddEventHandler(namespaceHandler)
@@ -96,8 +119,89 @@ func (c *VCFK8sController) AddNamespaceEventHandler(stopCh <-chan struct{}) {
 	if !cache.WaitForCacheSync(stopCh, c.informers.NSInformer.Informer().HasSynced) {
 		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
 	} else {
-		utils.AviLog.Infof("Caches synced for Namespace informer")
+		utils.AviLog.Info("Caches synced for Namespace informer")
 	}
+}
+
+func (c *VCFK8sController) addWorkloadNamespaceCount() error {
+	clientSet := c.informers.ClientSet
+	nsList, err := clientSet.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	count := 0
+	for _, ns := range nsList.Items {
+		if _, ok := ns.Labels[VSphereClusterIDLabelKey]; ok {
+			count += 1
+		}
+	}
+	WorkloadNamespaceCount = count
+	utils.AviLog.Infof("Initial number of workload namespaces: %d", WorkloadNamespaceCount)
+	return nil
+}
+
+func (c *VCFK8sController) handleNamespaceAdd() {
+	countLock.Lock()
+	defer countLock.Unlock()
+	count, err := c.getWorkloadNamespaceCount()
+	if err != nil {
+		return
+	}
+
+	// Only when before the addition, the count was 0, (and now it becomes more than 0),
+	// we must reconfigure the SEG, by rebooting AKO. On reboot AKO ensures SEG configuration.
+	if WorkloadNamespaceCount == 0 && count > 0 {
+		utils.AviLog.Fatalf("First Workload Namespace added in cluster. Rebooting AKO for infra configuration.")
+	}
+	WorkloadNamespaceCount = count
+}
+
+func (c *VCFK8sController) handleNamespaceDelete() {
+	countLock.Lock()
+	count, err := c.getWorkloadNamespaceCount()
+	if err != nil {
+		countLock.Unlock()
+		return
+	}
+
+	WorkloadNamespaceCount = count
+	if count > 0 {
+		utils.AviLog.Infof("%d Workload Namespace exist in the cluster. Skipping deconfiguration.", count)
+		countLock.Unlock()
+		return
+	}
+	countLock.Unlock()
+
+	utils.AviLog.Infof("No Workload Namespace exist, proceeding with Avi infra deconfiguraiton.")
+
+	// Fetch all service engines and delete them.
+	if err := avirest.DeleteServiceEngines(); err != nil {
+		utils.AviLog.Errorf("Unable to remove SEs %s", err.Error())
+		return
+	}
+
+	// Delete service engine group.
+	if err := avirest.DeleteServiceEngineGroup(); err != nil {
+		utils.AviLog.Errorf("Unable to remove SEG %s", err.Error())
+		return
+	}
+}
+
+// Gets number of only the Workload Namespaces. Only the Workload Namespaces
+// have the label with key vSphereClusterID in them, which is how we differentiate.
+func (c *VCFK8sController) getWorkloadNamespaceCount() (int, error) {
+	nsList, err := c.informers.NSInformer.Lister().List(labels.Set(nil).AsSelector())
+	if err != nil {
+		utils.AviLog.Error(nil, err.Error())
+		return 0, err
+	}
+	count := 0
+	for _, ns := range nsList {
+		if _, ok := ns.Labels[VSphereClusterIDLabelKey]; ok {
+			count += 1
+		}
+	}
+	return count, nil
 }
 
 func (c *VCFK8sController) AddConfigMapEventHandler(stopCh <-chan struct{}, startSyncCh chan struct{}) {
@@ -123,18 +227,18 @@ func (c *VCFK8sController) AddConfigMapEventHandler(stopCh <-chan struct{}, star
 	if !cache.WaitForCacheSync(stopCh, c.informers.ConfigMapInformer.Informer().HasSynced) {
 		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
 	} else {
-		utils.AviLog.Infof("Caches synced for ConfigMap informer")
+		utils.AviLog.Info("Caches synced for ConfigMap informer")
 	}
 }
 
 func (c *VCFK8sController) AddAvailabilityZoneCREventHandler(stopCh <-chan struct{}) {
 	azEventHandler := cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			utils.AviLog.Infof("Availability Zone ADD Event")
+			utils.AviLog.Info("Availability Zone ADD Event")
 			updateSEGroup()
 		},
 		DeleteFunc: func(obj interface{}) {
-			utils.AviLog.Infof("Availability Zone DELETE Event")
+			utils.AviLog.Info("Availability Zone DELETE Event")
 			updateSEGroup()
 		},
 	}
@@ -143,131 +247,50 @@ func (c *VCFK8sController) AddAvailabilityZoneCREventHandler(stopCh <-chan struc
 	if !cache.WaitForCacheSync(stopCh, c.dynamicInformers.AvailabilityZoneInformer.Informer().HasSynced) {
 		runtime.HandleError(fmt.Errorf("timed out waiting for availability zones caches to sync"))
 	} else {
-		utils.AviLog.Infof("Caches synced for availability zone informer")
+		utils.AviLog.Info("Caches synced for availability zone informer")
 	}
 }
 
 func (c *VCFK8sController) AddNetworkInfoEventHandler(stopCh <-chan struct{}) {
-	c.NetHandler.AddNetworkInfoEventHandler(stopCh)
-}
-
-func (c *VCFK8sController) AddVKSCapabilityEventHandler(stopCh <-chan struct{}) {
-	if !lib.GetVPCMode() {
-		utils.AviLog.Infof("Not running in VPC mode, skipping VKS capability event handler")
-		return
-	}
-	capabilityActive := lib.IsVKSCapabilityActivated()
-	utils.AviLog.Infof("VKS capability: informer starting, initial state activated=%t", capabilityActive)
-
-	if capabilityActive {
-		utils.AviLog.Infof("VKS capability already active, starting infrastructure")
-		c.startVKSInfrastructure(stopCh)
-	}
-
-	if !capabilityActive {
-		capabilityEventHandler := cache.ResourceEventHandlerFuncs{
-			AddFunc: func(obj interface{}) {
-				utils.AviLog.Infof("SupervisorCapability ADD Event")
-				if lib.IsVKSCapabilityActivated() && !capabilityActive {
-					utils.AviLog.Infof("VKS capability activated")
-					capabilityActive = true
-					c.startVKSInfrastructure(stopCh)
-				}
-			},
-			UpdateFunc: func(old, obj interface{}) {
-				utils.AviLog.Infof("SupervisorCapability UPDATE Event")
-				if lib.IsVKSCapabilityActivated() && !capabilityActive {
-					utils.AviLog.Infof("VKS capability activated")
-					capabilityActive = true
-					c.startVKSInfrastructure(stopCh)
-				}
-			},
-			DeleteFunc: func(obj interface{}) {
-				utils.AviLog.Infof("SupervisorCapability DELETE Event")
-			},
-		}
-
-		c.dynamicInformers.SupervisorCapabilityInformer.Informer().AddEventHandler(capabilityEventHandler)
-		go c.dynamicInformers.SupervisorCapabilityInformer.Informer().Run(stopCh)
-		if !cache.WaitForCacheSync(stopCh, c.dynamicInformers.SupervisorCapabilityInformer.Informer().HasSynced) {
-			runtime.HandleError(fmt.Errorf("timed out waiting for SupervisorCapability caches to sync"))
-		} else {
-			utils.AviLog.Infof("VKS capability: caches synced for SupervisorCapability informer")
-		}
-	}
-}
-
-func (c *VCFK8sController) startVKSInfrastructure(stopCh <-chan struct{}) {
-	// Check if VKS AVI client is available (indicates controller version >= 32.1.1)
-	if !avirest.IsVKSAviClientAvailable() {
-		utils.AviLog.Warnf("VKS: Cannot start VKS infrastructure - VKS AVI client not available. Controller version must be >= %s to support Management Service APIs", avirest.VKSAviVersion)
-		return
-	}
-
-	utils.AviLog.Infof("VKS: Starting VKS infrastructure with controller version >= %s", avirest.VKSAviVersion)
-
-	go addon.EnsureGlobalAddonInstallWithRetry(stopCh)
-
-	go proxy.EnsureGlobalManagementServiceWithRetry(stopCh)
-
-	proxy.StartNamespaceGrantProcessor()
-
-	go webhook.StartVKSWebhook(utils.GetInformers().ClientSet, stopCh)
-
-	go StartVKSClusterWatcherWithRetry(stopCh, c.dynamicInformers)
-
-	go func() {
-		c.AddVKSAddonEventHandler(stopCh)
-		<-stopCh
-		utils.AviLog.Infof("VKS: AKO shutdown detected, stopping VKS resources")
-
-		proxy.StopNamespaceGrantProcessor()
-
-		utils.AviLog.Infof("VKS: All resources stopped successfully")
-	}()
-}
-
-func (c *VCFK8sController) AddVKSAddonEventHandler(stopCh <-chan struct{}) {
-	if !lib.GetVPCMode() {
-		utils.AviLog.Infof("Not running in VPC mode, skipping VKS addon event handler")
-		return
-	}
-
-	utils.AviLog.Infof("VKS addon: starting AddonInstall informer to monitor deletions")
-
-	addonEventHandler := cache.ResourceEventHandlerFuncs{
+	networkInfoHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			utils.AviLog.Infof("NCP Network Info ADD Event")
+			avirest.ScheduleQuickSync()
+		},
+		UpdateFunc: func(old, obj interface{}) {
+			utils.AviLog.Infof("NCP Network Info Update Event")
+			avirest.ScheduleQuickSync()
+		},
 		DeleteFunc: func(obj interface{}) {
-			if addonObj, ok := obj.(*unstructured.Unstructured); ok {
-				addonName := addonObj.GetName()
-				namespace := addonObj.GetNamespace()
-
-				// Only handle our global AKO addon
-				if addonName != addon.AKOAddonInstallName || namespace != addon.VKSPublicNamespace {
-					return
-				}
-
-				utils.AviLog.Errorf("VKS addon: Global AKO AddonInstall deleted: %s/%s", namespace, addonName)
-				if lib.IsVKSCapabilityActivated() {
-					go func() {
-						utils.AviLog.Infof("VKS addon: Attempting to recreate global AddonInstall")
-						if err := addon.EnsureGlobalAddonInstall(); err != nil {
-							utils.AviLog.Errorf("VKS addon: Failed to recreate global AddonInstall: %v", err)
-						} else {
-							utils.AviLog.Infof("VKS addon: Successfully recreated global AddonInstall")
-						}
-					}()
-				}
-			}
+			utils.AviLog.Infof("NCP Network Info Delete Event")
+			avirest.ScheduleQuickSync()
 		},
 	}
+	c.dynamicInformers.VCFNetworkInfoInformer.Informer().AddEventHandler(networkInfoHandler)
+	go c.dynamicInformers.VCFNetworkInfoInformer.Informer().Run(stopCh)
 
-	c.dynamicInformers.AddonInstallInformer.Informer().AddEventHandler(addonEventHandler)
-	go c.dynamicInformers.AddonInstallInformer.Informer().Run(stopCh)
-
-	if !cache.WaitForCacheSync(stopCh, c.dynamicInformers.AddonInstallInformer.Informer().HasSynced) {
-		runtime.HandleError(fmt.Errorf("timed out waiting for AddonInstall caches to sync"))
+	ClusterNetworkInfoHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			utils.AviLog.Infof("NCP Cluster Network Info ADD Event")
+			avirest.ScheduleQuickSync()
+		},
+		UpdateFunc: func(old, obj interface{}) {
+			utils.AviLog.Infof("NCP Cluster Network Info Update Event")
+			avirest.ScheduleQuickSync()
+		},
+		DeleteFunc: func(obj interface{}) {
+			utils.AviLog.Infof("NCP Cluster Network Info Delete Event")
+			avirest.ScheduleQuickSync()
+		},
+	}
+	c.dynamicInformers.VCFClusterNetworkInformer.Informer().AddEventHandler(ClusterNetworkInfoHandler)
+	go c.dynamicInformers.VCFClusterNetworkInformer.Informer().Run(stopCh)
+	if !cache.WaitForCacheSync(stopCh,
+		c.dynamicInformers.VCFNetworkInfoInformer.Informer().HasSynced,
+		c.dynamicInformers.VCFClusterNetworkInformer.Informer().HasSynced) {
+		runtime.HandleError(fmt.Errorf("timed out waiting for cluster/namespace network info caches to sync"))
 	} else {
-		utils.AviLog.Infof("VKS addon: caches synced for AddonInstall informer")
+		utils.AviLog.Info("Caches synced for cluster/namespace network info informer")
 	}
 }
 
@@ -308,7 +331,6 @@ func (c *VCFK8sController) ValidBootStrapData() bool {
 	configmap, err := cs.CoreV1().ConfigMaps(utils.VMWARE_SYSTEM_AKO).Get(context.TODO(), "avi-k8s-config", metav1.GetOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("Failed to get ConfigMap, got err: %v", err)
-		lib.AKOControlConfig().PodEventf(corev1.EventTypeWarning, "ConfigMapNotFound", err.Error())
 		return false
 	}
 
@@ -322,15 +344,8 @@ func (c *VCFK8sController) ValidBootStrapData() bool {
 	// in fact have the transportZone information.
 	transportzone := configmap.Data["cloudName"]
 	utils.AviLog.Infof("Got data from ConfigMap %v", utils.Stringify(configmap.Data))
-	if clusterID == "" || controllerIP == "" || secretName == "" || secretNamespace == "" {
+	if clusterID == "" || controllerIP == "" || secretName == "" || secretNamespace == "" || transportzone == "" {
 		utils.AviLog.Infof("ConfigMap data insufficient")
-		lib.AKOControlConfig().PodEventf(corev1.EventTypeWarning, "ConfigMapDataInsufficient", "ConfigMap data insufficient")
-		return false
-	}
-	// In case of VCF cluster in VPC mode, transport zone is not defined in the config map
-	if transportzone == "" && !lib.GetVPCMode() {
-		utils.AviLog.Infof("ConfigMap data insufficient, transport zone not present")
-		lib.AKOControlConfig().PodEventf(corev1.EventTypeWarning, "ConfigMapDataInsufficient", "ConfigMap data insufficient")
 		return false
 	}
 
@@ -344,7 +359,6 @@ func (c *VCFK8sController) ValidBootstrapSecretData(controllerIP, secretName, se
 	ncpSecret, err := cs.CoreV1().Secrets(secretNamespace).Get(context.TODO(), secretName, metav1.GetOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("Failed to get Secret, got err: %v", err)
-		lib.AKOControlConfig().PodEventf(corev1.EventTypeWarning, "AviSecretNotFound", err.Error())
 		return false
 	}
 
@@ -353,17 +367,11 @@ func (c *VCFK8sController) ValidBootstrapSecretData(controllerIP, secretName, se
 	caData := string(ncpSecret.Data["certificateAuthorityData"])
 	lib.SetControllerIP(controllerIP)
 
-	// Set X-Avi-UserAgent header for rate limiting identification
-	userHeaders := utils.SharedCtrlProp().GetCtrlUserHeader()
-	userHeaders[utils.XAviUserAgentHeader] = "AKO"
-
 	transport, isSecure := utils.GetHTTPTransportWithCert(caData)
 	options := []func(*session.AviSession) error{
 		session.SetAuthToken(string(authToken)),
-		session.DisableControllerStatusCheckOnFailure(true),
+		session.SetNoControllerStatusCheck,
 		session.SetTransport(transport),
-		session.SetTimeout(120 * time.Second),
-		session.SetUserHeader(userHeaders),
 	}
 	if !isSecure {
 		options = append(options, session.SetInsecure)
@@ -371,22 +379,17 @@ func (c *VCFK8sController) ValidBootstrapSecretData(controllerIP, secretName, se
 	aviClient, err := clients.NewAviClient(controllerIP, username, options...)
 	if err != nil {
 		utils.AviLog.Errorf("Failed to connect to AVI controller using secret provided by NCP, the secret would be deleted, err: %v", err)
-		c.deleteAviSecret(lib.AviInitSecret, secretNamespace)
-		c.deleteAviSecret(secretName, secretNamespace)
-		lib.AKOControlConfig().PodEventf(corev1.EventTypeWarning, "InvalidSecret", err.Error())
+		c.deleteNCPSecret(secretName, secretNamespace)
 		return false
 	}
 
 	ctrlVersion := lib.GetControllerVersion()
-	actualControllerVersion := ""
 	if ctrlVersion == "" {
 		version, err := aviClient.AviSession.GetControllerVersion()
 		if err != nil {
 			utils.AviLog.Infof("Failed to get controller version from Avi session, err: %s", err)
 			return false
 		}
-		actualControllerVersion = version
-
 		maxVersion, err := utils.NewVersion(utils.MaxAviVersion)
 		if err != nil {
 			utils.AviLog.Errorf("Failed to create Version object, err: %s", err)
@@ -408,50 +411,14 @@ func (c *VCFK8sController) ValidBootstrapSecretData(controllerIP, secretName, se
 
 	avirest.InfraAviClientInstance(aviClient)
 	utils.AviLog.Infof("Successfully connected to AVI controller using secret provided by NCP")
-
-	// Check if controller version supports VKS Management Service APIs (>= 32.1.1)
-	if actualControllerVersion == "" {
-		if actualVersion, err := aviClient.AviSession.GetControllerVersion(); err != nil {
-			actualControllerVersion = ctrlVersion
-			utils.AviLog.Warnf("VKS: Failed to get actual controller version from API, using configured version %s: %v", ctrlVersion, err)
-		} else {
-			utils.AviLog.Infof("VKS: Got actual controller version %s from API for feature detection", actualControllerVersion)
-			actualControllerVersion = actualVersion
-		}
-	}
-
-	minVersion, err := utils.NewVersion(avirest.VKSAviVersion)
-	if err != nil {
-		utils.AviLog.Warnf("VKS: Failed to parse minimum required version: %v", err)
-		return true
-	}
-	currentVersion, err := utils.NewVersion(actualControllerVersion)
-	if err != nil {
-		utils.AviLog.Warnf("VKS: Failed to parse actual controller version %s: %v", actualControllerVersion, err)
-		return true
-	}
-	if currentVersion.Compare(minVersion) < 0 {
-		utils.AviLog.Infof("VKS: Controller version %s does not support Management Service APIs (requires >= %s)", actualControllerVersion, avirest.VKSAviVersion)
-		return true
-	}
-
-	// Create VKS-specific AVI client with version for Management Service APIs using same credentials
-	vksClient, err := avirest.CreateVKSAviClient(controllerIP, username, authToken, caData)
-	if err != nil {
-		utils.AviLog.Warnf("VKS: Failed to create VKS AVI client: %v", err)
-		return false
-	}
-	avirest.VKSAviClientInstance(vksClient)
-	utils.AviLog.Infof("VKS: Successfully initialized VKS AVI client with version %s", avirest.VKSAviVersion)
-
 	return true
 }
 
-func (c *VCFK8sController) deleteAviSecret(name, ns string) {
+func (c *VCFK8sController) deleteNCPSecret(name, ns string) {
 	cs := c.informers.ClientSet
 	err := cs.CoreV1().Secrets(ns).Delete(context.TODO(), name, metav1.DeleteOptions{})
 	if err != nil {
-		utils.AviLog.Warnf("Failed to delete secret: %s, namespace: %s, err: %v", name, ns, err.Error())
+		utils.AviLog.Warnf("Failed to delete NCP secret, got error: %v", err)
 	}
 }
 
@@ -500,23 +467,6 @@ func (c *VCFK8sController) AddSecretEventHandler(stopCh <-chan struct{}) {
 	if !cache.WaitForCacheSync(stopCh, c.informers.SecretInformer.Informer().HasSynced) {
 		runtime.HandleError(fmt.Errorf("timed out waiting for caches to sync"))
 	} else {
-		utils.AviLog.Infof("Caches synced for Secret informer")
-	}
-}
-
-func (c *VCFK8sController) Sync() {
-	c.NetHandler.SyncLSLRNetwork()
-}
-
-func (c *VCFK8sController) InitFullSyncWorker() *utils.FullSyncThread {
-	worker := c.NetHandler.NewLRLSFullSyncWorker()
-	return worker
-}
-
-func (c *VCFK8sController) InitNetworkingHandler() {
-	if lib.GetVPCMode() {
-		c.NetHandler = &avirest.VPCHandler{}
-	} else {
-		c.NetHandler = &avirest.T1LRNetworking{}
+		utils.AviLog.Info("Caches synced for Secret informer")
 	}
 }

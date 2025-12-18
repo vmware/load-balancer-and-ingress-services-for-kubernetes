@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2020-2021 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ import (
 
 func CheckNPLSvcAnnotation(key, namespace, name string) bool {
 	service, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace).Get(name)
-	if err != nil {
+	if err != nil || service.Spec.Type == corev1.ServiceTypeNodePort {
 		return false
 	}
 	ann := service.GetAnnotations()

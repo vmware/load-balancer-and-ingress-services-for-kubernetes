@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@ package nodes
 import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
-	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
@@ -55,14 +55,13 @@ func HostNameShardAndPublish(objType, objname, namespace, key string, fullsync b
 	defer func(routeIgrObj RouteIngressModel) {
 		if aviInfraSetting := routeIgrObj.GetAviInfraSetting(); aviInfraSetting != nil {
 			var shardSize string
-			if aviInfraSetting.Spec.L7Settings != (akov1beta1.AviInfraL7Settings{}) {
+			if aviInfraSetting.Spec.L7Settings != (akov1alpha1.AviInfraL7Settings{}) {
 				shardSize = aviInfraSetting.Spec.L7Settings.ShardSize
 			}
 			objects.InfraSettingL7Lister().UpdateIngRouteInfraSettingMappings(namespace+"/"+objname, aviInfraSetting.Name, shardSize)
 		} else {
 			objects.InfraSettingL7Lister().RemoveIngRouteInfraSettingMappings(namespace + "/" + objname)
 		}
-		objects.SharedNamespaceTenantLister().UpdateNamespacedResourceToTenantStore(namespace+"/"+objname, lib.GetTenantInNamespace(namespace))
 	}(routeIgrObj)
 
 	// delete old Models in case the modelNames changes because of shardSize updates via AviInfraSetting
@@ -82,7 +81,6 @@ func HostNameShardAndPublish(objType, objname, namespace, key string, fullsync b
 			} else {
 				RouteIngrDeletePoolsByHostname(routeIgrObj, namespace, objname, key, fullsync, sharedQueue)
 			}
-			objects.SharedNamespaceTenantLister().RemoveNamespaceToTenantCache(namespace + "/" + objname)
 		}
 		return
 	}
@@ -122,7 +120,6 @@ func HostNameShardAndPublish(objType, objname, namespace, key string, fullsync b
 		return
 	}
 
-	// TODO: These functions will return true or false. Depeding upon that we should update hostcache to have proper sync
 	// Process insecure routes first.
 	ProcessInsecureHosts(routeIgrObj, key, parsedIng, &modelList, Storedhosts, hostsMap)
 
@@ -159,7 +156,6 @@ func getPathSvc(currentPathSvc []IngressHostPathSvc) map[string][]string {
 func ProcessInsecureHosts(routeIgrObj RouteIngressModel, key string, parsedIng IngressConfig, modelList *[]string, Storedhosts map[string]*objects.RouteIngrhost, hostsMap map[string]*objects.RouteIngrhost) {
 	utils.AviLog.Debugf("key: %s, msg: Storedhosts before processing insecurehosts: %s", key, utils.Stringify(Storedhosts))
 
-	infraSetting := routeIgrObj.GetAviInfraSetting()
 	for host, pathsvcmap := range parsedIng.IngressHostMap {
 		// Remove this entry from storedHosts. First check if the host exists in the stored map or not.
 		hostData, found := Storedhosts[host]
@@ -186,26 +182,26 @@ func ProcessInsecureHosts(routeIgrObj RouteIngressModel, key string, parsedIng I
 		hostsMap[host].InsecurePolicy = lib.PolicyAllow
 		hostsMap[host].PathSvc = getPathSvc(pathsvcmap.ingressHPSvc)
 
-		modelName := lib.GetModelName(shardVsName.Tenant, shardVsName.Name)
+		modelName := lib.GetModelName(lib.GetTenant(), shardVsName.Name)
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if !found || aviModel == nil {
 			utils.AviLog.Infof("key: %s, msg: model not found, generating new model with name: %s", key, modelName)
 			aviModel = NewAviObjectGraph()
-			aviModel.(*AviObjectGraph).ConstructAviL7VsNode(shardVsName.Name, shardVsName.Tenant, key, routeIgrObj, shardVsName.Dedicated, false)
+			aviModel.(*AviObjectGraph).ConstructAviL7VsNode(shardVsName.Name, key, routeIgrObj, shardVsName.Dedicated, false)
 		}
 
 		vsNode := aviModel.(*AviObjectGraph).GetAviVS()
-
-		if !shardVsName.Dedicated {
-			aviModel.(*AviObjectGraph).BuildL7VSGraphHostNameShard(shardVsName.Name, host, routeIgrObj, pathsvcmap.ingressHPSvc, pathsvcmap.gslbHostHeader, parsedIng.InsecureEdgeTermAllow, key)
-		} else {
-			aviModel.(*AviObjectGraph).BuildDedicatedL7VSGraphHostNameShard(shardVsName.Name, host, routeIgrObj, parsedIng.InsecureEdgeTermAllow, pathsvcmap, key)
-		}
+		infraSetting := routeIgrObj.GetAviInfraSetting()
 		if len(vsNode) > 0 && found {
 			// if vsNode already exists, check for updates via AviInfraSetting
 			if infraSetting != nil {
 				buildWithInfraSetting(key, routeIgrObj.GetNamespace(), vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
 			}
+		}
+		if !shardVsName.Dedicated {
+			aviModel.(*AviObjectGraph).BuildL7VSGraphHostNameShard(shardVsName.Name, host, routeIgrObj, pathsvcmap.ingressHPSvc, pathsvcmap.gslbHostHeader, parsedIng.InsecureEdgeTermAllow, key)
+		} else {
+			aviModel.(*AviObjectGraph).BuildDedicatedL7VSGraphHostNameShard(shardVsName.Name, host, routeIgrObj, parsedIng.InsecureEdgeTermAllow, pathsvcmap, key)
 		}
 		changedModel := saveAviModel(modelName, aviModel.(*AviObjectGraph), key)
 		if !utils.HasElem(modelList, modelName) && changedModel {
@@ -265,7 +261,6 @@ func ProcessPassthroughHosts(routeIgrObj RouteIngressModel, key string, parsedIn
 	Storedhosts map[string]*objects.RouteIngrhost, hostsMap map[string]*objects.RouteIngrhost) {
 	utils.AviLog.Debugf("key: %s, msg: Storedhosts before processing passthrough hosts: %v", key, Storedhosts)
 	infraSetting := routeIgrObj.GetAviInfraSetting()
-	tenant := lib.GetTenantInNamespace(routeIgrObj.GetNamespace())
 	for host, pass := range parsedIng.PassthroughCollection {
 		hostData, found := Storedhosts[host]
 		if found && hostData.SecurePolicy == lib.PolicyPass {
@@ -284,11 +279,11 @@ func ProcessPassthroughHosts(routeIgrObj RouteIngressModel, key string, parsedIn
 			hostsMap[host].InsecurePolicy = lib.PolicyRedirect
 		}
 		_, shardVsName := DerivePassthroughVS(host, key, routeIgrObj)
-		modelName := lib.GetModelName(tenant, shardVsName)
+		modelName := lib.GetModelName(lib.GetTenant(), shardVsName)
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if !found || aviModel == nil {
 			aviModel = NewAviObjectGraph()
-			aviModel.(*AviObjectGraph).BuildVSForPassthrough(shardVsName, routeIgrObj.GetNamespace(), host, tenant, key, infraSetting)
+			aviModel.(*AviObjectGraph).BuildVSForPassthrough(shardVsName, routeIgrObj.GetNamespace(), host, key)
 		}
 		vsNode := aviModel.(*AviObjectGraph).GetAviVS()
 		if len(vsNode) < 1 {
@@ -297,7 +292,7 @@ func ProcessPassthroughHosts(routeIgrObj RouteIngressModel, key string, parsedIn
 		if infraSetting != nil {
 			buildWithInfraSetting(key, routeIgrObj.GetNamespace(), vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
 		}
-		aviModel.(*AviObjectGraph).BuildGraphForPassthrough(pass.PathSvc, routeIgrObj.GetName(), host, routeIgrObj.GetNamespace(), tenant, key, redirect, infraSetting)
+		aviModel.(*AviObjectGraph).BuildGraphForPassthrough(pass.PathSvc, routeIgrObj.GetName(), host, routeIgrObj.GetNamespace(), key, redirect, infraSetting)
 
 		changedModel := saveAviModel(modelName, aviModel.(*AviObjectGraph), key)
 		if !utils.HasElem(modelList, modelName) && changedModel {
@@ -312,9 +307,7 @@ func DeleteStaleData(routeIgrObj RouteIngressModel, key string, modelList *[]str
 	var infraSettingName string
 
 	if aviInfraSetting := routeIgrObj.GetAviInfraSetting(); aviInfraSetting != nil {
-		if !lib.IsInfraSettingNSScoped(aviInfraSetting.Name, routeIgrObj.GetNamespace()) {
-			infraSettingName = aviInfraSetting.Name
-		}
+		infraSettingName = aviInfraSetting.Name
 	}
 
 	for host, hostData := range Storedhosts {
@@ -324,7 +317,7 @@ func DeleteStaleData(routeIgrObj RouteIngressModel, key string, modelList *[]str
 			_, shardVsName.Name = DerivePassthroughVS(host, key, routeIgrObj)
 		}
 
-		modelName := lib.GetModelName(shardVsName.Tenant, shardVsName.Name)
+		modelName := lib.GetModelName(lib.GetTenant(), shardVsName.Name)
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if !found || aviModel == nil {
 			utils.AviLog.Warnf("key: %s, msg: model not found during delete: %s", key, modelName)
@@ -369,19 +362,17 @@ func DeleteStaleDataForModelChange(routeIgrObj RouteIngressModel, namespace, obj
 	var newShardVsName lib.VSNameMetadata
 	for host, hostData := range hostMap {
 
-		shardVsName, newShardVsName = DeriveShardVS(host, key, routeIgrObj)
 		if hostData.SecurePolicy == lib.PolicyPass {
 			shardVsName.Name, newShardVsName.Name = DerivePassthroughVS(host, key, routeIgrObj)
+		} else {
+			shardVsName, newShardVsName = DeriveShardVS(host, key, routeIgrObj)
 		}
 		if shardVsName == newShardVsName {
 			continue
 		}
 
 		_, infraSettingName := objects.InfraSettingL7Lister().GetIngRouteToInfraSetting(routeIgrObj.GetNamespace() + "/" + routeIgrObj.GetName())
-		if lib.IsInfraSettingNSScoped(infraSettingName, namespace) {
-			infraSettingName = ""
-		}
-		modelName := lib.GetModelName(shardVsName.Tenant, shardVsName.Name)
+		modelName := lib.GetModelName(lib.GetTenant(), shardVsName.Name)
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if !found || aviModel == nil {
 			utils.AviLog.Warnf("key: %s, msg: model not found during delete: %s", key, modelName)
@@ -413,13 +404,9 @@ func RouteIngrDeletePoolsByHostname(routeIgrObj RouteIngressModel, namespace, ob
 		return
 	}
 
-	_, infraSettingName := objects.InfraSettingL7Lister().GetIngRouteToInfraSetting(routeIgrObj.GetNamespace() + "/" + routeIgrObj.GetName())
-	tenant := objects.SharedNamespaceTenantLister().GetTenantInNamespace(routeIgrObj.GetNamespace() + "/" + routeIgrObj.GetName())
-	if tenant == "" {
-		tenant = lib.GetTenant()
-	}
-	if lib.IsInfraSettingNSScoped(infraSettingName, namespace) {
-		infraSettingName = ""
+	var infraSettingName string
+	if aviInfraSetting := routeIgrObj.GetAviInfraSetting(); aviInfraSetting != nil {
+		infraSettingName = aviInfraSetting.Name
 	}
 
 	utils.AviLog.Debugf("key: %s, msg: hosts to delete are :%s", key, utils.Stringify(hostMap))
@@ -431,13 +418,7 @@ func RouteIngrDeletePoolsByHostname(routeIgrObj RouteIngressModel, namespace, ob
 			shardVsName.Name, _ = DerivePassthroughVS(host, key, routeIgrObj)
 		}
 
-		SharedHostNameLister().DeleteNamespace(host)
-		if found, ingressHostMap := SharedHostNameLister().Get(host); found {
-			mapkey := namespace + "/" + objname
-			delete(ingressHostMap.HostNameMap, mapkey)
-
-		}
-		modelName := lib.GetModelName(tenant, shardVsName.Name)
+		modelName := lib.GetModelName(lib.GetTenant(), shardVsName.Name)
 		found, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		if !found || aviModel == nil {
 			utils.AviLog.Warnf("key: %s, msg: model not found during delete: %s", key, modelName)

@@ -10,7 +10,7 @@ type DebugSeCPUShares struct {
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
-	CPU *uint32 `json:"cpu"`
+	CPU *int32 `json:"cpu"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true

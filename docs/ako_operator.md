@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is an operator that is used to deploy, manage, and remove an instance of the AKO controller on Openshift clusters. It takes the AKO installation/deployment configuration from a CRD called `AKOConfig` and creates an instance of the AKO controller and installs all the relevant objects specified below. 
+This is an operator which is used to deploy, manage and remove an instance of the AKO controller. This operator when deployed creates an instance of the AKO controller and installs all the relevant objects like:
 
 1. AKO statefulset
 2. Clusterrole and Clusterrolbinding
@@ -13,98 +13,81 @@ and other artifacts.
 
 ### Pre-requisites
 
-This is one of the ways to install the AKO controller. So, most of the pre-requisites that apply for installation of standalone AKO are also applicable for the AKO operator as well.
+This is one of the ways to install the AKO controller. So, all the [pre-requisites](README.md#pre-requisites) that apply for installation of standalone AKO are also applicable for the AKO operator as well.
 
-* <i>**Step 1**</i>: Configure an Avi Controller with a [vCenter cloud](https://docs.vmware.com/en/VMware-NSX-Advanced-Load-Balancer/22.1/Installation_Guide/GUID-829B599B-BDBE-4881-83E4-5C693584EB6A.html) or any other preferred cloud. The Avi Controller should be versioned 22.1.3 or later.
-* <i>**Step 2**</i>:
-  * Make sure a PG network is part of the NS IPAM configured in the vCenter
-* <i>**Step 3**</i>: If your POD CIDRs are not routable:
-Data path flow is as described below:
-![Alt text](data_path_flow.png?raw=true)
-The markers in the drawing are described below:
-    1. The client requests a specified hostname/path.
-    2. The DNS VS returns an IP address corresponding to the hostname.
-    3. The request is forwarded to the resolved IP address that corresponds to a Virtual IP hosted on an Avi Service Engine.
-    The destination IP in the packet is set as the POD IP address on which the application runs.
-    4. Service Engines use the static route information to reach the POD IP via the next-hop address of the host on which the pod is running.
-    5. The pod responds and the request is sent back to the client.
-  * Create a Service Engine Group dedicated to a Kubernetes cluster.
-* <i>**Step 3.1**</i>: If your POD CIDRs are routable then you can skip step 2. Ensure that you skip static route syncing in this case using the `disableStaticRouteSync` flag in the `values.yaml` of your helm chart.
-* <i>**Step 4:**</i> Openshift 4.12+.
+#### Install using helm
 
-### Install on Openshift cluster from OperatorHub using Openshift Container Platform Web Console
+  Step 1: Create the `avi-system` namespace:
 
-<i>**Step 1**</i>: Login to the Openshift Container Platform web console of your Openshift cluster.
+    kubectl create ns avi-system
 
-<i>**Step 2**</i>: Navigate in the web console to the **Operators** → **OperatorHub** page.
+  Step 2: Add this repository to your helm CLI
 
-<i>**Step 3**</i>: Find `AKO Operator` provided by VMware.
+    helm repo add ako https://projects.registry.vmware.com/chartrepo/ako
 
-<i>**Step 4**</i>: Click `install` and select the 1.13.2 version. The operator will be installed in `avi-system` namespace. The namespace will be created if it doesn't exist.
+Use the `values.yaml` from this repository to edit values related to Avi configuration. Values and their corresponding index can be found [here](#parameters).
 
-<i>**Step 5**</i>: Verify installation by checking the pods in `avi-system` namespace.
+  Step 3: Search the available charts for AKO Operator
 
-**Note** To deploy an instance of the AKO controller, an `AKOConfig` object will have to be created. This, in turn, will prompt the AKO operator to deploy the AKO controller. Please see [this](#akoconfig-custom-resource) to know more about the `AKOConfig` object and how to manage the AKO controller using this object. AKO Operator will also create the following list of CRDs to be used by AKO Controller when the `AKOConfig` object is created:
+    helm search repo
+
+    NAME                          CHART VERSION APP VERSION DESCRIPTION
+    ako/ako-operator              1.3.1         1.3.1       A helm chart for AKO Operator
+
+ Step 4: Install AKO Operator
+
+    helm install  ako/ako-operator  --generate-name --version 1.3.1 -f values.yaml  --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --namespace=avi-system
+
+  Step 5: Check the installation
+
+    helm list -n avi-system
+
+    NAME                       NAMESPACE
+    ako-operator-2889212993     avi-system
+
+**Note** that installing the AKO operator via `helm` will also add a `AKOConfig` object which in turn, will prompt the AKO operator to deploy the AKO controller. Please see [this](#AKOConfig-Custom-Resource) to know more about the `AKOConfig` object and how to manage the AKO controller using this object. List of CRDs added by the AKO operator installation:
 
 1. AKOConfig
 2. HostRule
 3. HTTPRule
-4. L4Rule
-5. SSORule
-6. AviInfraSetting
-7. L7Rule
 
-### Upgrade on Openshift cluster from OperatorHub using Openshift Container Platform Web Console
+#### Uninstall using *helm*
 
-<i>**Step 1**</i>: Login to the Openshift Container Platform web console of your Openshift cluster.
+To uninstall the AKO operator and the AKO controller, use the following steps:
 
-<i>**Step 2**</i>: Navigate in the web console to the **Operators** → **Installed Operators** page.
+*Step 1:* Remove the aviconfig object, this should cleanup all the related artifacts for the AKO controller.
 
-<i>**Step 3**</i>: Find `AKO Operator` provided by VMware By Broadcom.
+    kubectl delete AKOConfig -n avi-system aviconfig
 
-<i>**Step 4**</i>: Check the `Status` column for any available updates. Click on the `upgrade available` link if displayed, review the install plan and approve it. The AKO Operator will be upgraded to the available version.
+*Step2:* Remove the AKO operator's resources
 
-**Note :** The above steps are only required if the `Update Approval` is selected as `Manual` at the time of installation. If it was selected as `Automatic`, then the operator will be upgraded automatically as soon as the ugrade is available.
+    helm delete <ako-operator-release-name> -n avi-system
 
-For details on how to upgrade AKOConfig custom resource (if applicable), please see [this](akoconfig.md#Upgrading-the-AKOConfig-custom-resource).
+ The `ako-operator-release-name` is obtained by doing helm list as shown in the previous step.
 
-### Uninstall on Openshift cluster from OperatorHub using Openshift Container Platform Web Console
+ **Note** that this step won't remove the `AKOConfig` object. The finalizer called `ako.vmware.com/cleanup` prevents this `AKOConfig` object from getting deleted. So, after `helm delete`, use:
 
-<i>**Step 1**</i>: Remove the aviconfig object, this should cleanup all the related artifacts for the AKO controller. See [Removing the AKO Controller](#removing-the-ako-controller) for more details.
+    kubectl edit akoconfig -n avi-system aviconfig
 
-<i>**Step 2**</i>: Login to the Openshift Container Platform web console of your Openshift cluster.
+  And, remove the finalizer string: `ako.vmware.com/cleanup`. This step would clean up the `AKOConfig` object too.
 
-<i>**Step 3**</i>: Navigate in the web console to the **Operators** → **Installed Operators** page.
-
-<i>**Step 4**</i>: Find `AKO Operator` provided by VMware.
-
-<i>**Step 5**</i>: Click on the three vertical dots menu on the right and select `Uninstall Operator` option.
-
-<i>**Step 6**</i>: Delete the `avi-system` namespace.
+*Step 3:* Delete the `avi-system` namespace.
 
     kubectl delete ns avi-system
 
-Or, if using the Openshift client, use
-    
-    oc delete ns avi-system
+## Parameters
 
-### AKOConfig Custom Resource
-
-AKO Operator manages the AKO Controller. To deploy and manage the controller, it takes in a custom resource object called `AKOConfig`. Please go through the [description](akoconfig.md#AKOConfig-Custom-Resource) to understand the different fields of this object.
-
-#### Parameters
-
-The following table also lists the configurable fields in the `AKOConfig` object and their default values.
+The following table lists the configurable parameters of the AKO chart and their default values. Please refer to this link for more details on [each parameter](values.md).
 
 | **Parameter** | **Description** | **Default** |
 | --- | --- | --- |
-| `replicaCount` | Specify the number of replicas for AKO StatefulSet | 1 |
-| `imageRepository` | Specify docker-registry that has the ako image | projects.packages.broadcom.com/ako/ako:1.13.2 |
-| `imagePullPolicy` | Specify when and how to pull the ako image | IfNotPresent |
-| `imagePullSecrets` | ImagePullSecrets will add pull secrets to the statefulset for AKO. Required if using secure private container image registry for images. | `Empty List` |
+| `operatorImage.repository` | Specify docker-registry that has the ako operator image | avinetworks/ako-operator |
+| `operatorImage.pullPolicy` | Specify when and how to pull the ako-operator's image | avinetworks/ako-operator |
+| `akoImage.repository` | Specify docker-registry that has the ako image | projects.registry.vmware.com/ako/ako:1.6.1 |
+| `akoImage.pullPolicy` | Specify when and how to pull the ako image | IfNotPresent |
 | `AKOSettings.clusterName` | Unique identifier for the running AKO instance. AKO identifies objects it created on Avi Controller using this param. | **required** |
 | `AKOSettings.fullSyncFrequency` | Full sync frequency | 1800 |
-| `AKOSettings.cniPlugin` | CNI Plugin being used in Openshift cluster. Specify one of: openshift, ovn-kubernetes | **required** for openshift, ovn-kubernetes |
+| `AKOSettings.cniPlugin` | CNI Plugin being used in kubernetes cluster. Specify one of: calico, canal, flannel | **required** for calico setups |
 | `AKOSettings.enableEvents` | enableEvents can be changed dynamically from the configmap | true |
 | `AKOSettings.logLevel` | logLevel enum values: INFO, DEBUG, WARN, ERROR. logLevel can be changed dynamically from the configmap | INFO |
 | `AKOSettings.deleteConfig` | set to true if user wants to delete AKO created objects from Avi. deleteConfig can be changed dynamically from the configmap | false |
@@ -114,40 +97,26 @@ The following table also lists the configurable fields in the `AKOConfig` object
 | `AKOSettings.blockedNamespaceList` | List of K8s/Openshift namespaces blocked by AKO | `Empty List` |
 | `AKOSettings.istioEnabled` | set to true if user wants to deploy AKO in istio environment (tech preview)| false |
 | `AKOSettings.ipFamily` | set to V6 if user wants to deploy AKO with V6 backend (vCenter cloud with calico CNI only) (tech preview)| V4 |
-| `AKOSettings.enableEVH` | Enables the Enhanced Virtual Hosting Model in Avi Controller for the Virtual Services  | false |
-| `AKOSettings.namespaceSelector` | namespaceSelector contains label key and value used for namespacemigration. same label has to be present on namespace/s which needs migration/sync to AKO  | false |
-| `AKOSettings.servicesAPI` | servicesAPI enables AKO in services API mode. Currently implemented only for L4 | false |
-| `AKOSettings.vipPerNamespace` | Enabling this flag would tell AKO to create Parent VS per Namespace in EVH mode  | false |
-| `AKOSettings.useDefaultSecretsOnly` | If this flag is set to true, AKO will only handle default secrets from the namespace where AKO is installed. This flag is applicable only to Openshift clusters. | false |
 | `ControllerSettings.controllerVersion` | Avi Controller version | 18.2.10 |
-| `ControllerSettings.controllerIP` | Specify Avi controller IP or Hostname | `nil` |
+| `ControllerSettings.controllerHost` | Specify Avi controller IP or Hostname | `nil` |
 | `ControllerSettings.cloudName` | Name of the cloud managed in Avi | Default-Cloud |
 | `ControllerSettings.tenantName` | Name of the tenant where all the AKO objects will be created in AVI. | admin |
 | `ControllerSettings.serviceEngineGroupName` | Name of the Service Engine Group | Default-Group |
-| `ControllerSettings.vrfName` | Name of the VRFContext. All Avi objects will be under this VRF. Applicable only in Vcenter Cloud. | `Empty string` |
 | `L7Settings.shardVSSize` | Shard VS size enum values: LARGE, MEDIUM, SMALL | LARGE |
 | `L7Settings.defaultIngController` | AKO is the default ingress controller | true |
 | `L7Settings.serviceType` | enum NodePort|ClusterIP|NodePortLocal | ClusterIP |
 | `L7Settings.passthroughShardSize` | Control the passthrough virtualservice numbers using this ENUM. ENUMs: LARGE, MEDIUM, SMALL | SMALL |
 | `L7Settings.noPGForSNI`  | Skip using Pool Groups for SNI children | false |
-| `L7Settings.fqdnReusePolicy` | This flag can be used to control whether AKO allows cross-namespace usage of FQDNs | InterNamespaceAllowed |
-| `L4Settings.defaultDomain` | If multiple sub-domains are configured in the cloud, use this knob to set the default sub-domain to use for L4 VSes. This flag will be deprecated in a future release; use networkSettings.defaultDomain instead. If both networkSettings.defaultDomain and l4Settings.defaultDomain are set, then networkSettings.defaultDomain will be used. | First domainname found in cloud's dnsprofile |
+| `L7Settings.l7ShardingScheme` | Sharding scheme enum values: hostname, namespace | hostname |
+| `L4Settings.defaultDomain` | Specify a default sub-domain for L4 LB services | First domainname found in cloud's dnsprofile |
 | `L4Settings.autoFQDN`  | Specify the layer 4 FQDN format | default |
-| `L4Settings.defaultLBController` | defaultLBController enables ako to check if it is the default LoadBalancer controller. | true |
 | `NetworkSettings.subnetIP` | Subnet IP of the data network | **DEPRECATED** |
 | `NetworkSettings.subnetPrefix` | Subnet Prefix of the data network | **DEPRECATED** |
-| `NetworkSettings.nodeNetworkList` | List of Network Names/UUIDs and corresponding CIDR mappings for the K8s nodes. | `Empty List` |
-| `NetworkSettings.vipNetworkList` | List of Network Names/UUIDs and Subnet information for VIP network, multiple networks allowed only for AWS Cloud | **required** |
+| `NetworkSettings.nodeNetworkList` | List of Networks and corresponding CIDR mappings for the K8s nodes. | `Empty List` |
+| `NetworkSettings.vipNetworkList` | List of Network Names and Subnet information for VIP network, multiple networks allowed only for AWS Cloud | **required** |
 | `NetworkSettings.enableRHI` | Publish route information to BGP peers | false |
 | `NetworkSettings.bgpPeerLabels` | Select BGP peers using bgpPeerLabels, for selective VsVip advertisement. | `Empty List` |
 | `NetworkSettings.nsxtT1LR` | Specify the T1 router for data backend network, applicable only for NSX-T based deployments| `Empty string` |
-| `NetworkSettings.defaultDomain` | The defaultDomain flag has two use cases. For L4 VSes, if multiple sub-domains are configured in the cloud, this flag can be used to set the default sub-domain to use for the VS. This flag should be used instead of L4Settings.defaultDomain, as it will be deprecated in a future release. If both NetworkSettings.defaultDomain and L4Settings.defaultDomain are set, then NetworkSettings.defaultDomain will be used. For L7 VSes(created from OpenShift Routes), if spec.subdomain field is specified instead of spec.host field for an OpenShift route, then the default domain specified is appended to the spec.subdomain to form the FQDN for the VS. The defaultDomain should be configured as a sub-domain in Avi cloud. | `Empty string` |
-| `FeatureGates.gatewayAPI` | FeatureGates is to enable or disable experimental features. GatewayAPI feature gate enables/disables processing of Kubernetes Gateway API CRDs. | false |
-| `FeatureGates.enablePrometheus` | FeatureGates is to enable or disable experimental features. EnablePrometheus enables/disables prometheus scraping for AKO container | false |
-| `GatewayAPI.Image.repository` | Specify docker-registry that has the ako-gateway-api image | projects.packages.broadcom.com/ako/ako-gateway-api:1.13.2 |
-| `GatewayAPI.Image.pullPolicy` | Specify when and how to pull the ako-gateway-api image | IfNotPresent |
-| `logFile` | LogFile is the name of the file where ako container will dump its logs | avi.log |
-| `akoGatewayLogFile` | AKOGatewayLogFile is the name of the file where ako-gateway-api container will dump its logs | avi-gw.log |
 | `avicredentials.username` | Avi controller username | empty |
 | `avicredentials.password` | Avi controller password | empty |
 | `avicredentials.authtoken` | Avi controller authentication token | empty |
@@ -156,39 +125,18 @@ The following table also lists the configurable fields in the `AKOConfig` object
 
 > `vipNetworkList` is a required field which is used for allocating VirtualService IP by IPAM Provider module.
 
-> Each AKO instance mapped to a given Avi cloud should have a unique clusterName parameter. This would maintain the uniqueness of object naming across Openshift/Kubernetes clusters.
+> Each AKO instance mapped to a given Avi cloud should have a unique clusterName parameter. This would maintain the uniqueness of object naming across Kubernetes clusters.
+
+### AKOConfig Custom Resource
+
+AKO Operator manages the AKO Controller. To deploy and manage the controller, it takes in a custom resource object called `AKOConfig`. Please go through the [description](akoconfig.md#AKOConfig-Custom-Resource) to understand the different fields of this object.
 
 #### Deploying the AKO Controller
 
-If the AKO operator was installed on Openshift cluster from OperatorHub, then to install the AKO controller, add an `AKOConfig` object to the `avi-system` namespace.
+If the AKO operator was installed using helm, a default `AKOConfig` object called `ako-config` is already added and hence, this step is not required for helm based installation.
+**Note**: If the AKO operator was installed manually, then to install the AKO controller, add an `AKOConfig` object to the `avi-system` namespace.
 
-A sample of akoconfig is present [here](config/samples/ako_v1beta1_akoconfig.yaml). Edit this file according to your setup.
-
-```
-kubectl create -f config/samples/ako_v1alpha1_akoconfig.yaml
-```
-
-Or, if using the Openshift client, use
-
-```
-oc create -f config/samples/ako_v1alpha1_akoconfig.yaml
-```
-
-AKO Controller can also be deployed on Openshift cluster, with AKOConfig custom resource using Openshift Container Platform Web Console.
-#### Prerequisite ####
-AKO Operator should already be installed on Openshift cluster. Once this prerequisite is met, following steps need to be followed.
-
-<i>**Step 1**</i>: Login to the Openshift Container Platform web console of your Openshift cluster.
-
-<i>**Step 2**</i>: Navigate in the web console to the **Operators** → **Installed Operators** page. AKO Operator, if already installed, should be listed.
-
-<i>**Step 3**</i>: In the **Provided APIs** section click on `AKOConfig`, and then click on `Create AKOConfig` button.
-
-<i>**Step 4**</i>: You will be provided two configuration options, **Form view** and **YAML view**. Please select the preferred option and populate the fields as required. The AKOConfig custom resource description and sample yaml manifest file can be referred for assistance.
-
-<i>**Step 5**</i>: Once the fields are populated, click on `Create` button.
-
-<i>**Step 6**</i>: Verify installation by checking the pods in `avi-system` namespace.
+    kubectl create -f ako-config.yaml -n avi-system
 
 #### Tweaking/Manage the AKO Controller
 
@@ -196,15 +144,7 @@ If the user needs to change any properties of the AKO Controller, they can chang
 
     kubectl edit akoconfig -n avi-system ako-config
 
-Or, if using the Openshift client, use
-
-    oc edit akoconfig -n avi-system ako-config
-
 **Note** that if the user edits the AKO controller's configmap/statefulset out-of-band, the changes will be overwritten by the AKO operator.
-
-#### Upgrading the AKO Controller
-
-The AKO Controller can be upgraded by upgrading the AKOConfig custom resource. For details on how to upgrade AKOConfig custom resource (if applicable), please see [this](akoconfig.md#Upgrading-the-AKOConfig-custom-resource).
 
 #### Removing the AKO Controller
 
@@ -213,33 +153,10 @@ The AKO Controller can be deleted via these steps:
 ```
 kubectl delete akoconfig -n avi-system ako-config
 ```
+This would prompt the AKO Operator to remove all the manifests related to the AKO Controller instance. **Note** that this step won't remove the `AKOConfig` object itself, but the resources managed by the AKO Operator.
 
-Or, if using the Openshift client, use
-
-```
-oc delete akoconfig -n avi-system ako-config
-```
-This would prompt the AKO Operator to remove the `AKOConfig` object and all the manifests related to the AKO Controller instance.
-
-2. The AKO Controller can also be deleted using the Openshift Container Platform web console.
-
-      a) Login to the Openshift Container Platform web console of your Openshift cluster.
-
-      b) Navigate in the web console to the **Operators** → **Installed Operators** page. AKO Operator, if already installed, should be listed.
-
-      c) In the **Provided APIs** section click on `AKOConfig`. Any existing `AKOConfig` objects will be listed here.
-
-      d) Click on the three vertical dots menu on the right and select `Delete AKOConfig` option.
-
-
-3. If the Operator isn't running when akoconfig is deleted, the akoconfig will be stuck in terminating state. <br>
-If this happens edit the akoconfig object and remove the `finalizers` section :
+2. Remove the finalizer from the `AKOConfig` object:
 ```
 kubectl edit akoconfig -n avi-system ako-config
-```
-
-Or, if using the Openshift client, use
-```
-oc edit akoconfig -n avi-system ako-config
 ```
 This will remove the dangling `AKOConfig` object.

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -398,8 +398,8 @@ func TestPassthroughRouteWithAlternateBackends(t *testing.T) {
 	g := gomega.NewGomegaWithT(t)
 	SetUpTestForRoute(t, DefaultPassthroughModel)
 
-	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPS(t, "default", "absvc2", false, false, "3.3.3")
+	integrationtest.CreateSVC(t, "default", "absvc2", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEP(t, "default", "absvc2", false, false, "3.3.3")
 
 	routeExample := FakeRoute{Path: "/foo"}.PassthroughABRoute()
 	routeExample.Spec.TLS.InsecureEdgeTerminationPolicy = routev1.InsecureEdgeTerminationPolicyRedirect
@@ -420,9 +420,9 @@ func TestPassthroughRouteWithAlternateBackends(t *testing.T) {
 	g.Expect(vs.PoolGroupRefs[0].Members).To(gomega.HaveLen(2))
 	for _, member := range vs.PoolGroupRefs[0].Members {
 		if *member.PoolRef == "/api/pool?name=cluster--foo.com-avisvc" {
-			g.Expect(*member.Ratio).To(gomega.Equal(uint32(100)))
+			g.Expect(*member.Ratio).To(gomega.Equal(int32(100)))
 		} else if *member.PoolRef == "/api/pool?name=cluster--foo.com-absvc2" {
-			g.Expect(*member.Ratio).To(gomega.Equal(uint32(200)))
+			g.Expect(*member.Ratio).To(gomega.Equal(int32(200)))
 		} else {
 			t.Fatalf("Unexpected Pg member: %s", *member.PoolRef)
 		}
@@ -447,7 +447,7 @@ func TestPassthroughRouteWithAlternateBackends(t *testing.T) {
 	TearDownTestForRoute(t, DefaultPassthroughModel)
 
 	integrationtest.DelSVC(t, "default", "absvc2")
-	integrationtest.DelEPS(t, "default", "absvc2")
+	integrationtest.DelEP(t, "default", "absvc2")
 }
 
 func TestPassthroughRouteRemoveAlternateBackends(t *testing.T) {

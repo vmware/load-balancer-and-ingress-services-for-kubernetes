@@ -50,7 +50,6 @@ func NewCacheMutationDetector(name string) MutationDetector {
 	if !mutationDetectionEnabled {
 		return dummyMutationDetector{}
 	}
-	//nolint:logcheck // This code shouldn't be used in production.
 	klog.Warningln("Mutation detector is enabled, this will result in memory leakage.")
 	return &defaultCacheMutationDetector{name: name, period: 1 * time.Second, retainDuration: 2 * time.Minute}
 }
@@ -100,7 +99,7 @@ func (d *defaultCacheMutationDetector) Run(stopCh <-chan struct{}) {
 	for {
 		if d.lastRotated.IsZero() {
 			d.lastRotated = time.Now()
-		} else if time.Since(d.lastRotated) > d.retainDuration {
+		} else if time.Now().Sub(d.lastRotated) > d.retainDuration {
 			d.retainedCachedObjs = d.cachedObjs
 			d.cachedObjs = nil
 			d.lastRotated = time.Now()

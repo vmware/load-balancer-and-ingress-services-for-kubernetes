@@ -291,33 +291,3 @@ Currently, AKO beyond two has not been tested. Hence we don't claim the support.
 #### What happens during a Split brain scenario in HA?
 
 AKO detects this during the periodic refresh of the lease lock object and makes itself a passive AKO.
-
-#### With AKO 1.10.3, field `networkUUID` has been added as part of `vipNetworkList` and `nodeNetworkList`. Does it impact existing AviInfra objects?
-
-When customer upgrade from older AKO version to AKO 1.10.3 or later, customer has to always upgrade CRD schemas as part of upgrade process.
-But there is no impact on existing AviInfraSetting objects and user doesn't require to do changes to existing objects. AKO accepts either `networkName` or `networkUUID` as part of these fields.  If there are duplicates network at NSX Advance LoadBalancer side, AKO recommends the use of `networkUUID` while creating new AviInfrasetting objects.
-
-#### How can I find out `networkUUID` for the `networkName`?
-
-Way to figure out `networkUUID` for given `networkName` from web browser is as follows:
-1. Login to NSX Advanced LoadBalancer on any web browser.
-2. On Web browser, type fqdn as `https://<controller-ip-or-fqdn>/api/network?name=<NameOfNetwork>`
-3. Choose `uuid` field of one of the retrieved records.
-4. In case of multiple records are retrieved, user has to use `switch_name` and/or `configured_subnet` fields of the record, to choose correct network.
-
-
-### Which are AKO CRDs transitioned to v1beta1 version?
-
-With AKO 1.11.1, AviInfrasetting, Hostrule, HttpRule CRD schemas are transitioned to v1beta1 version.
-
-### My existing cluster have hostrule, aviinfrasetting and httprule CRD objects in v1alpha1 version. What will be impact if AKO is upgraded to 1.11.1 and above?
-
-AKO 1.11.1 supports CRD objects in v1alpha1 and v1beta1 version. So existing objects will be processed by AKO. It is recommended to create new CRD objects in `v1beta1` version. Also please transition existing objects to `v1beta1` version as AKO will deprecate `v1alpha1` in future releases.
-
-### When AKO is upgraded to 1.11.1 version or above, following error is seen in AKO logs:
-```
-2023-09-21T05:08:47.280Z	INFO	logr/logr.go:261	github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s/controller.go:1389: failed to list *v1beta1.HostRule: the server could not find the requested resource (get hostrules.ako.vmware.com)
-```
-How can it be resolved?
-
-During AKO upgrade, first step is to apply latest `crd` definitions. This step might have been skipped. Due to that, this error could be there. Please refer [AKO upgrade steps](./install/helm.md#upgrade-ako-using-helm).

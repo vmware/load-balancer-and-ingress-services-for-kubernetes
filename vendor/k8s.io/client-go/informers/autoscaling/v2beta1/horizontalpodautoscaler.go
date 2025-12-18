@@ -19,16 +19,16 @@ limitations under the License.
 package v2beta1
 
 import (
-	context "context"
+	"context"
 	time "time"
 
-	apiautoscalingv2beta1 "k8s.io/api/autoscaling/v2beta1"
+	autoscalingv2beta1 "k8s.io/api/autoscaling/v2beta1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
 	internalinterfaces "k8s.io/client-go/informers/internalinterfaces"
 	kubernetes "k8s.io/client-go/kubernetes"
-	autoscalingv2beta1 "k8s.io/client-go/listers/autoscaling/v2beta1"
+	v2beta1 "k8s.io/client-go/listers/autoscaling/v2beta1"
 	cache "k8s.io/client-go/tools/cache"
 )
 
@@ -36,7 +36,7 @@ import (
 // HorizontalPodAutoscalers.
 type HorizontalPodAutoscalerInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() autoscalingv2beta1.HorizontalPodAutoscalerLister
+	Lister() v2beta1.HorizontalPodAutoscalerLister
 }
 
 type horizontalPodAutoscalerInformer struct {
@@ -62,28 +62,16 @@ func NewFilteredHorizontalPodAutoscalerInformer(client kubernetes.Interface, nam
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.AutoscalingV2beta1().HorizontalPodAutoscalers(namespace).List(context.Background(), options)
+				return client.AutoscalingV2beta1().HorizontalPodAutoscalers(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.AutoscalingV2beta1().HorizontalPodAutoscalers(namespace).Watch(context.Background(), options)
-			},
-			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
-				if tweakListOptions != nil {
-					tweakListOptions(&options)
-				}
-				return client.AutoscalingV2beta1().HorizontalPodAutoscalers(namespace).List(ctx, options)
-			},
-			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
-				if tweakListOptions != nil {
-					tweakListOptions(&options)
-				}
-				return client.AutoscalingV2beta1().HorizontalPodAutoscalers(namespace).Watch(ctx, options)
+				return client.AutoscalingV2beta1().HorizontalPodAutoscalers(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&apiautoscalingv2beta1.HorizontalPodAutoscaler{},
+		&autoscalingv2beta1.HorizontalPodAutoscaler{},
 		resyncPeriod,
 		indexers,
 	)
@@ -94,9 +82,9 @@ func (f *horizontalPodAutoscalerInformer) defaultInformer(client kubernetes.Inte
 }
 
 func (f *horizontalPodAutoscalerInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apiautoscalingv2beta1.HorizontalPodAutoscaler{}, f.defaultInformer)
+	return f.factory.InformerFor(&autoscalingv2beta1.HorizontalPodAutoscaler{}, f.defaultInformer)
 }
 
-func (f *horizontalPodAutoscalerInformer) Lister() autoscalingv2beta1.HorizontalPodAutoscalerLister {
-	return autoscalingv2beta1.NewHorizontalPodAutoscalerLister(f.Informer().GetIndexer())
+func (f *horizontalPodAutoscalerInformer) Lister() v2beta1.HorizontalPodAutoscalerLister {
+	return v2beta1.NewHorizontalPodAutoscalerLister(f.Informer().GetIndexer())
 }

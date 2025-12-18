@@ -14,5 +14,5 @@ type SecMgrThreshold struct {
 
 	//  Field introduced in 18.2.5. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
-	Threshold *uint64 `json:"threshold"`
+	Threshold *int64 `json:"threshold"`
 }

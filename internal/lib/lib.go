@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -21,41 +21,34 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/url"
 	"os"
 	"reflect"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
-	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
 
 	"github.com/Masterminds/semver"
 	routev1 "github.com/openshift/api/route/v1"
 	oshiftclient "github.com/openshift/client-go/route/clientset/versioned"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/alb-sdk/go/models"
-	"github.com/vmware/alb-sdk/go/session"
-	"google.golang.org/protobuf/proto"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
-	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-	k8net "k8s.io/utils/net"
 
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	"google.golang.org/protobuf/proto"
 )
 
 var ShardSchemeMap = map[string]string{
@@ -85,22 +78,18 @@ type CRDMetadata struct {
 }
 
 type ServiceMetadataObj struct {
-	NamespaceIngressName       []string            `json:"namespace_ingress_name"`
-	IngressName                string              `json:"ingress_name"`
-	Namespace                  string              `json:"namespace"`
-	HostNames                  []string            `json:"hostnames"`
-	NamespaceServiceName       []string            `json:"namespace_svc_name"` // []string{ns/name}
-	CRDStatus                  CRDMetadata         `json:"crd_status"`
-	PoolRatio                  uint32              `json:"pool_ratio"`
-	PassthroughParentRef       string              `json:"passthrough_parent_ref"`
-	PassthroughChildRef        string              `json:"passthrough_child_ref"`
-	Gateway                    string              `json:"gateway"`   // ns/name
-	HTTPRoute                  string              `json:"httproute"` // ns/name
-	HTTPRouteRuleName          string              `json:"httproute_rule_name"`
-	InsecureEdgeTermAllow      bool                `json:"insecureedgetermallow"`
-	IsMCIIngress               bool                `json:"is_mci_ingress"`
-	FQDNReusePolicy            string              `json:"fqdn_reuse_policy"`
-	HostToNamespaceIngressName map[string][]string `json:"host_namespace_ingress_name"`
+	NamespaceIngressName  []string    `json:"namespace_ingress_name"`
+	IngressName           string      `json:"ingress_name"`
+	Namespace             string      `json:"namespace"`
+	HostNames             []string    `json:"hostnames"`
+	NamespaceServiceName  []string    `json:"namespace_svc_name"` // []string{ns/name}
+	CRDStatus             CRDMetadata `json:"crd_status"`
+	PoolRatio             int32       `json:"pool_ratio"`
+	PassthroughParentRef  string      `json:"passthrough_parent_ref"`
+	PassthroughChildRef   string      `json:"passthrough_child_ref"`
+	Gateway               string      `json:"gateway"` // ns/name
+	InsecureEdgeTermAllow bool        `json:"insecureedgetermallow"`
+	IsMCIIngress          bool        `json:"is_mci_ingress"`
 }
 
 type ServiceMetadataMappingObjType string
@@ -111,16 +100,10 @@ const (
 	ServiceTypeLBVS      ServiceMetadataMappingObjType = "SERVICELB_VS"
 	GatewayPool          ServiceMetadataMappingObjType = "GATEWAY_POOL"
 	SNIInsecureOrEVHPool ServiceMetadataMappingObjType = "SNI_INSECURE_OR_EVH_POOL"
-	HTTPRouteChildVS     ServiceMetadataMappingObjType = "HTTP_ROUTE_CHILD_VS"
 )
 
 func (c ServiceMetadataObj) ServiceMetadataMapping(objType string) ServiceMetadataMappingObjType {
-	if objType == "VS" && c.HTTPRoute != "" && c.HTTPRouteRuleName != "" {
-		// Check for `HTTPRoute` and `HTTPRouteRuleName` in VS serviceMetadata. Present in case of
-		// 1) HTTPRoute VS
-		// This needs to be above Gateway check
-		return HTTPRouteChildVS
-	} else if c.Gateway != "" {
+	if c.Gateway != "" {
 		// Check for `Gateway` in VS serviceMetadata. Present in case of
 		// 1) Advl4 VS
 		// 2) SvcApi VS
@@ -150,84 +133,9 @@ func (c ServiceMetadataObj) ServiceMetadataMapping(objType string) ServiceMetada
 	return ""
 }
 
-var RestOpPerKeyType *prometheus.CounterVec
-var TotalRestOp prometheus.Counter
-var ObjectsInQueue *prometheus.GaugeVec
-var reg *prometheus.Registry
-
-func SetPrometheusRegistry() {
-	// creating new registry so no default metrics (which contains basic go related metrics)
-	reg = prometheus.NewRegistry()
-}
-func GetPrometheusRegistry() *prometheus.Registry {
-	return reg
-}
-func RegisterPromMetrics() *prometheus.Registry {
-	subSystem := *proto.String(os.Getenv("POD_NAME") + "_" + os.Getenv("POD_NAMESPACE"))
-	subSystem = strings.ReplaceAll(subSystem, "-", "_")
-	RestOpPerKeyType = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: "ako",
-			Subsystem: subSystem,
-			Name:      "rest_api_to_controller",
-			Help:      "Number of rest operations sent to controller from AKO per key per rest type.",
-		},
-		[]string{
-			// Which key has requested the operation?
-			"key",
-			// Of what type is the operation?
-			"type",
-		},
-	)
-	reg.MustRegister(RestOpPerKeyType)
-
-	TotalRestOp = prometheus.NewCounter(
-		prometheus.CounterOpts{
-			Namespace: "ako",
-			Subsystem: subSystem,
-			Name:      "total_rest_api_to_controller",
-			Help:      "Total number of rest operations sent to controller from AKO .",
-		},
-	)
-	reg.MustRegister(TotalRestOp)
-
-	ObjectsInQueue = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Namespace: "ako",
-			Subsystem: subSystem,
-			Name:      "total_objects_in_queue",
-			Help:      "Number of objects present in the queue",
-		},
-		[]string{
-			// Queue name
-			"queuename",
-		},
-	)
-	reg.MustRegister(ObjectsInQueue)
-	return reg
-}
-
-func IncrementQueueCounter(queueName string) {
-	if AKOControlConfig().GetAKOAKOPrometheusFlag() {
-		ObjectsInQueue.With(prometheus.Labels{"queuename": queueName}).Inc()
-	}
-}
-func DecrementQueueCounter(queueName string) {
-	if AKOControlConfig().GetAKOAKOPrometheusFlag() {
-		ObjectsInQueue.With(prometheus.Labels{"queuename": queueName}).Dec()
-	}
-}
-func IncrementRestOpCouter(restOpMethod, objName string) {
-	if AKOControlConfig().GetAKOAKOPrometheusFlag() {
-		TotalRestOp.Inc()
-		RestOpPerKeyType.With(prometheus.Labels{"type": restOpMethod, "key": objName}).Inc()
-	}
-}
-
 type VSNameMetadata struct {
 	Name      string
 	Dedicated bool
-	Tenant    string
 }
 
 var NamePrefix string
@@ -240,34 +148,24 @@ func CheckObjectNameLength(objName, objType string) bool {
 	return false
 }
 
-func SetNamePrefix(prefix string) {
-	NamePrefix = prefix + GetClusterName() + "--"
+func SetNamePrefix() {
+	NamePrefix = GetClusterName() + "--"
 }
 
 func GetNamePrefix() string {
 	return NamePrefix
 }
 
-// EncodeWithPrefix encodes the given string with the given prefix
-// if prefix is not provided, it uses the NamePrefix value
-func EncodeWithPrefix(s, objType string, prefix ...string) string {
-	namePrefix := GetNamePrefix()
-	if len(prefix) > 0 {
-		namePrefix = prefix[0]
-	}
-	hash := sha1.Sum([]byte(s))
-	encodedStr := namePrefix + hex.EncodeToString(hash[:])
-	//Added this check to be safe side if encoded name becomes greater than limit set
-	CheckObjectNameLength(encodedStr, objType)
-	return encodedStr
-}
-
 func Encode(s, objType string) string {
-	if !IsEvhEnabled() || utils.IsWCP() {
+	if !IsEvhEnabled() || IsWCP() {
 		CheckObjectNameLength(s, objType)
 		return s
 	}
-	return EncodeWithPrefix(s, objType)
+	hash := sha1.Sum([]byte(s))
+	encodedStr := GetNamePrefix() + hex.EncodeToString(hash[:])
+	//Added this check to be safe side if encoded name becomes greater than limit set
+	CheckObjectNameLength(encodedStr, objType)
+	return encodedStr
 }
 
 func IsNameEncoded(name string) bool {
@@ -296,41 +194,14 @@ func GetNSXTTransportZone() string {
 	return NsxTTzType
 }
 
-var nonDnsLabelRegex = regexp.MustCompile(`[^a-zA-Z0-9-]+`)
-
-// sanitizeTenantNameForDNS sanitizes tenant name to be DNS-compliant
-func sanitizeTenantNameForDNS(tenant string) string {
-	// Replace all non-valid DNS label characters with hyphens
-	sanitized := nonDnsLabelRegex.ReplaceAllString(tenant, "-")
-
-	// Remove multiple consecutive hyphens
-	consecutiveHyphens := regexp.MustCompile(`-+`)
-	sanitized = consecutiveHyphens.ReplaceAllString(sanitized, "-")
-
-	// Remove leading and trailing hyphens
-	sanitized = strings.Trim(sanitized, "-")
-
-	return sanitized
-}
-
-func GetFqdns(vsName, key, tenant string, subDomains []string, shardSize uint32) ([]string, string) {
+func GetFqdns(vsName, key string, subDomains []string) ([]string, string) {
 	var fqdns []string
 	var fqdn string
-
-	// Only one domain will be added for a Dedicated VS irrespective of
-	// the value given for the AutoFQDN.
-	if shardSize == 0 {
-		return fqdns, fqdn
-	}
-
 	autoFQDN := true
 	if GetL4FqdnFormat() == AutoFQDNDisabled {
 		autoFQDN = false
 	}
-
-	if subDomains != nil && autoFQDN && !VIPPerNamespace() {
-		// Sanitize tenant name to be DNS-compliant
-		tenantNameWithValidChars := sanitizeTenantNameForDNS(tenant)
+	if subDomains != nil && autoFQDN {
 		// honour defaultSubDomain from values.yaml if specified
 		defaultSubDomain := GetDomain()
 		if defaultSubDomain != "" && utils.HasElem(subDomains, defaultSubDomain) {
@@ -345,28 +216,18 @@ func GetFqdns(vsName, key, tenant string, subDomains []string, shardSize uint32)
 		}
 		if GetL4FqdnFormat() == AutoFQDNDefault {
 			// Generate the FQDN based on the logic: <svc_name>.<namespace>.<sub-domain>
-			// TODO: check label length for vsName, tenantName so that it doesn't exceed 63 characters.
-			fqdn = vsName + "." + tenantNameWithValidChars + "." + subdomain
+			fqdn = vsName + "." + GetTenant() + "." + subdomain
 		} else if GetL4FqdnFormat() == AutoFQDNFlat {
 			// Generate the FQDN based on the logic: <svc_name>-<namespace>.<sub-domain>
-			// TODO: check label length for vsName-tenantName so that it doesn't exceed 63 characters.
-			fqdn = vsName + "-" + tenantNameWithValidChars + "." + subdomain
+			fqdn = vsName + "-" + GetTenant() + "." + subdomain
 		}
-		objects.SharedCRDLister().UpdateFQDNSharedVSModelMappings(fqdn, GetModelName(tenant, vsName))
+		objects.SharedCRDLister().UpdateFQDNSharedVSModelMappings(fqdn, GetModelName(GetTenant(), vsName))
 		utils.AviLog.Infof("key: %s, msg: Configured the shared VS with default fqdn as: %s", key, fqdn)
 		fqdns = append(fqdns, fqdn)
-	} else {
-		// Do not generate auto-fqdn for vipPerNS use case
-		if VIPPerNamespace() && autoFQDN {
-			utils.AviLog.Warnf("key: %s, msg: Auto-FQDN is disabled for VIP PER NS mode.", key)
-		}
-		objects.SharedCRDLister().UpdateFQDNSharedVSModelMappings(vsName, GetModelName(tenant, vsName))
 	}
 	return fqdns, fqdn
 }
-func GetEscapedValue(val string) string {
-	return url.QueryEscape(val)
-}
+
 func SetDisableSync(state bool) {
 	DisableSync = state
 	utils.AviLog.Infof("Setting Disable Sync to: %v", state)
@@ -424,8 +285,8 @@ func GetDeleteConfigMap() bool {
 
 var AKOUser string
 
-func SetAKOUser(prefix string) {
-	AKOUser = prefix + GetClusterName()
+func SetAKOUser() {
+	AKOUser = "ako-" + GetClusterName()
 	isPrimaryAKO := akoControlConfigInstance.GetAKOInstanceFlag()
 	if !isPrimaryAKO {
 		AKOUser = AKOUser + "-" + os.Getenv("POD_NAMESPACE")
@@ -438,7 +299,7 @@ func GetAKOUser() string {
 }
 
 func GetshardSize() uint32 {
-	if utils.IsWCP() {
+	if IsWCP() {
 		// shard to 8 go routines in the REST layer
 		return ShardSizeMap["LARGE"]
 	}
@@ -451,16 +312,8 @@ func GetshardSize() uint32 {
 	}
 }
 
-func GetShardSizeFromAviInfraSetting(infraSetting *akov1beta1.AviInfraSetting) uint32 {
-	if infraSetting != nil &&
-		infraSetting.Spec.L7Settings.ShardSize != "" {
-		return ShardSizeMap[infraSetting.Spec.L7Settings.ShardSize]
-	}
-	return GetshardSize()
-}
-
 func GetL4FqdnFormat() string {
-	if utils.IsWCP() {
+	if IsWCP() {
 		// disable for advancedL4
 		return AutoFQDNDisabled
 	}
@@ -494,8 +347,8 @@ func GetL4PoolName(svcName, namespace, protocol string, port int32) string {
 	return Encode(poolName, L4Pool)
 }
 
-func GetAdvL4PoolName(svcName, namespace, gwName, protocol string, port int32) string {
-	poolName := NamePrefix + namespace + "-" + svcName + "-" + gwName + "-" + protocol + "--" + strconv.Itoa(int(port))
+func GetAdvL4PoolName(svcName, namespace, gwName string, port int32) string {
+	poolName := NamePrefix + namespace + "-" + svcName + "-" + gwName + "--" + strconv.Itoa(int(port))
 	return Encode(poolName, L4AdvPool)
 }
 
@@ -597,18 +450,6 @@ func GetSniPoolName(ingName, namespace, host, path, infrasetting string, dedicat
 	return poolName
 }
 
-func GetEncodedSniPGPoolNameforRegex(poolName string) string {
-	hash := sha1.Sum([]byte(poolName))
-	encodedStr := GetNamePrefix() + hex.EncodeToString(hash[:])
-	return encodedStr
-}
-
-func GetEncodedStringGroupName(host, path string) string {
-	hash := sha1.Sum([]byte(host + path))
-	encodedStr := GetAKOUser() + "-" + hex.EncodeToString(hash[:])
-	return encodedStr
-}
-
 func GetSniHttpPolName(namespace, host, infrasetting string) string {
 
 	if infrasetting != "" {
@@ -616,7 +457,6 @@ func GetSniHttpPolName(namespace, host, infrasetting string) string {
 	}
 	return Encode(NamePrefix+namespace+"-"+host, HTTPPS)
 }
-
 func GetSniHppMapName(ingName, namespace, host, path, infrasetting string, dedicatedVS bool) string {
 	path = strings.ReplaceAll(path, "/", "_")
 	hppmap := NamePrefix
@@ -689,21 +529,26 @@ func GetEvhPGName(ingName, namespace, host, path, infrasetting string, dedicated
 
 func IsSecretK8sSecretRef(secret string) bool {
 	re := regexp.MustCompile(fmt.Sprintf(`^%s.*`, DummySecretK8s))
-	return re.MatchString(secret)
+	if re.MatchString(secret) {
+		return true
+	}
+	return false
 }
 
 func IsSecretAviCertRef(secret string) bool {
 	re := regexp.MustCompile(fmt.Sprintf(`^%s.*`, DummySecret))
-	return re.MatchString(secret)
+	if re.MatchString(secret) {
+		return true
+	}
+	return false
 }
 
 func GetTLSKeyCertNodeName(infrasetting, sniHostName, secretName string) string {
 	if IsSecretK8sSecretRef(secretName) {
-		secretNameSlice := strings.Split(secretName, "/")
-		secretName = secretNameSlice[len(secretNameSlice)-1]
-	}
-	if secretName == GetDefaultSecretForRoutes() || secretName == GetDefaultSecretForRoutes()+"-alt" {
-		return Encode(NamePrefix+secretName, TLSKeyCert)
+		secretName = strings.Split(secretName, "/")[2]
+		if secretName == GetDefaultSecretForRoutes() {
+			return Encode(secretName, TLSKeyCert)
+		}
 	}
 	namePrefix := NamePrefix
 	if infrasetting != "" {
@@ -753,23 +598,6 @@ func GetVrf() string {
 	return VRFContext
 }
 
-// One proxy enabled app profile per cluster
-func GetProxyEnabledApplicationProfileName() string {
-	return Encode(GetClusterName()+"-proxy-applicationprofile", ApplicationProfile)
-}
-
-// One TCP half Open connection HM per cluster
-func GetTcpHalfOpenHealthMonitorName() string {
-	return Encode(GetClusterName()+"-tcphalfopen-healthmonitor", HealthMonitor)
-}
-
-func GetVPCMode() bool {
-	if vpcMode, _ := strconv.ParseBool(os.Getenv(utils.VPC_MODE)); vpcMode {
-		return true
-	}
-	return false
-}
-
 func GetAdminTenant() string {
 	return utils.ADMIN_NS
 }
@@ -780,23 +608,6 @@ func GetTenant() string {
 		return tenantName
 	}
 	return utils.ADMIN_NS
-}
-
-func IsDedicatedTenantMode() bool {
-	if ok, _ := strconv.ParseBool(os.Getenv("DEDICATED_TENANT_MODE")); ok {
-		return true
-	}
-	return false
-}
-
-// GetQueryTenant returns the tenant to use for queries
-// If dedicatedTenantMode is enabled, returns the specific tenant
-// Otherwise, returns "*" for all tenants
-func GetQueryTenant() string {
-	if IsDedicatedTenantMode() {
-		return GetTenant()
-	}
-	return "*"
 }
 
 func IsIstioEnabled() bool {
@@ -816,7 +627,6 @@ func GetDefaultIngController() bool {
 	return false
 }
 
-// TODO: Redundant function. Remove next release.
 func GetNamespaceToSync() string {
 	namespace := os.Getenv("SYNC_NAMESPACE")
 	if namespace != "" {
@@ -854,68 +664,9 @@ func GetAkoApiServerPort() string {
 	return "8080"
 }
 
-func IsPrometheusEnabled() bool {
-	if ok, _ := strconv.ParseBool(os.Getenv("PROMETHEUS_ENABLED")); ok {
-		utils.AviLog.Infof("Prometheus is enabled")
-		return true
-	}
-	utils.AviLog.Infof("Prometheus is not enabled")
-	return false
-}
-
-func IsAKOCRDOperatorEnabled() bool {
-	//Start CRD informers and event handlers if AKO CRD Operator is enabled or cluster in use is a VCF cluster
-	if ok, _ := strconv.ParseBool(os.Getenv("AKO_CRD_OPERATOR_ENABLED")); ok || utils.IsVCFCluster() {
-		return true
-	}
-	return false
-}
-
-var VipNetworkList []akov1beta1.AviInfraSettingVipNetwork
-var VipInfraNetworkList map[string][]akov1beta1.AviInfraSettingVipNetwork
-
-func SetVipNetworkList(vipNetworks []akov1beta1.AviInfraSettingVipNetwork) {
-	VipNetworkList = vipNetworks
-}
-
-func GetVipNetworkList() []akov1beta1.AviInfraSettingVipNetwork {
-	return VipNetworkList
-}
-
-var vipInfraSyncMap sync.Map
-
-func SetVipInfraNetworkList(infraName string, vipNetworks []akov1beta1.AviInfraSettingVipNetwork) {
-	vipInfraSyncMap.Store(infraName, vipNetworks)
-}
-
-func GetVipInfraNetworkList(infraName string) []akov1beta1.AviInfraSettingVipNetwork {
-	val, present := vipInfraSyncMap.Load(infraName)
-	if present {
-		return val.([]akov1beta1.AviInfraSettingVipNetwork)
-	}
-	utils.AviLog.Warnf("Key: Error in fetching VIP network associated with AviInfrasetting %s. Using VIP network from configmap", infraName)
-	return utils.GetVipNetworkList()
-}
-
-var NodeInfraNetworkList map[string]map[string]NodeNetworkMap
-var nodeInfraSyncMap sync.Map
-
-func SetNodeInfraNetworkList(name string, nodeNetworks map[string]NodeNetworkMap) {
-	nodeInfraSyncMap.Store(name, nodeNetworks)
-}
-
-func GetNodeInfraNetworkList(name string) map[string]NodeNetworkMap {
-	val, present := nodeInfraSyncMap.Load(name)
-	if present {
-		return val.(map[string]NodeNetworkMap)
-	}
-	utils.AviLog.Warnf("Key: Error in fetching node network list associated with AviInfrasetting %s. Using node network list from configmap", name)
-	return GetNodeNetworkMap()
-}
-
-func GetVipNetworkListEnv() ([]akov1beta1.AviInfraSettingVipNetwork, error) {
-	var vipNetworkList []akov1beta1.AviInfraSettingVipNetwork
-	if utils.IsWCP() || GetVPCMode() {
+func GetVipNetworkListEnv() ([]akov1alpha1.AviInfraSettingVipNetwork, error) {
+	var vipNetworkList []akov1alpha1.AviInfraSettingVipNetwork
+	if IsWCP() {
 		// do not return error in case of WCP deployments.
 		return vipNetworkList, nil
 	}
@@ -957,10 +708,6 @@ func GetGlobalBlockedNSList() []string {
 	return blockedNs
 }
 
-// return VRF from configmap
-func GetControllerVRFContext() string {
-	return os.Getenv("VRF_NAME")
-}
 func GetT1LRPath() string {
 	return os.Getenv("NSXT_T1_LR")
 }
@@ -983,18 +730,10 @@ func GetSEGNameEnv() string {
 	return ""
 }
 
-type NodeNetworkMap struct {
-	NetworkUUID string   `json:"networkUUID"`
-	Cidrs       []string `json:"cidrs"`
-}
-
-var NodeNetworkList map[string]NodeNetworkMap
-
-func GetNodeNetworkMapEnv() (map[string]NodeNetworkMap, error) {
-	nodeNetworkMap := make(map[string]NodeNetworkMap)
+func GetNodeNetworkMap() (map[string][]string, error) {
+	nodeNetworkMap := make(map[string][]string)
 	type Row struct {
 		NetworkName string   `json:"networkName"`
-		NetworkUUID string   `json:"networkUUID"`
 		Cidrs       []string `json:"cidrs"`
 	}
 	type nodeNetworkList []Row
@@ -1014,25 +753,10 @@ func GetNodeNetworkMapEnv() (map[string]NodeNetworkMap, error) {
 	}
 
 	for _, nodeNetwork := range nodeNetworkListObj {
-		nodeNetworkRow := NodeNetworkMap{
-			Cidrs: nodeNetwork.Cidrs,
-		}
-		// Give preference to networkUUID
-		if nodeNetwork.NetworkUUID != "" {
-			nodeNetworkRow.NetworkUUID = nodeNetwork.NetworkUUID
-			nodeNetworkMap[nodeNetworkRow.NetworkUUID] = nodeNetworkRow
-		} else if nodeNetwork.NetworkName != "" {
-			nodeNetworkMap[nodeNetwork.NetworkName] = nodeNetworkRow
-		}
+		nodeNetworkMap[nodeNetwork.NetworkName] = nodeNetwork.Cidrs
 	}
 
 	return nodeNetworkMap, nil
-}
-func SetNodeNetworkMap(nodeNetworkList map[string]NodeNetworkMap) {
-	NodeNetworkList = nodeNetworkList
-}
-func GetNodeNetworkMap() map[string]NodeNetworkMap {
-	return NodeNetworkList
 }
 
 func GetDomain() string {
@@ -1043,15 +767,20 @@ func GetDomain() string {
 	return ""
 }
 
-func GetHostnameforSubdomain(subdomain string) string {
-	if subdomain == "" || GetDomain() == "" {
-		return ""
+// This utility returns a true/false depending on whether
+// the user requires advanced L4 functionality
+func GetAdvancedL4() bool {
+	advanceL4 := os.Getenv(ADVANCED_L4)
+	return advanceL4 == "true"
+}
+
+// Wrapper function for AKO running in either VDS
+// or VCF (WCP with NSX).
+func IsWCP() bool {
+	if GetAdvancedL4() || utils.IsVCFCluster() {
+		return true
 	}
-	if strings.HasPrefix(GetDomain(), ".") {
-		return subdomain + GetDomain()
-	} else {
-		return subdomain + "." + GetDomain()
-	}
+	return false
 }
 
 type NextPage struct {
@@ -1069,8 +798,23 @@ func FetchSEGroupWithMarkerSet(client *clients.AviClient, overrideUri ...NextPag
 	var result session.AviCollectionResult
 	result, err := AviGetCollectionRaw(client, uri)
 	if err != nil {
-		utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
-		return err, ""
+		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
+			//SE in provider context no read access
+			utils.AviLog.Debugf("Switching to admin context from  %s", GetTenant())
+			SetAdminTenant := session.SetTenant(GetAdminTenant())
+			SetTenant := session.SetTenant(GetTenant())
+			SetAdminTenant(client.AviSession)
+			defer SetTenant(client.AviSession)
+			result, err = AviGetCollectionRaw(client, uri)
+			if err != nil {
+				utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+				return err, ""
+
+			}
+		} else {
+			utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
+			return err, ""
+		}
 	}
 
 	elems := make([]json.RawMessage, result.Count)
@@ -1116,7 +860,8 @@ func FetchSEGroupWithMarkerSet(client *clients.AviClient, overrideUri ...NextPag
 // This utility returns true if AKO is configured to create
 // VS with Enhanced Virtual Hosting
 func IsEvhEnabled() bool {
-	if evh, _ := strconv.ParseBool(os.Getenv(ENABLE_EVH)); evh {
+	evh := os.Getenv(ENABLE_EVH)
+	if evh == "true" {
 		return true
 	}
 	return utils.IsVCFCluster()
@@ -1151,7 +896,7 @@ func IsValidCni(returnErr *error) bool {
 
 func GetDisableStaticRoute() bool {
 	// We don't need the static routes for NSX-T cloud
-	if utils.IsWCP() || (GetCloudType() == CLOUD_NSXT && GetCNIPlugin() == NCP_CNI) {
+	if IsWCP() || (GetCloudType() == CLOUD_NSXT && GetCNIPlugin() == NCP_CNI) {
 		return true
 	}
 	if ok, _ := strconv.ParseBool(os.Getenv(DISABLE_STATIC_ROUTE_SYNC)); ok {
@@ -1171,10 +916,14 @@ func GetClusterName() string {
 	if ClusterName != "" {
 		return ClusterName
 	}
-	if utils.IsWCP() {
+	if IsWCP() {
 		return GetClusterIDSplit()
 	}
-	return os.Getenv(CLUSTER_NAME)
+	clusterName := os.Getenv(CLUSTER_NAME)
+	if clusterName != "" {
+		return clusterName
+	}
+	return ""
 }
 
 func SetClusterID(clusterID string) {
@@ -1185,25 +934,24 @@ func GetClusterID() string {
 	if utils.IsVCFCluster() {
 		return ClusterID
 	}
+	clusterID := os.Getenv(CLUSTER_ID)
 	// The clusterID is an internal field only in the advanced L4 mode and we expect the format to be: domain-c8:3fb16b38-55f0-49fb-997d-c117487cd98d
 	// We want to truncate this string to just have the uuid.
-	return os.Getenv(CLUSTER_ID)
+	if clusterID != "" {
+		return clusterID
+	}
+	return ""
 }
 
 func GetClusterIDSplit() string {
 	clusterID := GetClusterID()
-	clusterName := strings.Split(clusterID, ":")
-	if len(clusterName) > 1 {
-		if GetVPCMode() {
-			// Include first 5 characters to add more uniqueness to cluster name
-			return clusterName[0] + "-" + clusterName[1][:5]
+	if clusterID != "" {
+		clusterName := strings.Split(clusterID, ":")
+		if len(clusterName) > 1 {
+			return clusterName[0]
 		}
-		return clusterName[0]
 	}
-	if len(clusterID) > 12 {
-		return clusterID[:12]
-	}
-	return clusterID
+	return ""
 }
 
 func IsClusterNameValid() (bool, error) {
@@ -1234,12 +982,7 @@ func SetApiServerInstance(akoApiInstance api.ApiServerInterface) {
 }
 
 func ShutdownApi() {
-	if akoApi != nil {
-		akoApi.ShutDown()
-	} else {
-		// ako-infra doesn't have an API server, use Fatalf instead
-		utils.AviLog.Fatalf("AKO restart required due to Avi controller upgrade/reboot")
-	}
+	akoApi.ShutDown()
 }
 
 var clusterLabelChecksum uint32
@@ -1342,22 +1085,6 @@ func DSChecksum(pgrefs []string, markers []*models.RoleFilterMatchLabel, populat
 		return checksum
 	}
 	checksum += GetClusterLabelChecksum()
-	return checksum
-}
-
-func StringGroupChecksum(keyvalue []*models.KeyValue, markers []*models.RoleFilterMatchLabel, longestMatch *bool, populateCache bool) uint32 {
-	var checksum uint32
-	if populateCache {
-		if markers != nil {
-			checksum += ObjectLabelChecksum(markers)
-		}
-		return checksum
-	}
-	checksum += GetClusterLabelChecksum()
-	checksum += utils.Hash(utils.Stringify(keyvalue))
-	if longestMatch != nil {
-		checksum += utils.Hash(utils.Stringify(*longestMatch))
-	}
 	return checksum
 }
 
@@ -1480,11 +1207,13 @@ func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Cl
 	// Services, Endpoints, Secrets, ConfigMaps and Namespaces.
 	allInformers := []string{
 		utils.ServiceInformer,
+		utils.EndpointInformer,
 		utils.SecretInformer,
 		utils.ConfigMapInformer,
 		utils.NSInformer,
-		utils.EndpointSlicesInformer,
 	}
+
+	// AKO must watch over Pods in case of NodePortLocal, to get Antrea annotation values.
 	if GetServiceType() == NodePortLocal {
 		allInformers = append(allInformers, utils.PodInformer)
 	}
@@ -1499,7 +1228,7 @@ func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Cl
 	// Nodes, Ingresses, IngressClasses, Routes, MultiClusterIngress and ServiceImports.
 	// Routes should be watched over in Openshift environments only.
 	// MultiClusterIngress and ServiceImport should be watched over only when MCI is enabled.
-	if !utils.IsWCP() {
+	if !IsWCP() {
 		allInformers = append(allInformers, utils.NodeInformer)
 
 		informerTimeout := int64(120)
@@ -1508,17 +1237,11 @@ func InformersToRegister(kclient *kubernetes.Clientset, oclient *oshiftclient.Cl
 			return allInformers, errors.New("Error in fetching services: " + err.Error())
 		}
 		if oclient != nil {
-			// This will change once we start supporting ingress in Openshift
 			_, err = oclient.RouteV1().Routes(metav1.NamespaceAll).List(context.TODO(), metav1.ListOptions{TimeoutSeconds: &informerTimeout})
 			if err == nil {
 				// Openshift cluster with route support, we will just add route informer
 				allInformers = append(allInformers, utils.RouteInformer)
 				isOshift = true
-			} else {
-				// error out for Openshift CNI and OVN CNI
-				if GetCNIPlugin() == OPENSHIFT_CNI || GetCNIPlugin() == OVN_KUBERNETES_CNI {
-					return allInformers, errors.New("Error in fetching Openshift routes: " + err.Error())
-				}
 			}
 		}
 		if !isOshift {
@@ -1567,40 +1290,14 @@ func SSLKeyCertChecksum(sslName, certificate, cacert string, ingestionMarkers ut
 	return checksum
 }
 
-func L4PolicyChecksum(ports []int64, protocols []string, pools []string, ingestionMarkers utils.AviObjectMarkers, markers []*models.RoleFilterMatchLabel, populateCache bool) uint32 {
+func L4PolicyChecksum(ports []int64, protocols []string, ingestionMarkers utils.AviObjectMarkers, markers []*models.RoleFilterMatchLabel, populateCache bool) uint32 {
 	var portsInt []int
 	for _, port := range ports {
 		portsInt = append(portsInt, int(port))
 	}
 	sort.Ints(portsInt)
 	sort.Strings(protocols)
-	sort.Strings(pools)
-	checksum := utils.Hash(utils.Stringify(portsInt)) + utils.Hash(utils.Stringify(protocols)) + utils.Hash(utils.Stringify(pools))
-	if populateCache {
-		if markers != nil {
-			checksum += ObjectLabelChecksum(markers)
-		}
-		return checksum
-	}
-	checksum += GetMarkersChecksum(ingestionMarkers)
-	return checksum
-}
-
-func HTTPCookiePersistenceProfileChecksum(cookieName string, timeout *int32, isPersistentCookie *bool) uint32 {
-	checksum := utils.Hash(cookieName)
-	if timeout != nil {
-		checksum += utils.Hash(utils.Stringify(*timeout))
-	}
-	if isPersistentCookie != nil {
-		checksum += utils.Hash(utils.Stringify(*isPersistentCookie))
-	}
-	return checksum
-}
-
-func PersistenceProfileChecksum(name, persistenceType string, ingestionMarkers utils.AviObjectMarkers, markers []*models.RoleFilterMatchLabel, populateCache bool) uint32 {
-	var checksum uint32 = 0
-	checksum += utils.Hash(name)
-	checksum += utils.Hash(persistenceType)
+	checksum := utils.Hash(utils.Stringify(portsInt)) + utils.Hash(utils.Stringify(protocols))
 	if populateCache {
 		if markers != nil {
 			checksum += ObjectLabelChecksum(markers)
@@ -1660,7 +1357,6 @@ func IsValidLabelOnNode(labels map[string]string, key string) bool {
 
 var CloudType string
 var CloudUUID string
-var CloudMgmtNetwork string
 
 func SetCloudType(cloudType string) {
 	CloudType = cloudType
@@ -1668,19 +1364,6 @@ func SetCloudType(cloudType string) {
 
 func SetCloudUUID(cloudUUID string) {
 	CloudUUID = cloudUUID
-}
-
-func SetCloudMgmtNetwork(cloudMgmtNw string) {
-	var mgmtUUID string
-	if cloudMgmtNw != "" {
-		parts := strings.Split(cloudMgmtNw, "/")
-		mgmtUUID = parts[len(parts)-1]
-	}
-	CloudMgmtNetwork = mgmtUUID
-}
-
-func GetCloudMgmtNetwork() string {
-	return CloudMgmtNetwork
 }
 
 func GetCloudType() string {
@@ -1856,42 +1539,6 @@ func GetDefaultSecretForRoutes() string {
 	return DefaultRouteCert
 }
 
-func ValidateSvcforClass(key string, svc *corev1.Service) bool {
-	if svc != nil {
-		// only check gateway labels for AdvancedL4 case, and skip validation if found
-		if utils.IsWCP() {
-			_, found_name := svc.ObjectMeta.Labels[GatewayNameLabelKey]
-			_, found_namespace := svc.ObjectMeta.Labels[GatewayNamespaceLabelKey]
-			if found_name || found_namespace {
-				utils.AviLog.Infof("key: %s, msg: skipping LoadBalancerClass validation as LB service has Gateway labels, will use GatewayClass for AdvancedL4 validation", key)
-				return true
-			}
-		}
-
-		if svc.Spec.LoadBalancerClass == nil {
-			if isAviDefaultLBController() {
-				return true
-			} else {
-				utils.AviLog.Warnf("key: %s, msg: LoadBalancerClass is not specified for LB service %s and ako.vmware.com/avi-lb is not default loadbalancer controller", key, svc.ObjectMeta.Name)
-				return false
-			}
-		} else {
-			if *svc.Spec.LoadBalancerClass != AviIngressController {
-				utils.AviLog.Warnf("key: %s, msg: LoadBalancerClass for LB service %s is not ako.vmware.com/avi-lb", key, svc.ObjectMeta.Name)
-				return false
-			} else {
-				return true
-			}
-		}
-	}
-	utils.AviLog.Warnf("key: %s, msg: Could not find service for LBClass Validation")
-	return false
-}
-
-func isAviDefaultLBController() bool {
-	return AKOControlConfig().IsAviDefaultLBController()
-}
-
 func ValidateIngressForClass(key string, ingress *networkingv1.Ingress) bool {
 	if utils.IsVCFCluster() {
 		return true
@@ -2017,8 +1664,8 @@ func RefreshAuthToken(kc kubernetes.Interface) {
 			utils.AviLog.Errorf("Failed to parse token object")
 			return
 		}
-		expiryTime, err := time.Parse(time.RFC3339, expiry)
-
+		layout := "2006-01-02T15:04:05.000000+00:00"
+		expiryTime, err := time.Parse(layout, expiry)
 		if err != nil {
 			utils.AviLog.Errorf("Unable to parse token expiry time, err: %+v", err)
 			return
@@ -2074,26 +1721,11 @@ func RefreshAuthToken(kc kubernetes.Interface) {
 	}
 }
 
-func GetControllerPropertiesFromLocalSystem() (map[string]string, error) {
-	ctrlProps := make(map[string]string)
-	ctrlProps[utils.ENV_CTRL_USERNAME] = os.Getenv("CTRL_USERNAME")
-	ctrlProps[utils.ENV_CTRL_PASSWORD] = os.Getenv("CTRL_PASSWORD")
-
-	cert, err := os.ReadFile(os.Getenv("ROOT_CA_CERT_PATH"))
-	if err != nil {
-		utils.AviLog.Errorf("Failed to read cert from %s, err: %+v", os.Getenv("ROOT_CA_CERT_PATH"), err)
-		return ctrlProps, err
-	}
-	ctrlProps[utils.ENV_CTRL_CADATA] = string(cert)
-
-	return ctrlProps, nil
-}
-
 func GetControllerPropertiesFromSecret(cs kubernetes.Interface) (map[string]string, error) {
 	ctrlProps := make(map[string]string)
 	aviSecret, err := cs.CoreV1().Secrets(utils.GetAKONamespace()).Get(context.TODO(), AviSecret, metav1.GetOptions{})
 	if err != nil {
-		utils.AviLog.Error(err.Error())
+		utils.AviLog.Error(err, err.Error())
 		return ctrlProps, err
 	}
 	ctrlProps[utils.ENV_CTRL_USERNAME] = string(aviSecret.Data["username"])
@@ -2138,9 +1770,6 @@ func GetAviMinSupportedVersion() string {
 }
 
 func GetAviMaxSupportedVersion() string {
-	if CompareVersions(aviMaxVersion, ">", utils.MaxAviVersion) {
-		aviMaxVersion = utils.MaxAviVersion
-	}
 	return aviMaxVersion
 }
 
@@ -2171,7 +1800,8 @@ func GetControllerVersion() string {
 }
 
 func VIPPerNamespace() bool {
-	if vipPerNS, _ := strconv.ParseBool(os.Getenv(VIP_PER_NAMESPACE)); vipPerNS {
+	vipPerNS := os.Getenv(VIP_PER_NAMESPACE)
+	if vipPerNS == "true" {
 		return true
 	}
 	return utils.IsVCFCluster()
@@ -2201,12 +1831,12 @@ var throttle = map[string]uint32{
 	"DISABLED": 0,
 }
 
-func GetThrottle(key string) *uint32 {
-	throttle := uint32(throttle[key])
+func GetThrottle(key string) *int32 {
+	throttle := int32(throttle[key])
 	return &throttle
 }
 
-func UpdateV6(vip *models.Vip, vipNetwork *akov1beta1.AviInfraSettingVipNetwork) {
+func UpdateV6(vip *models.Vip, vipNetwork *akov1alpha1.AviInfraSettingVipNetwork) {
 	if vipNetwork.Cidr != "" {
 		vip.AutoAllocateIPType = proto.String("V4_V6")
 	} else {
@@ -2218,14 +1848,14 @@ var IPfamily string
 
 func SetIPFamily() {
 	ipFamily := os.Getenv(IP_FAMILY)
-	if IsV6EnabledCloud() {
+	if GetCloudType() == CLOUD_VCENTER {
 		if ipFamily != "" {
 			utils.AviLog.Debugf("ipFamily is set to %s", ipFamily)
 			IPfamily = ipFamily
 			return
 		} else {
-			utils.AviLog.Debugf("ipFamily is not set, default mode is dual stack")
-			ipFamily = "V4_V6"
+			utils.AviLog.Debugf("ipFamily is not set, default is V4")
+			ipFamily = "V4"
 		}
 	} else {
 		ipFamily = "V4"
@@ -2240,20 +1870,17 @@ func GetIPFamily() string {
 	return IPfamily
 }
 
-func IsV6EnabledCloud() bool {
-	cloudType := GetCloudType()
-	return cloudType == CLOUD_VCENTER || cloudType == CLOUD_NONE || cloudType == CLOUD_NSXT
-}
-
 func IsValidV6Config(returnErr *error) bool {
 	ipFamily := GetIPFamily()
-	if !(ipFamily == "V4" || ipFamily == "V6" || ipFamily == "V4_V6") {
+	if !(ipFamily == "V4" || ipFamily == "V6") {
 		*returnErr = fmt.Errorf("ipFamily is not one of (V4, V6)")
 		return false
 	}
+
 	vipNetworkList := utils.GetVipNetworkList()
+	isCloudVCenter := (GetCloudType() == CLOUD_VCENTER)
 	for _, vipNetwork := range vipNetworkList {
-		if !IsV6EnabledCloud() && vipNetwork.V6Cidr != "" {
+		if !isCloudVCenter && vipNetwork.V6Cidr != "" {
 			*returnErr = fmt.Errorf("IPv6 CIDR is only supported for vCenter Clouds")
 			return false
 		}
@@ -2324,16 +1951,16 @@ func GetIstioWorkloadCertificateName() string {
 	return "istio-workload-" + GetClusterName() + "-" + utils.GetAKONamespace()
 }
 
-var istioCertSet sets.Set[string]
+var istioCertSet sets.String
 
 func updateIstioCertSet(s string) {
 	if istioCertSet == nil {
-		istioCertSet = sets.Set[string]{}
+		istioCertSet = sets.NewString()
 	}
 	istioCertSet.Insert(s)
 }
 
-func GetIstioCertSet() sets.Set[string] {
+func GetIstioCertSet() sets.String {
 	return istioCertSet
 }
 
@@ -2349,45 +1976,34 @@ func IsChanClosed(ch <-chan struct{}) bool {
 func GetIPFromNode(node *v1.Node) (string, string) {
 	var nodeV4, nodeV6 string
 	nodeAddrs := node.Status.Addresses
-	ipFamily := GetIPFamily()
-	cniPlugin := GetCNIPlugin()
-
-	v4enabled := ipFamily == "V4" || ipFamily == "V4_V6"
-	v6enabled := ipFamily == "V6" || ipFamily == "V4_V6"
-
-	if cniPlugin == CALICO_CNI {
-		if v4enabled {
-			if nodeIP, ok := node.Annotations[CalicoIPv4AddressAnnotation]; ok {
-				nodeV4 = strings.Split(nodeIP, "/")[0]
-			}
-		}
-		if v6enabled {
-			if nodeIP, ok := node.Annotations[CalicoIPv6AddressAnnotation]; ok {
-				nodeV6 = strings.Split(nodeIP, "/")[0]
-			}
-		}
-
-	} else if cniPlugin == ANTREA_CNI {
-		if nodeIPstr, ok := node.Annotations[AntreaTransportAddressAnnotation]; ok {
-			nodeIPlist := strings.Split(nodeIPstr, ",")
-			for _, nodeIP := range nodeIPlist {
-				if v4enabled && utils.IsV4(nodeIP) {
-					nodeV4 = nodeIP
-				} else if v6enabled && k8net.IsIPv6String(nodeIP) {
-					nodeV6 = nodeIP
-				}
+	for _, addr := range nodeAddrs {
+		if addr.Type == corev1.NodeInternalIP {
+			nodeIP := addr.Address
+			if utils.IsV4(nodeIP) {
+				nodeV4 = nodeIP
+			} else {
+				nodeV6 = nodeIP
 			}
 		}
 	}
-
-	if nodeV4 == "" || nodeV6 == "" {
-		for _, addr := range nodeAddrs {
-			if addr.Type == corev1.NodeInternalIP {
-				nodeIP := addr.Address
-				if v4enabled && utils.IsV4(nodeIP) && nodeV4 == "" {
-					nodeV4 = nodeIP
-				} else if v6enabled && k8net.IsIPv6String(nodeIP) && nodeV6 == "" {
-					nodeV6 = nodeIP
+	if GetIPFamily() == "V6" {
+		if GetCNIPlugin() == CALICO_CNI {
+			if nodeIP, ok := node.Annotations["projectcalico.org/IPv4Address"]; ok {
+				nodeV4 = strings.Split(nodeIP, "/")[0]
+			}
+			if nodeIP, ok := node.Annotations["projectcalico.org/IPv6Address"]; ok {
+				nodeV6 = strings.Split(nodeIP, "/")[0]
+			}
+		}
+		if GetCNIPlugin() == ANTREA_CNI {
+			if nodeIPstr, ok := node.Annotations["node.antrea.io/transport-addresses"]; ok {
+				nodeIPlist := strings.Split(nodeIPstr, ",")
+				for _, nodeIP := range nodeIPlist {
+					if utils.IsV4(nodeIP) {
+						nodeV4 = nodeIP
+					} else {
+						nodeV6 = nodeIP
+					}
 				}
 			}
 		}
@@ -2401,172 +2017,4 @@ func init() {
 		seGroupToUse = DEFAULT_SE_GROUP
 	}
 	SEGroupName = seGroupToUse
-}
-
-func ValidServiceType(service *v1.Service) bool {
-	switch service.Spec.Type {
-	case v1.ServiceTypeLoadBalancer, v1.ServiceTypeClusterIP, v1.ServiceTypeNodePort:
-		return true
-	default:
-		return false
-	}
-}
-
-func GetAviInfraSettingName(projVpc string) string {
-	hash := sha1.Sum([]byte(projVpc))
-	return hex.EncodeToString(hash[:])
-}
-
-func GetTenantForProject(project string, c *clients.AviClient) (string, error) {
-	projectToTenantMap, err := GetNSXProjectToTenantMap(c)
-	if err != nil {
-		return "", err
-	}
-	tenant, ok := projectToTenantMap[project]
-	if !ok {
-		return "", fmt.Errorf("tenant not found for project %s", project)
-	}
-	return tenant, nil
-}
-
-func GetNSXProjectToTenantMap(c *clients.AviClient) (map[string]string, error) {
-	projectToTenantMap := make(map[string]string)
-
-	uri := "/api/tenant?fields=name,attrs"
-	for {
-		result, err := AviGetCollectionRaw(c, uri)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get tenants from Avi: %v", err)
-		}
-
-		elems := make([]json.RawMessage, result.Count)
-		err = json.Unmarshal(result.Results, &elems)
-		if err != nil {
-			return nil, fmt.Errorf("failed to unmarshal tenant results: %v", err)
-		}
-
-		for i := 0; i < len(elems); i++ {
-			tenant := models.Tenant{}
-			err = json.Unmarshal(elems[i], &tenant)
-			if err != nil || tenant.Name == nil {
-				continue
-			}
-
-			for _, attr := range tenant.Attrs {
-				if attr != nil && attr.Key != nil && attr.Value != nil && *attr.Key == "path" {
-					projectSlice := strings.Split(*attr.Value, "/projects/")
-					project := projectSlice[len(projectSlice)-1]
-					projectToTenantMap[project] = *tenant.Name
-					break
-				}
-			}
-		}
-
-		if result.Next == "" {
-			break
-		}
-
-		nextURI := strings.Split(result.Next, "/api/tenant")
-		if len(nextURI) > 1 {
-			uri = "/api/tenant" + nextURI[1]
-		} else {
-			break
-		}
-	}
-
-	return projectToTenantMap, nil
-}
-
-func GetNSToSEGMap() (map[string]string, error) {
-	namespaces, err := utils.GetInformers().NSInformer.Lister().List(labels.Set(nil).AsSelector())
-	if err != nil {
-		return nil, err
-	}
-	nsToSEGMap := make(map[string]string)
-	for _, ns := range namespaces {
-		segName := ns.Annotations[WCPSEGroup]
-		if segName != "" {
-			nsToSEGMap[ns.GetName()] = segName
-		}
-	}
-	return nsToSEGMap, nil
-}
-
-// IsHealthMonitorProcessedWithOptions checks if HealthMonitor CRD is processed by AKO CRD Operator
-// Returns (processed, ready, error)
-// checkDeleted parameter controls whether to check for deletion state (used by internal lib but not gateway API)
-func IsHealthMonitorProcessedWithOptions(key, namespace, name string, clientSet dynamic.Interface, checkDeleted bool, obj ...*unstructured.Unstructured) (bool, bool, error) {
-	if clientSet == nil {
-		return false, false, fmt.Errorf("internal error in fetching HealthMonitor %s/%s object", namespace, name)
-	}
-
-	var object *unstructured.Unstructured
-	var err error
-	if len(obj) == 0 {
-		object, err = clientSet.Resource(HealthMonitorGVR).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-		if err != nil {
-			if k8serrors.IsNotFound(err) {
-				return false, false, fmt.Errorf("healthMonitor %s/%s not found", namespace, name)
-			}
-			return false, false, err
-		}
-	} else {
-		object = obj[0]
-	}
-
-	statusJSON, found, err := unstructured.NestedMap(object.UnstructuredContent(), "status")
-	if err != nil || !found {
-		utils.AviLog.Warnf("key: %s, msg: HealthMonitor %s/%s status not found: %+v", key, namespace, name, err)
-		return false, false, err
-	}
-	tenant, ok := statusJSON["tenant"]
-	if !ok || tenant == "" {
-		utils.AviLog.Warnf("key:%s/%s, msg: HealthMonitor CRD tenant not found", namespace, name)
-		return false, false, fmt.Errorf("healthMonitor %s/%s is not processed by AKO CRD Operator", namespace, name)
-	}
-	namespaceTenant := GetTenantInNamespace(namespace)
-	if tenant != namespaceTenant {
-		utils.AviLog.Warnf("key:%s/%s, msg: HealthMonitor CRD tenant %s is not same as namespace tenant %s", namespace, name, tenant, namespaceTenant)
-		return false, false, fmt.Errorf("healthMonitor %s/%s is not processed by AKO CRD Operator", namespace, name)
-	}
-	conditions, ok := statusJSON["conditions"]
-	if !ok || conditions.([]interface{}) == nil || len(conditions.([]interface{})) == 0 {
-		return false, false, fmt.Errorf("healthMonitor %s/%s is not processed by AKO CRD Operator", namespace, name)
-	}
-
-	processed, ready := false, false
-	deleted := false
-
-	for _, condition := range conditions.([]interface{}) {
-		conditionMap, ok := condition.(map[string]interface{})
-		if !ok {
-			continue
-		}
-
-		switch conditionMap["type"] {
-		case "Programmed":
-			processed = true
-			if conditionMap["status"] == "True" {
-				ready = true
-			}
-		case "Deleted":
-			if checkDeleted && conditionMap["status"] == "False" {
-				// HealthMonitor is being deleted (finalizer prevents actual deletion)
-				// This indicates the object is marked for deletion but still exists
-				deleted = true
-				utils.AviLog.Debugf("key: %s, msg: HealthMonitor %s/%s is being deleted (Deleted condition status=False)", key, namespace, name)
-			}
-		}
-	}
-
-	// If HealthMonitor is being deleted and we're checking for deletion, treat it as not ready
-	if checkDeleted && deleted {
-		return processed, false, fmt.Errorf("healthMonitor %s/%s is being deleted", namespace, name)
-	}
-
-	if processed {
-		return true, ready, nil
-	}
-
-	return false, false, nil
 }

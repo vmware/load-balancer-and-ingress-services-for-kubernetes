@@ -1,8 +1,0 @@
-{{- if and (eq .Values.AKOSettings.primaryInstance true) (eq .Values.featureGates.GatewayAPI true) }}
-apiVersion: gateway.networking.k8s.io/v1beta1
-kind: GatewayClass
-metadata:
-  name: avi-lb
-spec:
-  controllerName: "ako.vmware.com/avi-lb"
-{{- end }}

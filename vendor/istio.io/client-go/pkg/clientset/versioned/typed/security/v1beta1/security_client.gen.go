@@ -17,8 +17,6 @@
 package v1beta1
 
 import (
-	"net/http"
-
 	v1beta1 "istio.io/client-go/pkg/apis/security/v1beta1"
 	"istio.io/client-go/pkg/clientset/versioned/scheme"
 	rest "k8s.io/client-go/rest"
@@ -49,28 +47,12 @@ func (c *SecurityV1beta1Client) RequestAuthentications(namespace string) Request
 }
 
 // NewForConfig creates a new SecurityV1beta1Client for the given config.
-// NewForConfig is equivalent to NewForConfigAndClient(c, httpClient),
-// where httpClient was generated with rest.HTTPClientFor(c).
 func NewForConfig(c *rest.Config) (*SecurityV1beta1Client, error) {
 	config := *c
 	if err := setConfigDefaults(&config); err != nil {
 		return nil, err
 	}
-	httpClient, err := rest.HTTPClientFor(&config)
-	if err != nil {
-		return nil, err
-	}
-	return NewForConfigAndClient(&config, httpClient)
-}
-
-// NewForConfigAndClient creates a new SecurityV1beta1Client for the given config and http client.
-// Note the http client provided takes precedence over the configured transport values.
-func NewForConfigAndClient(c *rest.Config, h *http.Client) (*SecurityV1beta1Client, error) {
-	config := *c
-	if err := setConfigDefaults(&config); err != nil {
-		return nil, err
-	}
-	client, err := rest.RESTClientForConfigAndClient(&config, h)
+	client, err := rest.RESTClientFor(&config)
 	if err != nil {
 		return nil, err
 	}

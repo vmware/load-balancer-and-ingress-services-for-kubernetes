@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/jinzhu/copier"
 	avimodels "github.com/vmware/alb-sdk/go/models"
 	"google.golang.org/protobuf/proto"
 
@@ -38,7 +37,6 @@ func (rest *RestOperations) RestOperationForEvh(vsName string, namespace string,
 	var httppol_to_delete []avicache.NamespaceName
 	var l4pol_to_delete []avicache.NamespaceName
 	var sslkey_cert_delete []avicache.NamespaceName
-	var string_groups_to_delete []avicache.NamespaceName
 	var vsvipErr error
 	var publishKey string
 
@@ -54,13 +52,12 @@ func (rest *RestOperations) RestOperationForEvh(vsName string, namespace string,
 			publishKey = splitKeys[1]
 		}
 	}
-	nsPublishKey := avicache.NamespaceName{Namespace: namespace, Name: publishKey}
 	// Order would be this: 1. Pools 2. PGs  3. DS. 4. SSLKeyCert 5. VS
 	if vs_cache_obj != nil {
 		var rest_ops []*utils.RestOp
 		vsvip_to_delete, rest_ops, vsvipErr = rest.VSVipCU(aviVsNode.VSVIPRefs, vs_cache_obj, namespace, rest_ops, key)
 		if vsvipErr != nil {
-			if rest.CheckAndPublishForRetry(vsvipErr, nsPublishKey, key, avimodel) {
+			if rest.CheckAndPublishForRetry(vsvipErr, publishKey, key, avimodel) {
 				return
 			}
 		}
@@ -70,7 +67,6 @@ func (rest *RestOperations) RestOperationForEvh(vsName string, namespace string,
 		sslkey_cert_delete, rest_ops = rest.SSLKeyCertCU(aviVsNode.SSLKeyCertRefs, sslkey_cert_delete, namespace, rest_ops, key)
 		pools_to_delete, rest_ops = rest.PoolCU(aviVsNode.PoolRefs, vs_cache_obj, namespace, rest_ops, key)
 		pgs_to_delete, rest_ops = rest.PoolGroupCU(aviVsNode.PoolGroupRefs, vs_cache_obj, namespace, rest_ops, key)
-		string_groups_to_delete, rest_ops = rest.StringGroupVsCU(aviVsNode.StringGroupRefs, vs_cache_obj, namespace, rest_ops, key)
 		httppol_to_delete, rest_ops = rest.HTTPPolicyCU(aviVsNode.HttpPolicyRefs, vs_cache_obj, namespace, rest_ops, key)
 		utils.AviLog.Debugf("key: %s, msg: stored checksum for VS: %s, model checksum: %s", key, vs_cache_obj.CloudConfigCksum, strconv.Itoa(int(aviVsNode.GetCheckSum())))
 		if vs_cache_obj.CloudConfigCksum == strconv.Itoa(int(aviVsNode.GetCheckSum())) {
@@ -91,7 +87,7 @@ func (rest *RestOperations) RestOperationForEvh(vsName string, namespace string,
 		var rest_ops []*utils.RestOp
 		_, rest_ops, vsvipErr = rest.VSVipCU(aviVsNode.VSVIPRefs, nil, namespace, rest_ops, key)
 		if vsvipErr != nil {
-			if rest.CheckAndPublishForRetry(vsvipErr, nsPublishKey, key, avimodel) {
+			if rest.CheckAndPublishForRetry(vsvipErr, publishKey, key, avimodel) {
 				return
 			}
 		}
@@ -99,7 +95,6 @@ func (rest *RestOperations) RestOperationForEvh(vsName string, namespace string,
 		_, rest_ops = rest.SSLKeyCertCU(aviVsNode.SSLKeyCertRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.PoolCU(aviVsNode.PoolRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.PoolGroupCU(aviVsNode.PoolGroupRefs, nil, namespace, rest_ops, key)
-		_, rest_ops = rest.StringGroupVsCU(aviVsNode.StringGroupRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.HTTPPolicyCU(aviVsNode.HttpPolicyRefs, nil, namespace, rest_ops, key)
 
 		// The cache was not found - it's a POST call.
@@ -128,10 +123,9 @@ func (rest *RestOperations) RestOperationForEvh(vsName string, namespace string,
 	rest_ops = rest.SSLKeyCertDelete(sslkey_cert_delete, namespace, rest_ops, key)
 	rest_ops = rest.VSVipDelete(vsvip_to_delete, namespace, rest_ops, key)
 	rest_ops = rest.HTTPPolicyDelete(httppol_to_delete, namespace, rest_ops, key)
-	rest_ops = rest.StringGroupDelete(string_groups_to_delete, namespace, rest_ops, key)
 	rest_ops = rest.L4PolicyDelete(l4pol_to_delete, namespace, rest_ops, key)
 	rest_ops = rest.PoolGroupDelete(pgs_to_delete, namespace, rest_ops, key)
-	rest_ops = rest.PoolDelete(pools_to_delete, namespace, rest_ops, nil, key)
+	rest_ops = rest.PoolDelete(pools_to_delete, namespace, rest_ops, key)
 	if success, _ := rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, avimodel, key, true); !success {
 		return
 	}
@@ -174,8 +168,6 @@ func (rest *RestOperations) EvhNodeCU(sni_node *nodes.AviEvhVsNode, vs_cache_obj
 	var sni_pgs_to_delete []avicache.NamespaceName
 	var http_policies_to_delete []avicache.NamespaceName
 	var sslkey_cert_delete []avicache.NamespaceName
-	var string_groups_to_delete []avicache.NamespaceName
-	var sni_cache_obj *avicache.AviVsCache
 	if vs_cache_obj != nil {
 		sni_key := avicache.NamespaceName{Namespace: namespace, Name: sni_node.Name}
 		// Search the VS cache and obtain the UUID of this VS. Then see if this UUID is part of the SNIChildCollection or not.
@@ -184,7 +176,7 @@ func (rest *RestOperations) EvhNodeCU(sni_node *nodes.AviEvhVsNode, vs_cache_obj
 		if found && cache_sni_nodes != nil {
 			cache_sni_nodes = avicache.RemoveNamespaceName(cache_sni_nodes, sni_key)
 			utils.AviLog.Debugf("key: %s, msg: the cache evh nodes are: %v", key, cache_sni_nodes)
-			sni_cache_obj = rest.getVsCacheObj(sni_key, key)
+			sni_cache_obj := rest.getVsCacheObj(sni_key, key)
 			if sni_cache_obj != nil {
 				// CAcerts have to be created first, as they are referred by the keycerts
 				sslkey_cert_delete, rest_ops = rest.CACertCU(sni_node.CACertRefs, sni_cache_obj.SSLKeyCertCollection, namespace, rest_ops, key)
@@ -193,7 +185,6 @@ func (rest *RestOperations) EvhNodeCU(sni_node *nodes.AviEvhVsNode, vs_cache_obj
 				sslkey_cert_delete, rest_ops = rest.SSLKeyCertCU(sni_node.SSLKeyCertRefs, sslkey_cert_delete, namespace, rest_ops, key)
 				sni_pools_to_delete, rest_ops = rest.PoolCU(sni_node.PoolRefs, sni_cache_obj, namespace, rest_ops, key)
 				sni_pgs_to_delete, rest_ops = rest.PoolGroupCU(sni_node.PoolGroupRefs, sni_cache_obj, namespace, rest_ops, key)
-				string_groups_to_delete, rest_ops = rest.StringGroupVsCU(sni_node.StringGroupRefs, sni_cache_obj, namespace, rest_ops, key)
 				http_policies_to_delete, rest_ops = rest.HTTPPolicyCU(sni_node.HttpPolicyRefs, sni_cache_obj, namespace, rest_ops, key)
 
 				// The checksums are different, so it should be a PUT call.
@@ -212,7 +203,6 @@ func (rest *RestOperations) EvhNodeCU(sni_node *nodes.AviEvhVsNode, vs_cache_obj
 			_, rest_ops = rest.SSLKeyCertCU(sni_node.SSLKeyCertRefs, nil, namespace, rest_ops, key)
 			_, rest_ops = rest.PoolCU(sni_node.PoolRefs, nil, namespace, rest_ops, key)
 			_, rest_ops = rest.PoolGroupCU(sni_node.PoolGroupRefs, nil, namespace, rest_ops, key)
-			_, rest_ops = rest.StringGroupVsCU(sni_node.StringGroupRefs, nil, namespace, rest_ops, key)
 			_, rest_ops = rest.HTTPPolicyCU(sni_node.HttpPolicyRefs, nil, namespace, rest_ops, key)
 
 			// Not found - it should be a POST call.
@@ -223,9 +213,8 @@ func (rest *RestOperations) EvhNodeCU(sni_node *nodes.AviEvhVsNode, vs_cache_obj
 		}
 		rest_ops = rest.SSLKeyCertDelete(sslkey_cert_delete, namespace, rest_ops, key)
 		rest_ops = rest.HTTPPolicyDelete(http_policies_to_delete, namespace, rest_ops, key)
-		rest_ops = rest.StringGroupDelete(string_groups_to_delete, namespace, rest_ops, key)
 		rest_ops = rest.PoolGroupDelete(sni_pgs_to_delete, namespace, rest_ops, key)
-		rest_ops = rest.PoolDelete(sni_pools_to_delete, namespace, rest_ops, sni_cache_obj, key)
+		rest_ops = rest.PoolDelete(sni_pools_to_delete, namespace, rest_ops, key)
 		utils.AviLog.Debugf("key: %s, msg: the EVH VSes to be deleted are: %s", key, cache_sni_nodes)
 	} else {
 		utils.AviLog.Debugf("key: %s, msg: EVH child %s not found in cache and EVH parent also does not exist in cache", key, sni_node.Name)
@@ -233,7 +222,6 @@ func (rest *RestOperations) EvhNodeCU(sni_node *nodes.AviEvhVsNode, vs_cache_obj
 		_, rest_ops = rest.SSLKeyCertCU(sni_node.SSLKeyCertRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.PoolCU(sni_node.PoolRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.PoolGroupCU(sni_node.PoolGroupRefs, nil, namespace, rest_ops, key)
-		_, rest_ops = rest.StringGroupVsCU(sni_node.StringGroupRefs, nil, namespace, rest_ops, key)
 		_, rest_ops = rest.HTTPPolicyCU(sni_node.HttpPolicyRefs, nil, namespace, rest_ops, key)
 
 		// Not found - it should be a POST call.
@@ -248,16 +236,15 @@ func (rest *RestOperations) EvhNodeCU(sni_node *nodes.AviEvhVsNode, vs_cache_obj
 func setDedicatedEvhVSNodeProperties(vs *avimodels.VirtualService, vs_meta *nodes.AviEvhVsNode) {
 	var datascriptCollection []*avimodels.VSDataScripts
 	// this overwrites the sslkeycert created from the Secret object, with the one mentioned in HostRule.TLS
-	if len(vs_meta.SslKeyAndCertificateRefs) != 0 {
-		vs.SslKeyAndCertificateRefs = append(vs.SslKeyAndCertificateRefs, vs_meta.SslKeyAndCertificateRefs...)
+	if len(vs_meta.SSLKeyCertAviRef) != 0 {
+		vs.SslKeyAndCertificateRefs = append(vs.SslKeyAndCertificateRefs, vs_meta.SSLKeyCertAviRef...)
 	} else {
 		for _, sslkeycert := range vs_meta.SSLKeyCertRefs {
 			certName := "/api/sslkeyandcertificate/?name=" + sslkeycert.Name
 			vs.SslKeyAndCertificateRefs = append(vs.SslKeyAndCertificateRefs, certName)
 		}
 	}
-	vs.SslProfileRef = vs_meta.SslProfileRef
-
+	vs.SslProfileRef = &vs_meta.SSLProfileRef
 	//set datascripts to VS from hostrule crd
 	for i, script := range vs_meta.VsDatascriptRefs {
 		j := int32(i)
@@ -266,24 +253,17 @@ func setDedicatedEvhVSNodeProperties(vs *avimodels.VirtualService, vs_meta *node
 		datascriptCollection = append(datascriptCollection, datascripts)
 	}
 	vs.VsDatascripts = datascriptCollection
-
-	if vs_meta.ApplicationProfileRef != nil {
+	if vs_meta.AppProfileRef != "" {
 		// hostrule ref overrides defaults
-		vs.ApplicationProfileRef = vs_meta.ApplicationProfileRef
+		vs.ApplicationProfileRef = &vs_meta.AppProfileRef
 	}
-
-	if len(vs_meta.ICAPProfileRefs) != 0 {
-		vs.IcapRequestProfileRefs = vs_meta.ICAPProfileRefs
-	}
-
-	vs.WafPolicyRef = vs_meta.WafPolicyRef
+	vs.WafPolicyRef = &vs_meta.WafPolicyRef
 	vs.ErrorPageProfileRef = &vs_meta.ErrorPageProfileRef
-	vs.AnalyticsProfileRef = vs_meta.AnalyticsProfileRef
+	vs.AnalyticsProfileRef = &vs_meta.AnalyticsProfileRef
 	vs.EastWestPlacement = proto.Bool(false)
 	vs.Enabled = vs_meta.Enabled
 	normal_vs_type := utils.VS_TYPE_NORMAL
 	vs.Type = &normal_vs_type
-	vs.MinPoolsUp = proto.Uint32(1) // Set min pool up to 1
 }
 
 func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_method utils.RestMethod, cache_obj *avicache.AviVsCache, key string) []*utils.RestOp {
@@ -300,16 +280,16 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 		// This is EVH Parent or dedicated VS
 		network_prof := "/api/networkprofile/?name=" + vs_meta.NetworkProfile
 		app_prof := "/api/applicationprofile/?name=" + vs_meta.ApplicationProfile
-		if vs_meta.ApplicationProfileRef != nil {
+		if vs_meta.AppProfileRef != "" {
 			// hostrule ref overrides defaults
-			app_prof = *vs_meta.ApplicationProfileRef
+			app_prof = vs_meta.AppProfileRef
 		}
 
 		name := vs_meta.Name
 		cksum := vs_meta.CloudConfigCksum
 		checksumstr := strconv.Itoa(int(cksum))
 		cr := lib.AKOUser
-		cloudRef := fmt.Sprintf("/api/cloud?name=%s", utils.CloudName)
+		cloudRef := "/api/cloud?name=" + utils.CloudName
 		svc_mdata_json, _ := json.Marshal(&vs_meta.ServiceMetadata)
 		svc_mdata := string(svc_mdata_json)
 
@@ -325,16 +305,8 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 			SeGroupRef:            &seGroupRef,
 		}
 
-		if len(vs_meta.ICAPProfileRefs) != 0 {
-			vs.IcapRequestProfileRefs = vs_meta.ICAPProfileRefs
-		}
-
 		if vs_meta.VrfContext != "" {
 			vs.VrfContextRef = proto.String("/api/vrfcontext?name=" + vs_meta.VrfContext)
-		}
-
-		if vs_meta.ErrorPageProfileRef != "" {
-			vs.ErrorPageProfileRef = &vs_meta.ErrorPageProfileRef
 		}
 
 		var enableRhi bool
@@ -345,10 +317,6 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 		}
 		if enableRhi {
 			vs.EnableRhi = &enableRhi
-		}
-
-		if vs_meta.TrafficEnabled != nil {
-			vs.TrafficEnabled = vs_meta.TrafficEnabled
 		}
 
 		if vs_meta.SharedVS {
@@ -367,7 +335,7 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 		} else {
 			utils.AviLog.Warnf("key: %s, msg: unable to set the vsvip reference")
 		}
-		tenant := fmt.Sprintf("/api/tenant/?name=%s", lib.GetEscapedValue(vs_meta.Tenant))
+		tenant := fmt.Sprintf("/api/tenant/?name=%s", vs_meta.Tenant)
 		vs.TenantRef = &tenant
 
 		if vs_meta.EVHParent {
@@ -379,8 +347,8 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 		// TODO other fields like cloud_ref, mix of TCP & UDP protocols, etc.
 
 		for i, pp := range vs_meta.PortProto {
-			port := uint32(pp.Port)
-			svc := avimodels.Service{Port: &port, EnableSsl: &vs_meta.PortProto[i].EnableSSL, EnableHttp2: &vs_meta.PortProto[i].EnableHTTP2}
+			port := pp.Port
+			svc := avimodels.Service{Port: &port, EnableSsl: &vs_meta.PortProto[i].EnableSSL}
 			vs.Services = append(vs.Services, &svc)
 		}
 
@@ -420,8 +388,8 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 		if vs_meta.TLSType != utils.TLS_PASSTHROUGH && !vs_meta.Dedicated {
 			//Append cert from hostrule
 			for _, evhNode := range vs_meta.EvhNodes {
-				if len(evhNode.SslKeyAndCertificateRefs) != 0 {
-					for _, evhcert := range evhNode.SslKeyAndCertificateRefs {
+				if len(evhNode.SSLKeyCertAviRef) != 0 {
+					for _, evhcert := range evhNode.SSLKeyCertAviRef {
 						if !utils.HasElem(vs.SslKeyAndCertificateRefs, evhcert) {
 							vs.SslKeyAndCertificateRefs = append(vs.SslKeyAndCertificateRefs, evhcert)
 						}
@@ -433,8 +401,8 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 				certName := "/api/sslkeyandcertificate/?name=" + sslkeycert.Name
 				vs.SslKeyAndCertificateRefs = append(vs.SslKeyAndCertificateRefs, certName)
 			}
-			if vs_meta.SslProfileRef != nil {
-				vs.SslProfileRef = vs_meta.SslProfileRef
+			if vs_meta.SSLProfileRef != "" {
+				vs.SslProfileRef = &vs_meta.SSLProfileRef
 			}
 
 		}
@@ -450,10 +418,6 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 			vs.RemoveListeningPortOnVsDown = &vsDownOnPoolDown
 		}
 		vs.AnalyticsPolicy = vs_meta.GetAnalyticsPolicy()
-
-		if err := copier.CopyWithOption(&vs, &vs_meta.AviVsNodeGeneratedFields, copier.Option{IgnoreEmpty: true}); err != nil {
-			utils.AviLog.Warnf("key: %s, msg: unable to set few parameters in the VS, err: %v", key, err)
-		}
 
 		var rest_ops []*utils.RestOp
 
@@ -472,10 +436,6 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 				Tenant:  vs_meta.Tenant,
 				Model:   "VirtualService",
 			}
-			// This will be populated for GW in GwAPI deployment
-			if vs_meta.Caller != "" {
-				rest_op.Caller = vs_meta.Caller
-			}
 			rest_ops = append(rest_ops, &rest_op)
 
 		} else {
@@ -488,10 +448,6 @@ func (rest *RestOperations) AviVsBuildForEvh(vs_meta *nodes.AviEvhVsNode, rest_m
 				Obj:     vs,
 				Tenant:  vs_meta.Tenant,
 				Model:   "VirtualService",
-			}
-			// This will be populated for GW in GwAPI deployment
-			if vs_meta.Caller != "" {
-				rest_op.Caller = vs_meta.Caller
 			}
 			rest_ops = append(rest_ops, &rest_op)
 
@@ -508,14 +464,14 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 
 	var app_prof string
 	app_prof = "/api/applicationprofile/?name=" + vs_meta.ApplicationProfile
-	if vs_meta.ApplicationProfileRef != nil {
+	if vs_meta.AppProfileRef != "" {
 		// hostrule ref overrides defaults
-		app_prof = *vs_meta.ApplicationProfileRef
+		app_prof = vs_meta.AppProfileRef
 	}
 
-	cloudRef := fmt.Sprintf("/api/cloud?name=%s", utils.CloudName)
+	cloudRef := "/api/cloud?name=" + utils.CloudName
 	network_prof := "/api/networkprofile/?name=" + "System-TCP-Proxy"
-	seGroupRef := fmt.Sprintf("/api/serviceenginegroup?name=%s", lib.GetSEGName())
+	seGroupRef := "/api/serviceenginegroup?name=" + lib.GetSEGName()
 	svc_mdata_json, _ := json.Marshal(&vs_meta.ServiceMetadata)
 	svc_mdata := string(svc_mdata_json)
 	evhChild := &avimodels.VirtualService{
@@ -528,17 +484,12 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 		CloudRef:              &cloudRef,
 		SeGroupRef:            &seGroupRef,
 		ServiceMetadata:       &svc_mdata,
-		WafPolicyRef:          vs_meta.WafPolicyRef,
-		SslProfileRef:         vs_meta.SslProfileRef,
-		AnalyticsProfileRef:   vs_meta.AnalyticsProfileRef,
+		WafPolicyRef:          &vs_meta.WafPolicyRef,
+		SslProfileRef:         &vs_meta.SSLProfileRef,
+		AnalyticsProfileRef:   &vs_meta.AnalyticsProfileRef,
 		ErrorPageProfileRef:   &vs_meta.ErrorPageProfileRef,
 		Enabled:               vs_meta.Enabled,
 		VhType:                proto.String(utils.VS_TYPE_VH_ENHANCED),
-		MinPoolsUp:            proto.Uint32(1), // Set min pool up to 1
-	}
-
-	if len(vs_meta.ICAPProfileRefs) != 0 {
-		evhChild.IcapRequestProfileRefs = vs_meta.ICAPProfileRefs
 	}
 
 	if vs_meta.VrfContext != "" {
@@ -557,32 +508,19 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 	for _, Vhostname := range vs_meta.VHDomainNames {
 		match_case := "SENSITIVE"
 		matchCriteria := "BEGINS_WITH"
-		name := "VHMATCHRULENAME"
+		pathMatches := make([]*avimodels.PathMatch, 0)
 		path_match := avimodels.PathMatch{
 			MatchCriteria: &matchCriteria,
 			MatchCase:     &match_case,
 			MatchStr:      []string{"/"},
 		}
-		vHMatchRules := make([]*avimodels.VHMatchRule, 0)
-		matchTarget := &avimodels.MatchTarget{
-			Path: &path_match,
-		}
-		vHMatchRule := &avimodels.VHMatchRule{
-			Name:    &name,
-			Matches: matchTarget,
-		}
-		vHMatchRules = append(vHMatchRules, vHMatchRule)
-
+		pathMatches = append(pathMatches, &path_match)
 		hostname := Vhostname
-		vhMatch := &avimodels.VHMatch{Host: &hostname, Rules: vHMatchRules}
+		vhMatch := &avimodels.VHMatch{Host: &hostname, Path: pathMatches}
 		vhMatches = append(vhMatches, vhMatch)
 	}
 
 	evhChild.VhMatches = vhMatches
-
-	if vs_meta.VHMatches != nil {
-		evhChild.VhMatches = vs_meta.VHMatches
-	}
 
 	evhChild.Markers = lib.GetAllMarkers(vs_meta.AviMarkers)
 
@@ -591,13 +529,8 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 		evhChild.PoolRef = &pool_ref
 	}
 
-	if vs_meta.DefaultPoolGroup != "" {
-		pg_ref := "/api/poolgroup/?name=" + vs_meta.DefaultPoolGroup
-		evhChild.PoolGroupRef = &pg_ref
-	}
-	var datascriptCollection []*avimodels.VSDataScripts
-
 	//DS from hostrule
+	var datascriptCollection []*avimodels.VSDataScripts
 	for i, script := range vs_meta.VsDatascriptRefs {
 		j := int32(i)
 		datascript := script
@@ -611,9 +544,6 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 		evhChild.HTTPPolicies = AviVsHttpPSAdd(vs_meta, true)
 	}
 	evhChild.AnalyticsPolicy = vs_meta.GetAnalyticsPolicy()
-	if err := copier.CopyWithOption(&evhChild, &vs_meta.AviVsNodeGeneratedFields, copier.Option{IgnoreEmpty: true}); err != nil {
-		utils.AviLog.Warnf("key: %s, msg: unable to set few parameters in the child VS, err: %v", key, err)
-	}
 
 	var rest_ops []*utils.RestOp
 	var rest_op utils.RestOp

@@ -105,11 +105,7 @@ type atomHandler interface {
 func resolveSchema(s *schema.Schema, tr schema.TypeRef, v value.Value, ah atomHandler) ValidationErrors {
 	a, ok := s.Resolve(tr)
 	if !ok {
-		typeName := "inlined type"
-		if tr.NamedType != nil {
-			typeName = *tr.NamedType
-		}
-		return errorf("schema error: no type found matching: %v", typeName)
+		return errorf("schema error: no type found matching: %v", *tr.NamedType)
 	}
 
 	a = deduceAtom(a, v)
@@ -197,7 +193,7 @@ func getAssociativeKeyDefault(s *schema.Schema, list *schema.List, fieldName str
 	return field.Default, nil
 }
 
-func keyedAssociativeListItemToPathElement(a value.Allocator, s *schema.Schema, list *schema.List, child value.Value) (fieldpath.PathElement, error) {
+func keyedAssociativeListItemToPathElement(a value.Allocator, s *schema.Schema, list *schema.List, index int, child value.Value) (fieldpath.PathElement, error) {
 	pe := fieldpath.PathElement{}
 	if child.IsNull() {
 		// null entries are illegal.
@@ -225,7 +221,7 @@ func keyedAssociativeListItemToPathElement(a value.Allocator, s *schema.Schema, 
 	return pe, nil
 }
 
-func setItemToPathElement(child value.Value) (fieldpath.PathElement, error) {
+func setItemToPathElement(list *schema.List, index int, child value.Value) (fieldpath.PathElement, error) {
 	pe := fieldpath.PathElement{}
 	switch {
 	case child.IsMap():
@@ -245,15 +241,16 @@ func setItemToPathElement(child value.Value) (fieldpath.PathElement, error) {
 	}
 }
 
-func listItemToPathElement(a value.Allocator, s *schema.Schema, list *schema.List, child value.Value) (fieldpath.PathElement, error) {
-	if list.ElementRelationship != schema.Associative {
-		return fieldpath.PathElement{}, errors.New("invalid indexing of non-associative list")
+func listItemToPathElement(a value.Allocator, s *schema.Schema, list *schema.List, index int, child value.Value) (fieldpath.PathElement, error) {
+	if list.ElementRelationship == schema.Associative {
+		if len(list.Keys) > 0 {
+			return keyedAssociativeListItemToPathElement(a, s, list, index, child)
+		}
+
+		// If there's no keys, then we must be a set of primitives.
+		return setItemToPathElement(list, index, child)
 	}
 
-	if len(list.Keys) > 0 {
-		return keyedAssociativeListItemToPathElement(a, s, list, child)
-	}
-
-	// If there's no keys, then we must be a set of primitives.
-	return setItemToPathElement(child)
+	// Use the index as a key for atomic lists.
+	return fieldpath.PathElement{Index: &index}, nil
 }

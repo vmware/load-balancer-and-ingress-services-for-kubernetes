@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -18,10 +18,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
-	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
-
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 )
 
@@ -106,11 +104,11 @@ func (h *HostNamePathStore) GetHostsFromHostPathStore(host, fqdnMatchType string
 	returnHosts := []string{}
 
 	for _, mHost := range allHosts {
-		if fqdnMatchType == string(akov1beta1.Exact) && mHost == host {
+		if fqdnMatchType == string(akov1alpha1.Exact) && mHost == host {
 			returnHosts = append(returnHosts, mHost)
-		} else if fqdnMatchType == string(akov1beta1.Contains) && strings.Contains(host, mHost) {
+		} else if fqdnMatchType == string(akov1alpha1.Contains) && strings.Contains(host, mHost) {
 			returnHosts = append(returnHosts, mHost)
-		} else if fqdnMatchType == string(akov1beta1.Wildcard) && strings.HasPrefix(host, "*") {
+		} else if fqdnMatchType == string(akov1alpha1.Wildcard) && strings.HasPrefix(host, "*") {
 			wildcardFqdn := strings.Split(host, "*")[1]
 			if strings.HasSuffix(mHost, wildcardFqdn) {
 				returnHosts = append(returnHosts, mHost)
@@ -173,11 +171,11 @@ func (h *HostNamePathStore) DeleteHostPathStore(host string) {
 	h.hostNamePathStore.Delete(host)
 }
 
-// added multiple layer of validation. Useful in multihost ingress
 func PopulateIngHostMap(namespace, hostName, ingName, secretName string, pathsvcMap HostMetadata) {
 	hostMap := HostNamePathSecrets{paths: getPaths(pathsvcMap.ingressHPSvc), secretName: secretName}
 	found, ingressHostMap := SharedHostNameLister().Get(hostName)
 	if found {
+		// Replace the ingress map for this host.
 		ingressHostMap.HostNameMap[namespace+"/"+ingName] = hostMap
 	} else {
 		// Create the map
@@ -185,28 +183,4 @@ func PopulateIngHostMap(namespace, hostName, ingName, secretName string, pathsvc
 		ingressHostMap.HostNameMap[namespace+"/"+ingName] = hostMap
 	}
 	SharedHostNameLister().Save(hostName, ingressHostMap)
-}
-
-func EnqueueIng(key, namespace, hostName, ingName string) bool {
-	if lib.AKOControlConfig().GetAKOFQDNReusePolicy() != lib.FQDNReusePolicyStrict {
-		return true
-	}
-	return !hostnameExistInDifferentNamespace(key, hostName, namespace)
-}
-
-func hostnameExistInDifferentNamespace(key, hostName, namespace string) bool {
-	found, ingressHostMap := SharedHostNameLister().Get(hostName)
-	if found {
-		ingresses := ingressHostMap.GetIngressesForHostName()
-		for _, ingress := range ingresses {
-			nsIngressName := strings.Split(ingress, "/")
-			if len(nsIngressName) > 0 {
-				if nsIngressName[0] != namespace {
-					utils.AviLog.Debugf("key: %s, msg: Host %s already claimed. Not processing ingress.", key, hostName)
-					return true
-				}
-			}
-		}
-	}
-	return false
 }

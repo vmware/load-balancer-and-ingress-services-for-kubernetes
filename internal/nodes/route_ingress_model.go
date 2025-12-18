@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2020-2021 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -21,8 +21,6 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
-	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	routev1 "github.com/openshift/api/route/v1"
@@ -44,7 +42,7 @@ type RouteIngressModel interface {
 	// later if we decide to have common naming for ingress and route, then we can hav a common method
 	GetDiffPathSvc(map[string][]string, []IngressHostPathSvc, bool) map[string][]string
 
-	GetAviInfraSetting() *akov1beta1.AviInfraSetting
+	GetAviInfraSetting() *akov1alpha1.AviInfraSetting
 }
 
 // OshiftRouteModel : Model for openshift routes with it's own service lister
@@ -53,7 +51,7 @@ type OshiftRouteModel struct {
 	name         string
 	namespace    string
 	spec         routev1.RouteSpec
-	infrasetting *akov1beta1.AviInfraSetting
+	infrasetting *akov1alpha1.AviInfraSetting
 	annotations  map[string]string
 }
 
@@ -63,7 +61,7 @@ type K8sIngressModel struct {
 	name         string
 	namespace    string
 	spec         networkingv1.IngressSpec
-	infrasetting *akov1beta1.AviInfraSetting
+	infrasetting *akov1alpha1.AviInfraSetting
 	annotations  map[string]string
 }
 
@@ -95,7 +93,7 @@ func GetOshiftRouteModel(name, namespace, key string) (*OshiftRouteModel, error,
 		err := errors.New("validation failed for alternate backends for route: " + name)
 		return &routeModel, err, false
 	}
-	routeModel.infrasetting, err = getL7RouteInfraSetting(key, routeObj.GetAnnotations(), routeObj.GetNamespace())
+	routeModel.infrasetting, err = getL7RouteInfraSetting(key, routeObj.GetAnnotations())
 	return &routeModel, err, processObj
 }
 
@@ -157,7 +155,7 @@ func (m *OshiftRouteModel) GetDiffPathSvc(storedPathSvc map[string][]string, cur
 	return pathSvcCopy
 }
 
-func (m *OshiftRouteModel) GetAviInfraSetting() *akov1beta1.AviInfraSetting {
+func (m *OshiftRouteModel) GetAviInfraSetting() *akov1alpha1.AviInfraSetting {
 	return m.infrasetting.DeepCopy()
 }
 
@@ -178,7 +176,9 @@ func GetK8sIngressModel(name, namespace, key string) (*K8sIngressModel, error, b
 	processObj = lib.ValidateIngressForClass(key, ingObj) && utils.CheckIfNamespaceAccepted(namespace)
 	ingrModel.spec = ingObj.Spec
 	ingrModel.annotations = ingObj.GetAnnotations()
-	ingrModel.infrasetting, err = getL7IngressInfraSetting(key, utils.String(ingObj.Spec.IngressClassName), namespace)
+	if ingObj.Spec.IngressClassName != nil {
+		ingrModel.infrasetting, err = getL7IngressInfraSetting(key, *ingObj.Spec.IngressClassName)
+	}
 	return &ingrModel, err, processObj
 }
 
@@ -243,17 +243,16 @@ func (m *K8sIngressModel) GetDiffPathSvc(storedPathSvc map[string][]string, curr
 	return pathSvcCopy
 }
 
-func (m *K8sIngressModel) GetAviInfraSetting() *akov1beta1.AviInfraSetting {
+func (m *K8sIngressModel) GetAviInfraSetting() *akov1alpha1.AviInfraSetting {
 	return m.infrasetting.DeepCopy()
 }
 
-func getL7IngressInfraSetting(key string, ingClassName string, namespace string) (*akov1beta1.AviInfraSetting, error) {
-	var infraSetting *akov1beta1.AviInfraSetting
+func getL7IngressInfraSetting(key string, ingClassName string) (*akov1alpha1.AviInfraSetting, error) {
+	var infraSetting *akov1alpha1.AviInfraSetting
 
 	if ingClassName == "" {
 		if defaultIngressClass, found := lib.IsAviLBDefaultIngressClass(); !found {
-			//No ingress class is found, return namespace specific infra setting CR
-			return lib.GetNamespacedAviInfraSetting(key, namespace, lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer)
+			return nil, nil
 		} else {
 			ingClassName = defaultIngressClass
 		}
@@ -274,16 +273,15 @@ func getL7IngressInfraSetting(key string, ingClassName string, namespace string)
 				utils.AviLog.Warnf("key: %s, msg: Referred AviInfraSetting %s is invalid", key, infraSetting.Name)
 				return nil, fmt.Errorf("Referred AviInfraSetting %s is invalid", infraSetting.Name)
 			}
-			return infraSetting, nil
 		}
 	}
 
-	return lib.GetNamespacedAviInfraSetting(key, namespace, lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer)
+	return infraSetting, nil
 }
 
-func getL7RouteInfraSetting(key string, routeAnnotations map[string]string, namespace string) (*akov1beta1.AviInfraSetting, error) {
+func getL7RouteInfraSetting(key string, routeAnnotations map[string]string) (*akov1alpha1.AviInfraSetting, error) {
 	var err error
-	var infraSetting *akov1beta1.AviInfraSetting
+	var infraSetting *akov1alpha1.AviInfraSetting
 
 	if infraSettingAnnotation, ok := routeAnnotations[lib.InfraSettingNameAnnotation]; ok && infraSettingAnnotation != "" {
 		infraSetting, err = lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer.Lister().Get(infraSettingAnnotation)
@@ -295,10 +293,6 @@ func getL7RouteInfraSetting(key string, routeAnnotations map[string]string, name
 			utils.AviLog.Warnf("key: %s, msg: Referred AviInfraSetting %s is invalid", key, infraSetting.Name)
 			return nil, fmt.Errorf("Referred AviInfraSetting %s is invalid", infraSetting.Name)
 		}
-	}
-
-	if infraSetting == nil {
-		return lib.GetNamespacedAviInfraSetting(key, namespace, lib.AKOControlConfig().CRDInformers().AviInfraSettingInformer)
 	}
 
 	return infraSetting, nil
@@ -379,15 +373,15 @@ func (mciModel *multiClusterIngressModel) GetDiffPathSvc(storedPathSvc map[strin
 	return pathSvcCopy
 }
 
-func (mciModel *multiClusterIngressModel) GetAviInfraSetting() *akov1beta1.AviInfraSetting {
+func (mciModel *multiClusterIngressModel) GetAviInfraSetting() *akov1alpha1.AviInfraSetting {
 	enablePublicIP := true
-	return &akov1beta1.AviInfraSetting{
-		Spec: akov1beta1.AviInfraSettingSpec{
-			Network: akov1beta1.AviInfraSettingNetwork{
+	return &akov1alpha1.AviInfraSetting{
+		Spec: akov1alpha1.AviInfraSettingSpec{
+			Network: akov1alpha1.AviInfraSettingNetwork{
 				EnablePublicIP: &enablePublicIP,
 			},
 		},
-		Status: akov1beta1.AviInfraSettingStatus{
+		Status: akov1alpha1.AviInfraSettingStatus{
 			Status: lib.StatusAccepted,
 		},
 	}

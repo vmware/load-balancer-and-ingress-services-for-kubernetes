@@ -27,7 +27,7 @@ import (
 	v1 "k8s.io/client-go/applyconfigurations/meta/v1"
 )
 
-// IngressApplyConfiguration represents a declarative configuration of the Ingress type for use
+// IngressApplyConfiguration represents an declarative configuration of the Ingress type for use
 // with apply.
 type IngressApplyConfiguration struct {
 	v1.TypeMetaApplyConfiguration    `json:",inline"`
@@ -36,7 +36,7 @@ type IngressApplyConfiguration struct {
 	Status                           *IngressStatusApplyConfiguration `json:"status,omitempty"`
 }
 
-// Ingress constructs a declarative configuration of the Ingress type for use with
+// Ingress constructs an declarative configuration of the Ingress type for use with
 // apply.
 func Ingress(name, namespace string) *IngressApplyConfiguration {
 	b := &IngressApplyConfiguration{}
@@ -50,7 +50,7 @@ func Ingress(name, namespace string) *IngressApplyConfiguration {
 // ExtractIngress extracts the applied configuration owned by fieldManager from
 // ingress. If no managedFields are found in ingress for fieldManager, a
 // IngressApplyConfiguration is returned with only the Name, Namespace (if applicable),
-// APIVersion and Kind populated. It is possible that no managed fields were found for because other
+// APIVersion and Kind populated. Is is possible that no managed fields were found for because other
 // field managers have taken ownership of all the fields previously owned by fieldManager, or because
 // the fieldManager never owned fields any fields.
 // ingress must be a unmodified Ingress API object that was retrieved from the Kubernetes API.
@@ -59,19 +59,8 @@ func Ingress(name, namespace string) *IngressApplyConfiguration {
 // applied if another fieldManager has updated or force applied any of the previously applied fields.
 // Experimental!
 func ExtractIngress(ingress *networkingv1beta1.Ingress, fieldManager string) (*IngressApplyConfiguration, error) {
-	return extractIngress(ingress, fieldManager, "")
-}
-
-// ExtractIngressStatus is the same as ExtractIngress except
-// that it extracts the status subresource applied configuration.
-// Experimental!
-func ExtractIngressStatus(ingress *networkingv1beta1.Ingress, fieldManager string) (*IngressApplyConfiguration, error) {
-	return extractIngress(ingress, fieldManager, "status")
-}
-
-func extractIngress(ingress *networkingv1beta1.Ingress, fieldManager string, subresource string) (*IngressApplyConfiguration, error) {
 	b := &IngressApplyConfiguration{}
-	err := managedfields.ExtractInto(ingress, internal.Parser().Type("io.k8s.api.networking.v1beta1.Ingress"), fieldManager, b, subresource)
+	err := managedfields.ExtractInto(ingress, internal.Parser().Type("io.k8s.api.networking.v1beta1.Ingress"), fieldManager, b)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +76,7 @@ func extractIngress(ingress *networkingv1beta1.Ingress, fieldManager string, sub
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Kind field is set to the value of the last call.
 func (b *IngressApplyConfiguration) WithKind(value string) *IngressApplyConfiguration {
-	b.TypeMetaApplyConfiguration.Kind = &value
+	b.Kind = &value
 	return b
 }
 
@@ -95,7 +84,7 @@ func (b *IngressApplyConfiguration) WithKind(value string) *IngressApplyConfigur
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the APIVersion field is set to the value of the last call.
 func (b *IngressApplyConfiguration) WithAPIVersion(value string) *IngressApplyConfiguration {
-	b.TypeMetaApplyConfiguration.APIVersion = &value
+	b.APIVersion = &value
 	return b
 }
 
@@ -104,7 +93,7 @@ func (b *IngressApplyConfiguration) WithAPIVersion(value string) *IngressApplyCo
 // If called multiple times, the Name field is set to the value of the last call.
 func (b *IngressApplyConfiguration) WithName(value string) *IngressApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.Name = &value
+	b.Name = &value
 	return b
 }
 
@@ -113,7 +102,7 @@ func (b *IngressApplyConfiguration) WithName(value string) *IngressApplyConfigur
 // If called multiple times, the GenerateName field is set to the value of the last call.
 func (b *IngressApplyConfiguration) WithGenerateName(value string) *IngressApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.GenerateName = &value
+	b.GenerateName = &value
 	return b
 }
 
@@ -122,7 +111,16 @@ func (b *IngressApplyConfiguration) WithGenerateName(value string) *IngressApply
 // If called multiple times, the Namespace field is set to the value of the last call.
 func (b *IngressApplyConfiguration) WithNamespace(value string) *IngressApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.Namespace = &value
+	b.Namespace = &value
+	return b
+}
+
+// WithSelfLink sets the SelfLink field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the SelfLink field is set to the value of the last call.
+func (b *IngressApplyConfiguration) WithSelfLink(value string) *IngressApplyConfiguration {
+	b.ensureObjectMetaApplyConfigurationExists()
+	b.SelfLink = &value
 	return b
 }
 
@@ -131,7 +129,7 @@ func (b *IngressApplyConfiguration) WithNamespace(value string) *IngressApplyCon
 // If called multiple times, the UID field is set to the value of the last call.
 func (b *IngressApplyConfiguration) WithUID(value types.UID) *IngressApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.UID = &value
+	b.UID = &value
 	return b
 }
 
@@ -140,7 +138,7 @@ func (b *IngressApplyConfiguration) WithUID(value types.UID) *IngressApplyConfig
 // If called multiple times, the ResourceVersion field is set to the value of the last call.
 func (b *IngressApplyConfiguration) WithResourceVersion(value string) *IngressApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.ResourceVersion = &value
+	b.ResourceVersion = &value
 	return b
 }
 
@@ -149,7 +147,7 @@ func (b *IngressApplyConfiguration) WithResourceVersion(value string) *IngressAp
 // If called multiple times, the Generation field is set to the value of the last call.
 func (b *IngressApplyConfiguration) WithGeneration(value int64) *IngressApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.Generation = &value
+	b.Generation = &value
 	return b
 }
 
@@ -158,7 +156,7 @@ func (b *IngressApplyConfiguration) WithGeneration(value int64) *IngressApplyCon
 // If called multiple times, the CreationTimestamp field is set to the value of the last call.
 func (b *IngressApplyConfiguration) WithCreationTimestamp(value metav1.Time) *IngressApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.CreationTimestamp = &value
+	b.CreationTimestamp = &value
 	return b
 }
 
@@ -167,7 +165,7 @@ func (b *IngressApplyConfiguration) WithCreationTimestamp(value metav1.Time) *In
 // If called multiple times, the DeletionTimestamp field is set to the value of the last call.
 func (b *IngressApplyConfiguration) WithDeletionTimestamp(value metav1.Time) *IngressApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.DeletionTimestamp = &value
+	b.DeletionTimestamp = &value
 	return b
 }
 
@@ -176,7 +174,7 @@ func (b *IngressApplyConfiguration) WithDeletionTimestamp(value metav1.Time) *In
 // If called multiple times, the DeletionGracePeriodSeconds field is set to the value of the last call.
 func (b *IngressApplyConfiguration) WithDeletionGracePeriodSeconds(value int64) *IngressApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.DeletionGracePeriodSeconds = &value
+	b.DeletionGracePeriodSeconds = &value
 	return b
 }
 
@@ -186,11 +184,11 @@ func (b *IngressApplyConfiguration) WithDeletionGracePeriodSeconds(value int64) 
 // overwriting an existing map entries in Labels field with the same key.
 func (b *IngressApplyConfiguration) WithLabels(entries map[string]string) *IngressApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	if b.ObjectMetaApplyConfiguration.Labels == nil && len(entries) > 0 {
-		b.ObjectMetaApplyConfiguration.Labels = make(map[string]string, len(entries))
+	if b.Labels == nil && len(entries) > 0 {
+		b.Labels = make(map[string]string, len(entries))
 	}
 	for k, v := range entries {
-		b.ObjectMetaApplyConfiguration.Labels[k] = v
+		b.Labels[k] = v
 	}
 	return b
 }
@@ -201,11 +199,11 @@ func (b *IngressApplyConfiguration) WithLabels(entries map[string]string) *Ingre
 // overwriting an existing map entries in Annotations field with the same key.
 func (b *IngressApplyConfiguration) WithAnnotations(entries map[string]string) *IngressApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	if b.ObjectMetaApplyConfiguration.Annotations == nil && len(entries) > 0 {
-		b.ObjectMetaApplyConfiguration.Annotations = make(map[string]string, len(entries))
+	if b.Annotations == nil && len(entries) > 0 {
+		b.Annotations = make(map[string]string, len(entries))
 	}
 	for k, v := range entries {
-		b.ObjectMetaApplyConfiguration.Annotations[k] = v
+		b.Annotations[k] = v
 	}
 	return b
 }
@@ -219,7 +217,7 @@ func (b *IngressApplyConfiguration) WithOwnerReferences(values ...*v1.OwnerRefer
 		if values[i] == nil {
 			panic("nil value passed to WithOwnerReferences")
 		}
-		b.ObjectMetaApplyConfiguration.OwnerReferences = append(b.ObjectMetaApplyConfiguration.OwnerReferences, *values[i])
+		b.OwnerReferences = append(b.OwnerReferences, *values[i])
 	}
 	return b
 }
@@ -230,8 +228,17 @@ func (b *IngressApplyConfiguration) WithOwnerReferences(values ...*v1.OwnerRefer
 func (b *IngressApplyConfiguration) WithFinalizers(values ...string) *IngressApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
 	for i := range values {
-		b.ObjectMetaApplyConfiguration.Finalizers = append(b.ObjectMetaApplyConfiguration.Finalizers, values[i])
+		b.Finalizers = append(b.Finalizers, values[i])
 	}
+	return b
+}
+
+// WithClusterName sets the ClusterName field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the ClusterName field is set to the value of the last call.
+func (b *IngressApplyConfiguration) WithClusterName(value string) *IngressApplyConfiguration {
+	b.ensureObjectMetaApplyConfigurationExists()
+	b.ClusterName = &value
 	return b
 }
 
@@ -255,10 +262,4 @@ func (b *IngressApplyConfiguration) WithSpec(value *IngressSpecApplyConfiguratio
 func (b *IngressApplyConfiguration) WithStatus(value *IngressStatusApplyConfiguration) *IngressApplyConfiguration {
 	b.Status = value
 	return b
-}
-
-// GetName retrieves the value of the Name field in the declarative configuration.
-func (b *IngressApplyConfiguration) GetName() *string {
-	b.ensureObjectMetaApplyConfigurationExists()
-	return b.ObjectMetaApplyConfiguration.Name
 }

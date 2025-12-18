@@ -13,9 +13,11 @@ rules:
   - apiGroups: ["extensions","networking.k8s.io"]
     resources: ["ingresses","ingresses/status"]
     verbs: ["get","watch","list","patch","update"]
+{{- if .Capabilities.APIVersions.Has "networking.k8s.io/v1/IngressClass" }}
   - apiGroups: ["networking.k8s.io"]
     resources: ["ingressclasses"]
     verbs: ["get","watch","list"]
+{{- end}}
   - apiGroups: [""]
     resources: ["services","services/status"]
     verbs: ["get","watch","list","patch","update"]
@@ -38,7 +40,7 @@ rules:
     resources: ["routes","routes/status"]
     verbs: ["get","watch","list","patch","update"]
   - apiGroups: ["ako.vmware.com"]
-    resources: ["hostrules","hostrules/status","httprules","httprules/status","aviinfrasettings","aviinfrasettings/status", "l4rules", "l4rules/status", "ssorules", "ssorules/status", "l7rules", "l7rules/status", "healthmonitors", "healthmonitors/status", "routebackendextensions", "routebackendextensions/status", "applicationprofiles", "applicationprofiles/status"]
+    resources: ["hostrules","hostrules/status","httprules","httprules/status","aviinfrasettings","aviinfrasettings/status"]
     verbs: ["get","watch","list","patch","update"]
   - apiGroups: ["networking.x-k8s.io"]
     resources: ["gateways","gateways/status","gatewayclasses","gatewayclasses/status"]
@@ -52,21 +54,15 @@ rules:
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
     verbs: ["create", "get", "update"]
-  - apiGroups: ["cilium.io"]
-    resources: ["ciliumnodes"]
-    verbs: ["get","watch","list"]
-  - apiGroups: ["discovery.k8s.io"]
-    resources: ["endpointslices"]
-    verbs: ["get","watch","list"]
-{{- if eq .Values.featureGates.GatewayAPI true }}
-  - apiGroups: ["gateway.networking.k8s.io"]
-    resources: ["gatewayclasses", "gatewayclasses/status","gateways","gateways/status","httproutes","httproutes/status"]
-    verbs: ["get","watch","list","patch","update"]
-{{- end }}
 {{- if .Values.rbac.pspEnable }}
-  - apiGroups: ["policy", "extensions"]
-    resources: ["podsecuritypolicies"]
-    verbs: ["use"]
-    resourceNames: ["{{ template "ako.name" . }}"]
+  - apiGroups:
+    - policy
+    - extensions
+    resources:
+    - podsecuritypolicies
+    verbs:
+    - use
+    resourceNames:
+    - {{ template "ako.name" . }}
 {{- end }}
 {{- end }}

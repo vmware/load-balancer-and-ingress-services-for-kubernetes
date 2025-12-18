@@ -19,36 +19,36 @@ limitations under the License.
 package v1
 
 import (
-	corev1 "k8s.io/api/core/v1"
-	apismetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	apicorev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	managedfields "k8s.io/apimachinery/pkg/util/managedfields"
 	internal "k8s.io/client-go/applyconfigurations/internal"
-	metav1 "k8s.io/client-go/applyconfigurations/meta/v1"
+	v1 "k8s.io/client-go/applyconfigurations/meta/v1"
 )
 
-// EventApplyConfiguration represents a declarative configuration of the Event type for use
+// EventApplyConfiguration represents an declarative configuration of the Event type for use
 // with apply.
 type EventApplyConfiguration struct {
-	metav1.TypeMetaApplyConfiguration    `json:",inline"`
-	*metav1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
-	InvolvedObject                       *ObjectReferenceApplyConfiguration `json:"involvedObject,omitempty"`
-	Reason                               *string                            `json:"reason,omitempty"`
-	Message                              *string                            `json:"message,omitempty"`
-	Source                               *EventSourceApplyConfiguration     `json:"source,omitempty"`
-	FirstTimestamp                       *apismetav1.Time                   `json:"firstTimestamp,omitempty"`
-	LastTimestamp                        *apismetav1.Time                   `json:"lastTimestamp,omitempty"`
-	Count                                *int32                             `json:"count,omitempty"`
-	Type                                 *string                            `json:"type,omitempty"`
-	EventTime                            *apismetav1.MicroTime              `json:"eventTime,omitempty"`
-	Series                               *EventSeriesApplyConfiguration     `json:"series,omitempty"`
-	Action                               *string                            `json:"action,omitempty"`
-	Related                              *ObjectReferenceApplyConfiguration `json:"related,omitempty"`
-	ReportingController                  *string                            `json:"reportingComponent,omitempty"`
-	ReportingInstance                    *string                            `json:"reportingInstance,omitempty"`
+	v1.TypeMetaApplyConfiguration    `json:",inline"`
+	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
+	InvolvedObject                   *ObjectReferenceApplyConfiguration `json:"involvedObject,omitempty"`
+	Reason                           *string                            `json:"reason,omitempty"`
+	Message                          *string                            `json:"message,omitempty"`
+	Source                           *EventSourceApplyConfiguration     `json:"source,omitempty"`
+	FirstTimestamp                   *metav1.Time                       `json:"firstTimestamp,omitempty"`
+	LastTimestamp                    *metav1.Time                       `json:"lastTimestamp,omitempty"`
+	Count                            *int32                             `json:"count,omitempty"`
+	Type                             *string                            `json:"type,omitempty"`
+	EventTime                        *metav1.MicroTime                  `json:"eventTime,omitempty"`
+	Series                           *EventSeriesApplyConfiguration     `json:"series,omitempty"`
+	Action                           *string                            `json:"action,omitempty"`
+	Related                          *ObjectReferenceApplyConfiguration `json:"related,omitempty"`
+	ReportingController              *string                            `json:"reportingComponent,omitempty"`
+	ReportingInstance                *string                            `json:"reportingInstance,omitempty"`
 }
 
-// Event constructs a declarative configuration of the Event type for use with
+// Event constructs an declarative configuration of the Event type for use with
 // apply.
 func Event(name, namespace string) *EventApplyConfiguration {
 	b := &EventApplyConfiguration{}
@@ -62,7 +62,7 @@ func Event(name, namespace string) *EventApplyConfiguration {
 // ExtractEvent extracts the applied configuration owned by fieldManager from
 // event. If no managedFields are found in event for fieldManager, a
 // EventApplyConfiguration is returned with only the Name, Namespace (if applicable),
-// APIVersion and Kind populated. It is possible that no managed fields were found for because other
+// APIVersion and Kind populated. Is is possible that no managed fields were found for because other
 // field managers have taken ownership of all the fields previously owned by fieldManager, or because
 // the fieldManager never owned fields any fields.
 // event must be a unmodified Event API object that was retrieved from the Kubernetes API.
@@ -70,20 +70,9 @@ func Event(name, namespace string) *EventApplyConfiguration {
 // Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
 // applied if another fieldManager has updated or force applied any of the previously applied fields.
 // Experimental!
-func ExtractEvent(event *corev1.Event, fieldManager string) (*EventApplyConfiguration, error) {
-	return extractEvent(event, fieldManager, "")
-}
-
-// ExtractEventStatus is the same as ExtractEvent except
-// that it extracts the status subresource applied configuration.
-// Experimental!
-func ExtractEventStatus(event *corev1.Event, fieldManager string) (*EventApplyConfiguration, error) {
-	return extractEvent(event, fieldManager, "status")
-}
-
-func extractEvent(event *corev1.Event, fieldManager string, subresource string) (*EventApplyConfiguration, error) {
+func ExtractEvent(event *apicorev1.Event, fieldManager string) (*EventApplyConfiguration, error) {
 	b := &EventApplyConfiguration{}
-	err := managedfields.ExtractInto(event, internal.Parser().Type("io.k8s.api.core.v1.Event"), fieldManager, b, subresource)
+	err := managedfields.ExtractInto(event, internal.Parser().Type("io.k8s.api.core.v1.Event"), fieldManager, b)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +88,7 @@ func extractEvent(event *corev1.Event, fieldManager string, subresource string) 
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Kind field is set to the value of the last call.
 func (b *EventApplyConfiguration) WithKind(value string) *EventApplyConfiguration {
-	b.TypeMetaApplyConfiguration.Kind = &value
+	b.Kind = &value
 	return b
 }
 
@@ -107,7 +96,7 @@ func (b *EventApplyConfiguration) WithKind(value string) *EventApplyConfiguratio
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the APIVersion field is set to the value of the last call.
 func (b *EventApplyConfiguration) WithAPIVersion(value string) *EventApplyConfiguration {
-	b.TypeMetaApplyConfiguration.APIVersion = &value
+	b.APIVersion = &value
 	return b
 }
 
@@ -116,7 +105,7 @@ func (b *EventApplyConfiguration) WithAPIVersion(value string) *EventApplyConfig
 // If called multiple times, the Name field is set to the value of the last call.
 func (b *EventApplyConfiguration) WithName(value string) *EventApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.Name = &value
+	b.Name = &value
 	return b
 }
 
@@ -125,7 +114,7 @@ func (b *EventApplyConfiguration) WithName(value string) *EventApplyConfiguratio
 // If called multiple times, the GenerateName field is set to the value of the last call.
 func (b *EventApplyConfiguration) WithGenerateName(value string) *EventApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.GenerateName = &value
+	b.GenerateName = &value
 	return b
 }
 
@@ -134,7 +123,16 @@ func (b *EventApplyConfiguration) WithGenerateName(value string) *EventApplyConf
 // If called multiple times, the Namespace field is set to the value of the last call.
 func (b *EventApplyConfiguration) WithNamespace(value string) *EventApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.Namespace = &value
+	b.Namespace = &value
+	return b
+}
+
+// WithSelfLink sets the SelfLink field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the SelfLink field is set to the value of the last call.
+func (b *EventApplyConfiguration) WithSelfLink(value string) *EventApplyConfiguration {
+	b.ensureObjectMetaApplyConfigurationExists()
+	b.SelfLink = &value
 	return b
 }
 
@@ -143,7 +141,7 @@ func (b *EventApplyConfiguration) WithNamespace(value string) *EventApplyConfigu
 // If called multiple times, the UID field is set to the value of the last call.
 func (b *EventApplyConfiguration) WithUID(value types.UID) *EventApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.UID = &value
+	b.UID = &value
 	return b
 }
 
@@ -152,7 +150,7 @@ func (b *EventApplyConfiguration) WithUID(value types.UID) *EventApplyConfigurat
 // If called multiple times, the ResourceVersion field is set to the value of the last call.
 func (b *EventApplyConfiguration) WithResourceVersion(value string) *EventApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.ResourceVersion = &value
+	b.ResourceVersion = &value
 	return b
 }
 
@@ -161,25 +159,25 @@ func (b *EventApplyConfiguration) WithResourceVersion(value string) *EventApplyC
 // If called multiple times, the Generation field is set to the value of the last call.
 func (b *EventApplyConfiguration) WithGeneration(value int64) *EventApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.Generation = &value
+	b.Generation = &value
 	return b
 }
 
 // WithCreationTimestamp sets the CreationTimestamp field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the CreationTimestamp field is set to the value of the last call.
-func (b *EventApplyConfiguration) WithCreationTimestamp(value apismetav1.Time) *EventApplyConfiguration {
+func (b *EventApplyConfiguration) WithCreationTimestamp(value metav1.Time) *EventApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.CreationTimestamp = &value
+	b.CreationTimestamp = &value
 	return b
 }
 
 // WithDeletionTimestamp sets the DeletionTimestamp field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the DeletionTimestamp field is set to the value of the last call.
-func (b *EventApplyConfiguration) WithDeletionTimestamp(value apismetav1.Time) *EventApplyConfiguration {
+func (b *EventApplyConfiguration) WithDeletionTimestamp(value metav1.Time) *EventApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.DeletionTimestamp = &value
+	b.DeletionTimestamp = &value
 	return b
 }
 
@@ -188,7 +186,7 @@ func (b *EventApplyConfiguration) WithDeletionTimestamp(value apismetav1.Time) *
 // If called multiple times, the DeletionGracePeriodSeconds field is set to the value of the last call.
 func (b *EventApplyConfiguration) WithDeletionGracePeriodSeconds(value int64) *EventApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.DeletionGracePeriodSeconds = &value
+	b.DeletionGracePeriodSeconds = &value
 	return b
 }
 
@@ -198,11 +196,11 @@ func (b *EventApplyConfiguration) WithDeletionGracePeriodSeconds(value int64) *E
 // overwriting an existing map entries in Labels field with the same key.
 func (b *EventApplyConfiguration) WithLabels(entries map[string]string) *EventApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	if b.ObjectMetaApplyConfiguration.Labels == nil && len(entries) > 0 {
-		b.ObjectMetaApplyConfiguration.Labels = make(map[string]string, len(entries))
+	if b.Labels == nil && len(entries) > 0 {
+		b.Labels = make(map[string]string, len(entries))
 	}
 	for k, v := range entries {
-		b.ObjectMetaApplyConfiguration.Labels[k] = v
+		b.Labels[k] = v
 	}
 	return b
 }
@@ -213,11 +211,11 @@ func (b *EventApplyConfiguration) WithLabels(entries map[string]string) *EventAp
 // overwriting an existing map entries in Annotations field with the same key.
 func (b *EventApplyConfiguration) WithAnnotations(entries map[string]string) *EventApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	if b.ObjectMetaApplyConfiguration.Annotations == nil && len(entries) > 0 {
-		b.ObjectMetaApplyConfiguration.Annotations = make(map[string]string, len(entries))
+	if b.Annotations == nil && len(entries) > 0 {
+		b.Annotations = make(map[string]string, len(entries))
 	}
 	for k, v := range entries {
-		b.ObjectMetaApplyConfiguration.Annotations[k] = v
+		b.Annotations[k] = v
 	}
 	return b
 }
@@ -225,13 +223,13 @@ func (b *EventApplyConfiguration) WithAnnotations(entries map[string]string) *Ev
 // WithOwnerReferences adds the given value to the OwnerReferences field in the declarative configuration
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
 // If called multiple times, values provided by each call will be appended to the OwnerReferences field.
-func (b *EventApplyConfiguration) WithOwnerReferences(values ...*metav1.OwnerReferenceApplyConfiguration) *EventApplyConfiguration {
+func (b *EventApplyConfiguration) WithOwnerReferences(values ...*v1.OwnerReferenceApplyConfiguration) *EventApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
 	for i := range values {
 		if values[i] == nil {
 			panic("nil value passed to WithOwnerReferences")
 		}
-		b.ObjectMetaApplyConfiguration.OwnerReferences = append(b.ObjectMetaApplyConfiguration.OwnerReferences, *values[i])
+		b.OwnerReferences = append(b.OwnerReferences, *values[i])
 	}
 	return b
 }
@@ -242,14 +240,23 @@ func (b *EventApplyConfiguration) WithOwnerReferences(values ...*metav1.OwnerRef
 func (b *EventApplyConfiguration) WithFinalizers(values ...string) *EventApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
 	for i := range values {
-		b.ObjectMetaApplyConfiguration.Finalizers = append(b.ObjectMetaApplyConfiguration.Finalizers, values[i])
+		b.Finalizers = append(b.Finalizers, values[i])
 	}
+	return b
+}
+
+// WithClusterName sets the ClusterName field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the ClusterName field is set to the value of the last call.
+func (b *EventApplyConfiguration) WithClusterName(value string) *EventApplyConfiguration {
+	b.ensureObjectMetaApplyConfigurationExists()
+	b.ClusterName = &value
 	return b
 }
 
 func (b *EventApplyConfiguration) ensureObjectMetaApplyConfigurationExists() {
 	if b.ObjectMetaApplyConfiguration == nil {
-		b.ObjectMetaApplyConfiguration = &metav1.ObjectMetaApplyConfiguration{}
+		b.ObjectMetaApplyConfiguration = &v1.ObjectMetaApplyConfiguration{}
 	}
 }
 
@@ -288,7 +295,7 @@ func (b *EventApplyConfiguration) WithSource(value *EventSourceApplyConfiguratio
 // WithFirstTimestamp sets the FirstTimestamp field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the FirstTimestamp field is set to the value of the last call.
-func (b *EventApplyConfiguration) WithFirstTimestamp(value apismetav1.Time) *EventApplyConfiguration {
+func (b *EventApplyConfiguration) WithFirstTimestamp(value metav1.Time) *EventApplyConfiguration {
 	b.FirstTimestamp = &value
 	return b
 }
@@ -296,7 +303,7 @@ func (b *EventApplyConfiguration) WithFirstTimestamp(value apismetav1.Time) *Eve
 // WithLastTimestamp sets the LastTimestamp field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the LastTimestamp field is set to the value of the last call.
-func (b *EventApplyConfiguration) WithLastTimestamp(value apismetav1.Time) *EventApplyConfiguration {
+func (b *EventApplyConfiguration) WithLastTimestamp(value metav1.Time) *EventApplyConfiguration {
 	b.LastTimestamp = &value
 	return b
 }
@@ -320,7 +327,7 @@ func (b *EventApplyConfiguration) WithType(value string) *EventApplyConfiguratio
 // WithEventTime sets the EventTime field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the EventTime field is set to the value of the last call.
-func (b *EventApplyConfiguration) WithEventTime(value apismetav1.MicroTime) *EventApplyConfiguration {
+func (b *EventApplyConfiguration) WithEventTime(value metav1.MicroTime) *EventApplyConfiguration {
 	b.EventTime = &value
 	return b
 }
@@ -363,10 +370,4 @@ func (b *EventApplyConfiguration) WithReportingController(value string) *EventAp
 func (b *EventApplyConfiguration) WithReportingInstance(value string) *EventApplyConfiguration {
 	b.ReportingInstance = &value
 	return b
-}
-
-// GetName retrieves the value of the Name field in the declarative configuration.
-func (b *EventApplyConfiguration) GetName() *string {
-	b.ensureObjectMetaApplyConfigurationExists()
-	return b.ObjectMetaApplyConfiguration.Name
 }

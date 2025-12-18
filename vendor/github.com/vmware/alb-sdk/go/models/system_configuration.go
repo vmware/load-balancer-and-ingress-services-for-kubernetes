@@ -48,12 +48,6 @@ type SystemConfiguration struct {
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	GlobalTenantConfig *TenantConfiguration `json:"global_tenant_config,omitempty"`
 
-	// Users can specify comma separated list of deprecated host key algorithm.If nothing is specified, all known algorithms provided by OpenSSH will be supported.This change could only apply on the controller node. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	HostKeyAlgorithmExclude *string `json:"host_key_algorithm_exclude,omitempty"`
-
-	// Users can specify comma separated list of deprecated key exchange algorithm.If nothing is specified, all known algorithms provided by OpenSSH will be supported.This change could only apply on the controller node. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	KexAlgorithmExclude *string `json:"kex_algorithm_exclude,omitempty"`
-
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	LinuxConfiguration *LinuxConfiguration `json:"linux_configuration,omitempty"`
 
@@ -68,12 +62,6 @@ type SystemConfiguration struct {
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ProxyConfiguration *ProxyConfiguration `json:"proxy_configuration,omitempty"`
-
-	// Users can specify and update the time limit of RekeyLimit in sshd_config.If nothing is specified, the default setting will be none. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	RekeyTimeLimit *string `json:"rekey_time_limit,omitempty"`
-
-	// Users can specify and update the size/volume limit of RekeyLimit in sshd_config.If nothing is specified, the default setting will be default. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	RekeyVolumeLimit *string `json:"rekey_volume_limit,omitempty"`
 
 	// Configure Secure Channel properties. Field introduced in 18.1.4, 18.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SecureChannelConfiguration *SecureChannelConfiguration `json:"secure_channel_configuration,omitempty"`

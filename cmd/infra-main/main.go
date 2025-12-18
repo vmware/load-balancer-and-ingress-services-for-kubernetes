@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2021 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -15,24 +15,18 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"os"
 
-	akogatewaylib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/avirest"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-infra/ingestion"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
-	v1beta1crd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	gatewayclientset "sigs.k8s.io/gateway-api/pkg/client/clientset/versioned"
 )
 
 var (
@@ -58,7 +52,7 @@ func InitializeAKOInfra() {
 	if err != nil {
 		utils.AviLog.Warnf("We are not running inside kubernetes cluster. %s", err.Error())
 	} else {
-		utils.AviLog.Infof("We are running inside kubernetes cluster. Won't use kubeconfig files.")
+		utils.AviLog.Info("We are running inside kubernetes cluster. Won't use kubeconfig files.")
 		kubeCluster = true
 	}
 	if kubeCluster == false {
@@ -79,21 +73,7 @@ func InitializeAKOInfra() {
 		utils.AviLog.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
 
-	v1beta1crdClient, err := v1beta1crd.NewForConfig(cfg)
-	if err != nil {
-		utils.AviLog.Fatalf("Error building AKO CRD v1beta1 clientset: %s", err.Error())
-	}
-
 	utils.AviLog.Infof("Successfully created kube client for ako-infra")
-
-	lib.AKOControlConfig().SetEventRecorder(lib.AKOEventComponent, kubeClient, false)
-	pods, err := kubeClient.CoreV1().Pods(utils.GetAKONamespace()).List(context.TODO(), metav1.ListOptions{Limit: 1})
-	if err != nil {
-		utils.AviLog.Warnf("Error getting AKO pod details, %s.", err.Error())
-	}
-	for _, pod := range pods.Items {
-		lib.AKOControlConfig().SaveAKOPodObjectMeta(&pod)
-	}
 
 	registeredInformers, err := lib.InformersToRegister(kubeClient, nil)
 	if err != nil {
@@ -105,11 +85,7 @@ func InitializeAKOInfra() {
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, informersArg)
 	lib.NewDynamicInformers(dynamicClient, true)
 
-	lib.AKOControlConfig().SetCRDClientsetAndEnableInfraSettingParam(v1beta1crdClient)
-	k8s.NewInfraSettingCRDInformer()
-
 	c := ingestion.SharedVCFK8sController()
-
 	stopCh := utils.SetupSignalHandler()
 	ctrlCh := make(chan struct{})
 
@@ -132,45 +108,24 @@ func InitializeAKOInfra() {
 		}
 	}
 
-	c.InitNetworkingHandler()
-	lib.RunAviInfraSettingInformer(stopCh)
 	c.AddSecretEventHandler(stopCh)
-	aviCloud, err := a.DeriveCloudMappedToTZ(transportZone)
-	if err != nil {
-		lib.AKOControlConfig().PodEventf(corev1.EventTypeWarning, "CloudMatchingTZNotFound", err.Error())
-		utils.AviLog.Fatalf("Failed to derive cloud, err: %s", err.Error())
-	}
+
 	clusterName := lib.GetClusterName()
-	if !lib.GetVPCMode() {
-		segExists := a.SetupSEGroup(aviCloud)
-		clusterName, err = a.DeriveClusterNameToBeUsedInAKOUser(segExists)
-		if err != nil {
-			lib.AKOControlConfig().PodEventf(corev1.EventTypeWarning, "ClusterNameDerivationFailure", err.Error())
-			utils.AviLog.Fatalf("Failed to derive Cluster name to be used in the AKO User, err: %s", err.Error())
-		}
-		c.AddAvailabilityZoneCREventHandler(stopCh)
-	} else if lib.IsGatewayAPICapabilityEnabled() {
-		gwApiClient, err := gatewayclientset.NewForConfig(cfg)
-		if err != nil {
-			utils.AviLog.Fatalf("Error building gateway-api clientset: %s", err.Error())
-		}
-		akogatewaylib.AKOControlConfig().SetGatewayAPIClientset(gwApiClient)
-		err = akogatewaylib.CreateVCFGatewayClass()
-		if err != nil {
-			utils.AviLog.Fatalf("Error creating gateway class: %s", err.Error())
-		}
+	segExists := a.SetupSEGroup(transportZone)
+	clusterName, err = a.DeriveClusterNameToBeUsedInAKOUser(segExists)
+	if err != nil {
+		utils.AviLog.Fatalf("Failed to derive Cluster name to be used in the AKO User, err: %s", err.Error())
 	}
+	c.AddAvailabilityZoneCREventHandler(stopCh)
+
 	lib.SetClusterName(clusterName)
-	lib.SetAKOUser(lib.AKOPrefix)
-	c.AddNamespaceEventHandler(stopCh)
-	c.Sync()
+
+	avirest.SyncLSLRNetwork()
 	a.AnnotateSystemNamespace(lib.GetClusterID(), utils.CloudName, clusterName)
 	c.AddNetworkInfoEventHandler(stopCh)
+	c.AddNamespaceEventHandler(stopCh)
 
-	// Add VKS capability event handler after system namespace is annotated
-	c.AddVKSCapabilityEventHandler(stopCh)
-
-	worker := c.InitFullSyncWorker()
+	worker := avirest.NewLRLSFullSyncWorker()
 	go worker.Run()
 
 	<-stopCh

@@ -21,17 +21,17 @@ import (
 	"sync"
 	"time"
 
-	"k8s.io/utils/clock"
+	utilclock "k8s.io/apimachinery/pkg/util/clock"
 )
 
 // NewExpiring returns an initialized expiring cache.
 func NewExpiring() *Expiring {
-	return NewExpiringWithClock(clock.RealClock{})
+	return NewExpiringWithClock(utilclock.RealClock{})
 }
 
 // NewExpiringWithClock is like NewExpiring but allows passing in a custom
 // clock for testing.
-func NewExpiringWithClock(clock clock.Clock) *Expiring {
+func NewExpiringWithClock(clock utilclock.Clock) *Expiring {
 	return &Expiring{
 		clock: clock,
 		cache: make(map[interface{}]entry),
@@ -40,14 +40,7 @@ func NewExpiringWithClock(clock clock.Clock) *Expiring {
 
 // Expiring is a map whose entries expire after a per-entry timeout.
 type Expiring struct {
-	// AllowExpiredGet causes the expiration check to be skipped on Get.
-	// It should only be used when a key always corresponds to the exact same value.
-	// Thus when this field is true, expired keys are considered valid
-	// until the next call to Set (which causes the GC to run).
-	// It may not be changed concurrently with calls to Get.
-	AllowExpiredGet bool
-
-	clock clock.Clock
+	clock utilclock.Clock
 
 	// mu protects the below fields
 	mu sync.RWMutex
@@ -77,10 +70,7 @@ func (c *Expiring) Get(key interface{}) (val interface{}, ok bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	e, ok := c.cache[key]
-	if !ok {
-		return nil, false
-	}
-	if !c.AllowExpiredGet && !c.clock.Now().Before(e.expiry) {
+	if !ok || !c.clock.Now().Before(e.expiry) {
 		return nil, false
 	}
 	return e.val, true

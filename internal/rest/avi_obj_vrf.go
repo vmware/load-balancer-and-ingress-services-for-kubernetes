@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ package rest
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -29,17 +30,16 @@ import (
 
 func (rest *RestOperations) AviVrfGet(key, uuid, name string) *avimodels.VrfContext {
 
-	aviRestPoolClient := avicache.SharedAVIClients(lib.GetTenant())
-	if aviRestPoolClient == nil {
+	if rest.aviRestPoolClient == nil {
 		utils.AviLog.Warnf("key: %s, msg: aviRestPoolClient not initialized", key)
 		return nil
 	}
-	if len(aviRestPoolClient.AviClient) < 1 {
+	if len(rest.aviRestPoolClient.AviClient) < 1 {
 		utils.AviLog.Warnf("key: %s, msg: client in aviRestPoolClient not initialized", key)
 		return nil
 	}
 
-	client := aviRestPoolClient.AviClient[0]
+	client := rest.aviRestPoolClient.AviClient[0]
 	uri := "/api/vrfcontext/" + uuid
 
 	rawData, err := lib.AviGetRaw(client, uri)
@@ -63,41 +63,50 @@ func (rest *RestOperations) AviVrfBuild(key string, vrfNode *nodes.AviVrfNode, u
 		return nil
 	}
 	path := "/api/vrfcontext/" + vrfCacheObj.Uuid
+
 	nodeStaticRoutes := vrfNode.StaticRoutes
 	aviStaticRoutes := vrf.StaticRoutes
+	clusterStaticRoutes := []*avimodels.StaticRoute{}
 	mergedStaticRoutes := []*avimodels.StaticRoute{}
 	clusterName := lib.GetClusterName()
-	utils.AviLog.Infof("key: %s, VRF object in controller %s", key, utils.Stringify(aviStaticRoutes))
-	utils.AviLog.Infof("key: %s, VRF object in ako cache %s", key, utils.Stringify(nodeStaticRoutes))
+
 	for _, aviStaticRoute := range aviStaticRoutes {
-		if len(aviStaticRoute.Labels) == 0 || (*aviStaticRoute.Labels[0].Key == "clustername" && *aviStaticRoute.Labels[0].Value != clusterName) {
+		if strings.HasPrefix(*aviStaticRoute.RouteID, clusterName) {
+			clusterStaticRoutes = append(clusterStaticRoutes, aviStaticRoute)
+		} else {
 			mergedStaticRoutes = append(mergedStaticRoutes, aviStaticRoute)
 		}
 	}
-	if len(nodeStaticRoutes) != 0 {
+
+	patchOp := utils.PatchReplaceOp
+	patchPayload := make(map[string]interface{})
+	if len(nodeStaticRoutes) == 0 {
+		// this is the case of deleting all the static routes for the cluster
+		patchOp = utils.PatchDeleteOp
+		patchPayload["static_routes"] = clusterStaticRoutes
+
+	} else {
+		patchOp = utils.PatchReplaceOp
 		mergedStaticRoutes = append(mergedStaticRoutes, nodeStaticRoutes...)
+		patchPayload["static_routes"] = mergedStaticRoutes
 	}
 
-	vrf.StaticRoutes = []*avimodels.StaticRoute{}
-	vrf.StaticRoutes = append(vrf.StaticRoutes, mergedStaticRoutes...)
-
 	opTenant := lib.GetAdminTenant()
-	if lib.GetCloudType() == lib.CLOUD_OPENSTACK || lib.GetTenant() != "" {
+	if lib.GetCloudType() == lib.CLOUD_OPENSTACK {
 		//In case of Openstack cloud, use tenant vrf
 		opTenant = lib.GetTenant()
 	}
 
-	utils.AviLog.Infof("key: %s, VRF object to be sent for update to controller %s", key, utils.Stringify(vrf.StaticRoutes))
-
-	rest_op := utils.RestOp{
+	restOp := utils.RestOp{
 		Path:    path,
-		Method:  utils.RestPut,
-		Obj:     vrf,
+		Method:  utils.RestPatch,
+		PatchOp: patchOp,
+		Obj:     patchPayload,
 		Tenant:  opTenant,
 		Model:   "VrfContext",
-		ObjName: vrfCacheObj.Name,
 	}
-	return &rest_op
+
+	return &restOp
 }
 
 func (rest *RestOperations) getVrfCacheObj(vrfName string) *avicache.AviVrfCache {
@@ -150,7 +159,7 @@ func (rest *RestOperations) AviVrfCacheAdd(restOp *utils.RestOp, vrfKey avicache
 			}
 			staticRoutes = lib.StaticRoutesIntfToObj(staticRoutesIntf)
 			if len(staticRoutes) == 0 {
-				utils.AviLog.Infof("key: %s, no static routes found for vrf %s", key, vrfName)
+				utils.AviLog.Debugf("key: %s, no static routes found for vrf %s", key, vrfName)
 			}
 		}
 		checksum = lib.VrfChecksum(name, staticRoutes)

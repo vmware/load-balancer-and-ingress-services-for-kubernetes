@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ const (
 	PodInformer                   = "PodInformer"
 	SecretInformer                = "SecretInformer"
 	NodeInformer                  = "NodeInformer"
-	EndpointSlicesInformer        = "EndpointSlicesInformer"
+	EndpointInformer              = "EndpointInformer"
 	ConfigMapInformer             = "ConfigMapInformer"
 	MultiClusterIngressInformer   = "MultiClusterIngressInformer"
 	ServiceImportInformer         = "ServiceImportInformer"
@@ -43,14 +43,13 @@ const (
 	L4LBService                   = "L4LBService"
 	LoadBalancer                  = "LoadBalancer"
 	Pod                           = "Pod"
-	Endpointslices                = "Endpointslices"
+	Endpoints                     = "Endpoints"
 	Ingress                       = "Ingress"
 	IngressClass                  = "IngressClass"
 	OshiftRoute                   = "OshiftRoute"
 	Service                       = "Service"
 	Secret                        = "Secret"
 	HTTP                          = "HTTP"
-	HTTPRoute                     = "HTTPRoute"
 	HeaderMethod                  = ":method"
 	HeaderAuthority               = ":authority"
 	HeaderScheme                  = ":scheme"
@@ -65,7 +64,6 @@ const (
 	SYSTEM_SCTP_PROXY             = "System-SCTP-Proxy"
 	MIXED_NET_PROFILE             = "Mixed-Network-Profile-Internal"
 	DEFAULT_L4_APP_PROFILE        = "System-L4-Application"
-	DEFAULT_L4_SSL_APP_PROFILE    = "System-SSL-Application"
 	DEFAULT_L7_APP_PROFILE        = "System-HTTP"
 	DEFAULT_L7_SECURE_APP_PROFILE = "System-Secure-HTTP"
 	DEFAULT_SHARD_VS_PREFIX       = "Shard-VS-"
@@ -79,14 +77,12 @@ const (
 	VS_TYPE_NORMAL                = "VS_TYPE_NORMAL"
 	VS_TYPE_VH_CHILD              = "VS_TYPE_VH_CHILD"
 	VS_TYPE_VH_ENHANCED           = "VS_TYPE_VH_ENHANCED"
-	GATEWAY_API                   = "GATEWAY_API_V2"
 	NodeObj                       = "Node"
 	GlobalVRF                     = "global"
 	VRF_CONTEXT                   = "VRF_CONTEXT"
 	FULL_SYNC_INTERVAL            = "FULL_SYNC_INTERVAL"
 	DEFAULT_FILE_SUFFIX           = "avi.log"
 	K8S_ETIMEDOUT                 = "timed out"
-	K8S_UNAUTHORIZED              = "Unauthorized"
 	ADVANCED_L4                   = "ADVANCED_L4"
 	SERVICES_API                  = "SERVICES_API"
 	ENV_CTRL_USERNAME             = "CTRL_USERNAME"
@@ -96,15 +92,13 @@ const (
 	ENV_CTRL_CADATA               = "CTRL_CA_DATA"
 	POD_NAMESPACE                 = "POD_NAMESPACE"
 	VCF_CLUSTER                   = "VCF_CLUSTER"
-	VPC_MODE                      = "VPC_MODE"
 	MCI_ENABLED                   = "MCI_ENABLED"
 	USE_DEFAULT_SECRETS_ONLY      = "USE_DEFAULT_SECRETS_ONLY"
+	CTRL_VERSION_22_1_3           = "22.1.3"
+	CTRL_VERSION_22_1_2           = "22.1.2"
 	Namespace                     = "Namespace"
-	MaxAviVersion                 = "30.2.1"
-	ControllerAPIHeader           = "userHeader"
-	ControllerAPIScheme           = "scheme"
-	XAviUserAgentHeader           = "X-Avi-UserAgent"
-	HelmSecretType                = "helm.sh/release.v1"
+	MaxAviVersion                 = "22.1.2"
+	NamespaceNetworkInfo          = "NamespaceNetworkInfos"
 
 	RefreshAuthTokenInterval = 12  //hours
 	AuthTokenExpiry          = 240 //hours
@@ -120,12 +114,4 @@ const (
 	renewDeadline = 10 * time.Second
 	retryPeriod   = 2 * time.Second
 	leaseLockName = "ako-lease-lock"
-
-	// Constants used in Gateway context
-	WILDCARD         = "*"
-	FQDN_LABEL_REGEX = "([a-z0-9-]{1,})"
-
-	// Constants used for VKS Managed Mode
-	VKS_MANAGED      = "MANAGED"
-	ENV_CTRL_ADDRESS = "CTRL_ADDRESS"
 )

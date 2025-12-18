@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -14,11 +14,7 @@
 
 package models
 
-import (
-	"net/http"
-
-	"github.com/prometheus/client_golang/prometheus"
-)
+import "net/http"
 
 type OperationMap struct {
 	Route   string
@@ -28,5 +24,5 @@ type OperationMap struct {
 
 type ApiModel interface {
 	InitModel()
-	ApiOperationMap(prometheusEnavbled bool, reg *prometheus.Registry) []OperationMap
+	ApiOperationMap() []OperationMap
 }

@@ -5,12 +5,12 @@
 // Package protoregistry provides data structures to register and lookup
 // protobuf descriptor types.
 //
-// The [Files] registry contains file descriptors and provides the ability
+// The Files registry contains file descriptors and provides the ability
 // to iterate over the files or lookup a specific descriptor within the files.
-// [Files] only contains protobuf descriptors and has no understanding of Go
+// Files only contains protobuf descriptors and has no understanding of Go
 // type information that may be associated with each descriptor.
 //
-// The [Types] registry contains descriptor types for which there is a known
+// The Types registry contains descriptor types for which there is a known
 // Go type associated with that descriptor. It provides the ability to iterate
 // over the registered types or lookup a type by name.
 package protoregistry
@@ -30,11 +30,9 @@ import (
 // conflictPolicy configures the policy for handling registration conflicts.
 //
 // It can be over-written at compile time with a linker-initialized variable:
-//
 //	go build -ldflags "-X google.golang.org/protobuf/reflect/protoregistry.conflictPolicy=warn"
 //
 // It can be over-written at program execution with an environment variable:
-//
 //	GOLANG_PROTOBUF_REGISTRATION_CONFLICT=warn ./main
 //
 // Neither of the above are covered by the compatibility promise and
@@ -46,7 +44,7 @@ var conflictPolicy = "panic" // "panic" | "warn" | "ignore"
 // It is a variable so that the behavior is easily overridden in another file.
 var ignoreConflict = func(d protoreflect.Descriptor, err error) bool {
 	const env = "GOLANG_PROTOBUF_REGISTRATION_CONFLICT"
-	const faq = "https://protobuf.dev/reference/go/faq#namespace-conflict"
+	const faq = "https://developers.google.com/protocol-buffers/docs/reference/go/faq#namespace-conflict"
 	policy := conflictPolicy
 	if v := os.Getenv(env); v != "" {
 		policy = v
@@ -95,9 +93,8 @@ type Files struct {
 	// multiple files. Only top-level declarations are registered.
 	// Note that enum values are in the top-level since that are in the same
 	// scope as the parent enum.
-	descsByName map[protoreflect.FullName]any
-	filesByPath map[string][]protoreflect.FileDescriptor
-	numFiles    int
+	descsByName map[protoreflect.FullName]interface{}
+	filesByPath map[string]protoreflect.FileDescriptor
 }
 
 type packageDescriptor struct {
@@ -117,19 +114,20 @@ func (r *Files) RegisterFile(file protoreflect.FileDescriptor) error {
 		defer globalMutex.Unlock()
 	}
 	if r.descsByName == nil {
-		r.descsByName = map[protoreflect.FullName]any{
+		r.descsByName = map[protoreflect.FullName]interface{}{
 			"": &packageDescriptor{},
 		}
-		r.filesByPath = make(map[string][]protoreflect.FileDescriptor)
+		r.filesByPath = make(map[string]protoreflect.FileDescriptor)
 	}
 	path := file.Path()
-	if prev := r.filesByPath[path]; len(prev) > 0 {
+	if prev := r.filesByPath[path]; prev != nil {
 		r.checkGenProtoConflict(path)
 		err := errors.New("file %q is already registered", file.Path())
-		err = amendErrorWithCaller(err, prev[0], file)
-		if !(r == GlobalFiles && ignoreConflict(file, err)) {
-			return err
+		err = amendErrorWithCaller(err, prev, file)
+		if r == GlobalFiles && ignoreConflict(file, err) {
+			err = nil
 		}
+		return err
 	}
 
 	for name := file.Package(); name != ""; name = name.Parent() {
@@ -170,8 +168,7 @@ func (r *Files) RegisterFile(file protoreflect.FileDescriptor) error {
 	rangeTopLevelDescriptors(file, func(d protoreflect.Descriptor) {
 		r.descsByName[d.FullName()] = d
 	})
-	r.filesByPath[path] = append(r.filesByPath[path], file)
-	r.numFiles++
+	r.filesByPath[path] = file
 	return nil
 }
 
@@ -218,7 +215,7 @@ func (r *Files) checkGenProtoConflict(path string) {
 
 // FindDescriptorByName looks up a descriptor by the full name.
 //
-// This returns (nil, [NotFound]) if not found.
+// This returns (nil, NotFound) if not found.
 func (r *Files) FindDescriptorByName(name protoreflect.FullName) (protoreflect.Descriptor, error) {
 	if r == nil {
 		return nil, NotFound
@@ -310,8 +307,7 @@ func (s *nameSuffix) Pop() (name protoreflect.Name) {
 
 // FindFileByPath looks up a file by the path.
 //
-// This returns (nil, [NotFound]) if not found.
-// This returns an error if multiple files have the same path.
+// This returns (nil, NotFound) if not found.
 func (r *Files) FindFileByPath(path string) (protoreflect.FileDescriptor, error) {
 	if r == nil {
 		return nil, NotFound
@@ -320,19 +316,13 @@ func (r *Files) FindFileByPath(path string) (protoreflect.FileDescriptor, error)
 		globalMutex.RLock()
 		defer globalMutex.RUnlock()
 	}
-	fds := r.filesByPath[path]
-	switch len(fds) {
-	case 0:
-		return nil, NotFound
-	case 1:
-		return fds[0], nil
-	default:
-		return nil, errors.New("multiple files named %q", path)
+	if fd, ok := r.filesByPath[path]; ok {
+		return fd, nil
 	}
+	return nil, NotFound
 }
 
-// NumFiles reports the number of registered files,
-// including duplicate files with the same name.
+// NumFiles reports the number of registered files.
 func (r *Files) NumFiles() int {
 	if r == nil {
 		return 0
@@ -341,11 +331,10 @@ func (r *Files) NumFiles() int {
 		globalMutex.RLock()
 		defer globalMutex.RUnlock()
 	}
-	return r.numFiles
+	return len(r.filesByPath)
 }
 
 // RangeFiles iterates over all registered files while f returns true.
-// If multiple files have the same name, RangeFiles iterates over all of them.
 // The iteration order is undefined.
 func (r *Files) RangeFiles(f func(protoreflect.FileDescriptor) bool) {
 	if r == nil {
@@ -355,11 +344,9 @@ func (r *Files) RangeFiles(f func(protoreflect.FileDescriptor) bool) {
 		globalMutex.RLock()
 		defer globalMutex.RUnlock()
 	}
-	for _, files := range r.filesByPath {
-		for _, file := range files {
-			if !f(file) {
-				return
-			}
+	for _, file := range r.filesByPath {
+		if !f(file) {
+			return
 		}
 	}
 }
@@ -431,7 +418,7 @@ func rangeTopLevelDescriptors(fd protoreflect.FileDescriptor, f func(protoreflec
 // A compliant implementation must deterministically return the same type
 // if no error is encountered.
 //
-// The [Types] type implements this interface.
+// The Types type implements this interface.
 type MessageTypeResolver interface {
 	// FindMessageByName looks up a message by its full name.
 	// E.g., "google.protobuf.Any"
@@ -451,7 +438,7 @@ type MessageTypeResolver interface {
 // A compliant implementation must deterministically return the same type
 // if no error is encountered.
 //
-// The [Types] type implements this interface.
+// The Types type implements this interface.
 type ExtensionTypeResolver interface {
 	// FindExtensionByName looks up a extension field by the field's full name.
 	// Note that this is the full name of the field as determined by
@@ -485,7 +472,7 @@ type Types struct {
 }
 
 type (
-	typesByName         map[protoreflect.FullName]any
+	typesByName         map[protoreflect.FullName]interface{}
 	extensionsByMessage map[protoreflect.FullName]extensionsByNumber
 	extensionsByNumber  map[protoreflect.FieldNumber]protoreflect.ExtensionType
 )
@@ -570,7 +557,7 @@ func (r *Types) RegisterExtension(xt protoreflect.ExtensionType) error {
 	return nil
 }
 
-func (r *Types) register(kind string, desc protoreflect.Descriptor, typ any) error {
+func (r *Types) register(kind string, desc protoreflect.Descriptor, typ interface{}) error {
 	name := desc.FullName()
 	prev := r.typesByName[name]
 	if prev != nil {
@@ -590,7 +577,7 @@ func (r *Types) register(kind string, desc protoreflect.Descriptor, typ any) err
 // FindEnumByName looks up an enum by its full name.
 // E.g., "google.protobuf.Field.Kind".
 //
-// This returns (nil, [NotFound]) if not found.
+// This returns (nil, NotFound) if not found.
 func (r *Types) FindEnumByName(enum protoreflect.FullName) (protoreflect.EnumType, error) {
 	if r == nil {
 		return nil, NotFound
@@ -611,7 +598,7 @@ func (r *Types) FindEnumByName(enum protoreflect.FullName) (protoreflect.EnumTyp
 // FindMessageByName looks up a message by its full name,
 // e.g. "google.protobuf.Any".
 //
-// This returns (nil, [NotFound]) if not found.
+// This returns (nil, NotFound) if not found.
 func (r *Types) FindMessageByName(message protoreflect.FullName) (protoreflect.MessageType, error) {
 	if r == nil {
 		return nil, NotFound
@@ -632,7 +619,7 @@ func (r *Types) FindMessageByName(message protoreflect.FullName) (protoreflect.M
 // FindMessageByURL looks up a message by a URL identifier.
 // See documentation on google.protobuf.Any.type_url for the URL format.
 //
-// This returns (nil, [NotFound]) if not found.
+// This returns (nil, NotFound) if not found.
 func (r *Types) FindMessageByURL(url string) (protoreflect.MessageType, error) {
 	// This function is similar to FindMessageByName but
 	// truncates anything before and including '/' in the URL.
@@ -662,7 +649,7 @@ func (r *Types) FindMessageByURL(url string) (protoreflect.MessageType, error) {
 // where the extension is declared and is unrelated to the full name of the
 // message being extended.
 //
-// This returns (nil, [NotFound]) if not found.
+// This returns (nil, NotFound) if not found.
 func (r *Types) FindExtensionByName(field protoreflect.FullName) (protoreflect.ExtensionType, error) {
 	if r == nil {
 		return nil, NotFound
@@ -703,7 +690,7 @@ func (r *Types) FindExtensionByName(field protoreflect.FullName) (protoreflect.E
 // FindExtensionByNumber looks up a extension field by the field number
 // within some parent message, identified by full name.
 //
-// This returns (nil, [NotFound]) if not found.
+// This returns (nil, NotFound) if not found.
 func (r *Types) FindExtensionByNumber(message protoreflect.FullName, field protoreflect.FieldNumber) (protoreflect.ExtensionType, error) {
 	if r == nil {
 		return nil, NotFound
@@ -841,7 +828,7 @@ func (r *Types) RangeExtensionsByMessage(message protoreflect.FullName, f func(p
 	}
 }
 
-func typeName(t any) string {
+func typeName(t interface{}) string {
 	switch t.(type) {
 	case protoreflect.EnumType:
 		return "enum"
@@ -854,7 +841,7 @@ func typeName(t any) string {
 	}
 }
 
-func amendErrorWithCaller(err error, prev, curr any) error {
+func amendErrorWithCaller(err error, prev, curr interface{}) error {
 	prevPkg := goPackage(prev)
 	currPkg := goPackage(curr)
 	if prevPkg == "" || currPkg == "" || prevPkg == currPkg {
@@ -863,7 +850,7 @@ func amendErrorWithCaller(err error, prev, curr any) error {
 	return errors.New("%s\n\tpreviously from: %q\n\tcurrently from:  %q", err, prevPkg, currPkg)
 }
 
-func goPackage(v any) string {
+func goPackage(v interface{}) string {
 	switch d := v.(type) {
 	case protoreflect.EnumType:
 		v = d.Descriptor()

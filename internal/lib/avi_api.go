@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -17,14 +17,13 @@ package lib
 import (
 	"errors"
 	"strings"
-	"time"
-
-	"github.com/vmware/alb-sdk/go/clients"
-	"github.com/vmware/alb-sdk/go/session"
-	corev1 "k8s.io/api/core/v1"
 
 	apimodels "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api/models"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
+
+	corev1 "k8s.io/api/core/v1"
 )
 
 func AviGetCollectionRaw(client *clients.AviClient, uri string, retryNum ...int) (session.AviCollectionResult, error) {
@@ -38,7 +37,6 @@ func AviGetCollectionRaw(client *clients.AviClient, uri string, retryNum ...int)
 	}
 
 	result, err := client.AviSession.GetCollectionRaw(utils.GetUriEncoded(uri))
-	IncrementRestOpCouter(HTTPMethodGet, uri)
 	if err != nil {
 		utils.AviLog.Warnf("msg: Unable to fetch collection data from uri %s %v", uri, err)
 		CheckForInvalidCredentials(uri, err)
@@ -49,31 +47,6 @@ func AviGetCollectionRaw(client *clients.AviClient, uri string, retryNum ...int)
 	}
 
 	apimodels.RestStatus.UpdateAviApiRestStatus(utils.AVIAPI_CONNECTED, nil)
-	return result, nil
-}
-
-func AviGetCollectionRawWithTenantSwitch(client *clients.AviClient, uri string) (session.AviCollectionResult, error) {
-	result, err := AviGetCollectionRaw(client, uri)
-	if err != nil {
-		utils.AviLog.Warnf("msg: Unable to fetch collection data from uri %s %v", uri, err)
-		if aviError, ok := err.(session.AviError); ok && (aviError.HttpStatusCode == 403 || aviError.HttpStatusCode == 404) {
-			utils.AviLog.Debugf("Switching to admin context from  %s", GetTenant())
-			SetAdminTenant := session.SetTenant(GetAdminTenant())
-			SetTenant := session.SetTenant(GetTenant())
-			SetAdminTenant(client.AviSession)
-			defer SetTenant(client.AviSession)
-			result, err = AviGetCollectionRaw(client, uri)
-			if err != nil {
-				utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
-				return session.AviCollectionResult{}, err
-
-			}
-		} else {
-			utils.AviLog.Errorf("Get uri %v returned err %v", uri, err)
-			return session.AviCollectionResult{}, err
-		}
-	}
-
 	return result, nil
 }
 
@@ -88,21 +61,17 @@ func AviGet(client *clients.AviClient, uri string, response interface{}, retryNu
 	}
 
 	err := client.AviSession.Get(utils.GetUriEncoded(uri), &response)
-	IncrementRestOpCouter(HTTPMethodGet, uri)
 	if err != nil {
 		utils.AviLog.Warnf("msg: Unable to fetch data from uri %s %v", uri, err)
 		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
 			utils.AviLog.Debugf("Switching to admin context from %s", GetTenant())
 			SetAdminTenant := session.SetTenant(GetAdminTenant())
-			SetAdminTenant(client.AviSession)
 			SetTenant := session.SetTenant(GetTenant())
+			SetAdminTenant(client.AviSession)
 			defer SetTenant(client.AviSession)
-			if err = AviGet(client, uri, response, retry+1); err != nil {
+			if err := AviGet(client, uri, response, retry+1); err != nil {
 				utils.AviLog.Warnf("msg: Unable to fetch data from uri %s %v after context switch", uri, err)
 				return err
-			} else {
-				apimodels.RestStatus.UpdateAviApiRestStatus(utils.AVIAPI_CONNECTED, nil)
-				return nil
 			}
 		}
 		CheckForInvalidCredentials(uri, err)
@@ -128,7 +97,6 @@ func AviGetRaw(client *clients.AviClient, uri string, retryNum ...int) ([]byte, 
 	}
 
 	rawData, err := client.AviSession.GetRaw(utils.GetUriEncoded(uri))
-	IncrementRestOpCouter(HTTPMethodGet, uri)
 	if err != nil {
 		utils.AviLog.Warnf("msg: Unable to fetch data from uri %s %v", uri, err)
 		CheckForInvalidCredentials(uri, err)
@@ -157,7 +125,6 @@ func AviPut(client *clients.AviClient, uri string, payload interface{}, response
 	}
 
 	err := client.AviSession.Put(utils.GetUriEncoded(uri), payload, &response)
-	IncrementRestOpCouter(HTTPMethodPut, uri)
 	if err != nil {
 		utils.AviLog.Warnf("msg: Unable to execute Put on uri %s %v", uri, err)
 		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 403 {
@@ -173,7 +140,7 @@ func AviPut(client *clients.AviClient, uri string, payload interface{}, response
 		}
 		CheckForInvalidCredentials(uri, err)
 		apimodels.RestStatus.UpdateAviApiRestStatus("", err)
-		if aviError, ok := err.(session.AviError); ok && (aviError.HttpStatusCode == 400 || aviError.HttpStatusCode == 412) {
+		if aviError, ok := err.(session.AviError); ok && aviError.HttpStatusCode == 400 {
 			return err
 		}
 		return AviPut(client, uri, payload, response, retry+1)
@@ -293,10 +260,9 @@ func NewAviRestClientWithToken(api_ep, username, authToken, cadata string) *clie
 
 	transport, isSecure := utils.GetHTTPTransportWithCert(cadata)
 	options := []func(*session.AviSession) error{
-		session.DisableControllerStatusCheckOnFailure(true),
+		session.SetNoControllerStatusCheck,
 		session.SetTransport(transport),
 		session.SetAuthToken(authToken),
-		session.SetTimeout(120 * time.Second),
 	}
 	if !isSecure {
 		options = append(options, session.SetInsecure)

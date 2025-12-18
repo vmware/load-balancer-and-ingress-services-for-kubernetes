@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ func (rest *RestOperations) AviSSLBuild(ssl_node *nodes.AviTLSKeyCertNode, cache
 		return nil
 	}
 	name := ssl_node.Name
-	tenant := fmt.Sprintf("/api/tenant/?name=%s", lib.GetEscapedValue(ssl_node.Tenant))
+	tenant := fmt.Sprintf("/api/tenant/?name=%s", ssl_node.Tenant)
 	certificate := string(ssl_node.Cert)
 	key := string(ssl_node.Key)
 	cr := lib.AKOUser
@@ -111,7 +111,7 @@ func (rest *RestOperations) AviSSLKeyCertDel(uuid string, tenant string) *utils.
 		Tenant: tenant,
 		Model:  "SSLKeyAndCertificate",
 	}
-	utils.AviLog.Infof(spew.Sprintf("SSLCertKey DELETE Restop %v ",
+	utils.AviLog.Info(spew.Sprintf("SSLCertKey DELETE Restop %v ",
 		utils.Stringify(rest_op)))
 	return &rest_op
 }
@@ -190,7 +190,7 @@ func (rest *RestOperations) AviSSLKeyCertAdd(rest_op *utils.RestOp, vsKey avicac
 				vs_cache_obj.AddToSSLKeyCertCollection(k)
 				utils.AviLog.Infof("Added VS cache key during SSLKeyCert update %v val %v", vsKey, utils.Stringify(vs_cache_obj))
 			}
-			utils.AviLog.Infof(spew.Sprintf("Added SSLKeyCert cache k %v val %v", k,
+			utils.AviLog.Info(spew.Sprintf("Added SSLKeyCert cache k %v val %v", k,
 				ssl_cache_obj))
 		}
 	}
@@ -221,7 +221,7 @@ func (rest *RestOperations) AviPkiProfileBuild(pki_node *nodes.AviPkiProfileNode
 		return nil
 	}
 	caCert := string(pki_node.CACert)
-	tenant := fmt.Sprintf("/api/tenant/?name=%s", lib.GetEscapedValue(pki_node.Tenant))
+	tenant := fmt.Sprintf("/api/tenant/?name=%s", pki_node.Tenant)
 	name := pki_node.Name
 	var caCerts []*avimodels.SSLCertificate
 	cr := lib.AKOUser
@@ -252,29 +252,14 @@ func (rest *RestOperations) AviPkiProfileBuild(pki_node *nodes.AviPkiProfileNode
 			Model:   "PKIprofile",
 		}
 	} else {
-		pki_key := avicache.NamespaceName{Namespace: pki_node.Tenant, Name: name}
-		pki_cache, ok := rest.cache.PKIProfileCache.AviCacheGet(pki_key)
-		if ok {
-			pki_cache_obj, _ := pki_cache.(*avicache.AviPkiProfileCache)
-			path = "/api/pkiprofile/" + pki_cache_obj.Uuid
-			rest_op = utils.RestOp{
-				ObjName: name,
-				Path:    path,
-				Method:  utils.RestPut,
-				Obj:     pkiobject,
-				Tenant:  pki_node.Tenant,
-				Model:   "PKIprofile",
-			}
-		} else {
-			path = "/api/pkiprofile"
-			rest_op = utils.RestOp{
-				ObjName: name,
-				Path:    path,
-				Method:  utils.RestPost,
-				Obj:     pkiobject,
-				Tenant:  pki_node.Tenant,
-				Model:   "PKIprofile",
-			}
+		path = "/api/pkiprofile/"
+		rest_op = utils.RestOp{
+			ObjName: pki_node.Name,
+			Path:    path,
+			Method:  utils.RestPost,
+			Obj:     pkiobject,
+			Tenant:  pki_node.Tenant,
+			Model:   "PKIprofile",
 		}
 	}
 	return &rest_op
@@ -288,7 +273,7 @@ func (rest *RestOperations) AviPkiProfileDel(uuid string, tenant string) *utils.
 		Tenant: tenant,
 		Model:  "PKIprofile",
 	}
-	utils.AviLog.Infof(spew.Sprintf("PKIprofile DELETE Restop %v ",
+	utils.AviLog.Info(spew.Sprintf("PKIprofile DELETE Restop %v ",
 		utils.Stringify(rest_op)))
 	return &rest_op
 }
@@ -353,10 +338,10 @@ func (rest *RestOperations) AviPkiProfileAdd(rest_op *utils.RestOp, poolKey avic
 			} else {
 				pool_cache_obj := rest.cache.PoolCache.AviCacheAddPool(poolKey)
 				pool_cache_obj.PkiProfileCollection = k
-				utils.AviLog.Infof(spew.Sprintf("Added Pool cache key during PkiProfile update %v val %v", poolKey,
+				utils.AviLog.Info(spew.Sprintf("Added Pool cache key during PkiProfile update %v val %v", poolKey,
 					pool_cache_obj))
 			}
-			utils.AviLog.Infof(spew.Sprintf("Added PkiProfile cache k %v val %v", k,
+			utils.AviLog.Info(spew.Sprintf("Added PkiProfile cache k %v val %v", k,
 				pki_cache_obj))
 		}
 	}

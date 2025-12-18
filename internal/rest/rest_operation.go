@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2020-2021 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -20,14 +20,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/vmware/alb-sdk/go/clients"
-	avimodels "github.com/vmware/alb-sdk/go/models"
-	"github.com/vmware/alb-sdk/go/session"
-	corev1 "k8s.io/api/core/v1"
-
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
+
+	avimodels "github.com/vmware/alb-sdk/go/models"
 )
 
 // modelSchema defines an interface to handle rest operations for an object type.
@@ -232,9 +230,6 @@ func isErrorRetryable(statusCode int, errMsg string) bool {
 	if statusCode == 400 && strings.Contains(errMsg, lib.NoFreeIPError) {
 		return true
 	}
-	if statusCode == 400 && (strings.Contains(errMsg, lib.VrfContextNotFoundError) || strings.Contains(errMsg, lib.VrfContextObjectNotFoundError)) {
-		return true
-	}
 	if statusCode == 403 && strings.Contains(errMsg, lib.ConfigDisallowedDuringUpgradeError) {
 		return true
 	}
@@ -283,7 +278,8 @@ func (l *leader) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, 
 			utils.AviLog.Warnf("key: %s, msg: Sync is disabled, Only DELETE operation is allowed for models other than VRF model", key)
 			continue
 		}
-		lib.IncrementRestOpCouter(utils.Stringify(op.Method), op.ObjName)
+		SetTenant := session.SetTenant(op.Tenant)
+		SetTenant(c.AviSession)
 		if op.Version != "" {
 			SetVersion := session.SetVersion(op.Version)
 			SetVersion(c.AviSession)
@@ -306,59 +302,18 @@ func (l *leader) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, 
 		}
 		if op.Err != nil {
 			utils.AviLog.Warnf("key: %s, msg: RestOp method %v path %v tenant %v Obj %s returned err %s with response %s",
-				key, op.Method, op.Path, op.Tenant, utils.StringifyWithSanitization(op.Obj), utils.Stringify(op.Err), utils.Stringify(op.Response))
+				key, op.Method, op.Path, op.Tenant, utils.Stringify(op.Obj), utils.Stringify(op.Err), utils.Stringify(op.Response))
 			// Wrap the error into a websync error.
 			err := &utils.WebSyncError{Err: op.Err, Operation: string(op.Method)}
+			op.Err = err
 			aviErr, ok := op.Err.(session.AviError)
 			if !ok {
 				utils.AviLog.Warnf("key: %s, msg: Error in rest operation is not of type AviError, err: %v, %T", key, op.Err, op.Err)
 			} else if op.Model == "VsVip" && op.Method == utils.RestPut {
-				if aviErr.HttpStatusCode == 412 {
-					utils.AviLog.Warnf("key: %s, msg: Error: %v in rest operation for VsVip Put request.", key, op.Err)
-				} else {
-					utils.AviLog.Debugf("key: %s, msg: Error in rest operation for VsVip Put request.", key)
-				}
-			} else if aviErr.HttpStatusCode == 500 && op.Model == "SSLKeyAndCertificate" {
-				// Raise event for SSL certificate import errors related to common_name
-				errorMsg := ""
-				if aviErr.Message != nil {
-					errorMsg = *aviErr.Message
-				}
-				if strings.Contains(errorMsg, lib.SSLCertImportError) && strings.Contains(errorMsg, lib.SSLCertCommonNameError) {
-					lib.AKOControlConfig().PodEventf(
-						corev1.EventTypeWarning,
-						lib.SSLImportError,
-						"Failed to import SSL certificate '%s' with error: %s",
-						op.ObjName,
-						errorMsg,
-					)
-				}
-				utils.AviLog.Warnf("key: %s, msg: SSL certificate import error for '%s': %s", key, op.ObjName, errorMsg)
+				utils.AviLog.Debugf("key: %s, msg: Error in rest operation for VsVip Put request.", key)
 			} else if aviErr.HttpStatusCode == 404 && op.Method == utils.RestDelete {
 				utils.AviLog.Warnf("key: %s, msg: Error during rest operation: %v, object of type %s not found in the controller. Ignoring err: %v", key, op.Method, op.Model, op.Err)
 				continue
-			} else if op.Model == "VrfContext" && aviErr.HttpStatusCode == 412 {
-				utils.AviLog.Debugf("key: %s, msg: Error in rest operation for VrfContext Put request.", key)
-			} else if op.Model == "VrfContext" && aviErr.HttpStatusCode == 400 && strings.Contains(*aviErr.Message, lib.VrfContextNoPermission) {
-				// retry operation  by switching to admin tenant
-				err = nil
-				utils.AviLog.Warnf("key:%s, msg: Switching to Admin tenant from %s for %s method", key, lib.GetTenant(), op.Method)
-				shardSize := lib.GetshardSize()
-				if shardSize == 0 {
-					// Dedicated VS case
-					shardSize = 8
-				}
-				bkt := utils.Bkt(key, shardSize)
-				client := cache.SharedAVIClients(lib.GetAdminTenant()).AviClient[bkt]
-				op.Err = client.AviSession.Put(utils.GetUriEncoded(op.Path), op.Obj, &op.Response)
-				if op.Err == nil {
-					utils.AviLog.Debugf("key: %s, msg: RestOp method %v path %v tenant %v response %v objName %v",
-						key, op.Method, op.Path, lib.GetAdminTenant(), utils.Stringify(op.Response), op.ObjName)
-					continue
-				}
-				utils.AviLog.Warnf("key: %s, msg: RestOp method %v path %v tenant %v Obj %s returned err %s with response %s",
-					key, op.Method, op.Path, lib.GetAdminTenant(), utils.StringifyWithSanitization(op.Obj), utils.Stringify(op.Err), utils.Stringify(op.Response))
-				err = &utils.WebSyncError{Err: op.Err, Operation: string(op.Method)}
 			} else if !isErrorRetryable(aviErr.HttpStatusCode, *aviErr.Message) {
 				if op.Method != utils.RestPost {
 					continue
@@ -373,7 +328,6 @@ func (l *leader) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp, 
 			}
 			return err
 		} else {
-			// POST of SSLKeyAndCertificate response contains certificate data but private_key is redacted
 			utils.AviLog.Debugf("key: %s, msg: RestOp method %v path %v tenant %v response %v objName %v",
 				key, op.Method, op.Path, op.Tenant, utils.Stringify(op.Response), op.ObjName)
 		}
@@ -403,6 +357,8 @@ func (f *follower) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp
 	<-time.After(500 * time.Millisecond)
 
 	for i, op := range rest_ops {
+		SetTenant := session.SetTenant(op.Tenant)
+		SetTenant(c.AviSession)
 		if op.Version != "" {
 			SetVersion := session.SetVersion(op.Version)
 			SetVersion(c.AviSession)
@@ -422,7 +378,7 @@ func (f *follower) AviRestOperate(c *clients.AviClient, rest_ops []*utils.RestOp
 		op.Err = c.AviSession.Get(utils.GetUriEncoded(op.Path), &op.Response)
 		if op.Err != nil {
 			utils.AviLog.Warnf("key: %s, msg: RestOp method %v path %v tenant %v Obj %s returned err %s with response %s",
-				key, op.Method, op.Path, op.Tenant, utils.StringifyWithSanitization(op.Obj), utils.Stringify(op.Err), utils.Stringify(op.Response))
+				key, op.Method, op.Path, op.Tenant, utils.Stringify(op.Obj), utils.Stringify(op.Err), utils.Stringify(op.Response))
 			// Wrap the error into a websync error.
 			err := &utils.WebSyncError{Err: op.Err, Operation: string(op.Method)}
 			aviErr, ok := op.Err.(session.AviError)

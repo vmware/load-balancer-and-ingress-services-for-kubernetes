@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@ import (
 	oshiftinformers "github.com/openshift/client-go/route/informers/externalversions/route/v1"
 	avimodels "github.com/vmware/alb-sdk/go/models"
 	coreinformers "k8s.io/client-go/informers/core/v1"
-	discoveryinformers "k8s.io/client-go/informers/discovery/v1"
 	netinformers "k8s.io/client-go/informers/networking/v1"
 	"k8s.io/client-go/kubernetes"
 
@@ -75,7 +74,7 @@ type KubeClientIntf struct {
 type Informers struct {
 	ConfigMapInformer           coreinformers.ConfigMapInformer
 	ServiceInformer             coreinformers.ServiceInformer
-	EpSlicesInformer            discoveryinformers.EndpointSliceInformer
+	EpInformer                  coreinformers.EndpointsInformer
 	PodInformer                 coreinformers.PodInformer
 	NSInformer                  coreinformers.NamespaceInformer
 	SecretInformer              coreinformers.SecretInformer
@@ -117,7 +116,6 @@ type RestOp struct {
 	Model    string
 	Version  string
 	ObjName  string // Optional field - right only to be used for delete.
-	Caller   string // Optional field - used by Gateway in GatewayAPI implementation
 }
 
 type ServiceMetadataObj struct {
@@ -209,21 +207,15 @@ type K8ValidNamespaces struct {
 }
 
 type AviObjectMarkers struct {
-	Namespace          string
-	Host               []string
-	InfrasettingName   string
-	ServiceName        string
-	Path               []string
-	Port               string
-	Protocol           string
-	IngressName        []string
-	GatewayName        string
-	GatewayNamespace   string
-	HTTPRouteName      string
-	HTTPRouteNamespace string
-	HTTPRouteRuleName  string
-	BackendName        string
-	BackendNs          string
+	Namespace        string
+	Host             []string
+	InfrasettingName string
+	ServiceName      string
+	Path             []string
+	Port             string
+	Protocol         string
+	IngressName      []string
+	GatewayName      string
 }
 
 /*
@@ -308,16 +300,11 @@ type WebSyncError struct {
 func (e *WebSyncError) Error() string         { return fmt.Sprintf("Error during %s: %v", e.Operation, e.Err) }
 func (e *SkipSyncError) Error() string        { return e.Msg }
 func (e *WebSyncError) GetWebAPIError() error { return e.Err }
-func (e *WebSyncError) Unwrap() error         { return e.Err }
 
-var CloudName, CloudUUID string
+var CloudName string
 
 func SetCloudName(cloudName string) {
 	CloudName = cloudName
-}
-
-func SetCloudUUID(cloudUUID string) {
-	CloudUUID = cloudUUID
 }
 
 func init() {

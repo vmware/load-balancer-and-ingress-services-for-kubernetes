@@ -35,9 +35,6 @@ type SeList struct {
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	FloatingIntfIP []*IPAddr `json:"floating_intf_ip,omitempty"`
 
-	// IPv6 Floating Interface IPs for the RoutingService. Field introduced in 22.1.6, 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	FloatingIntfIp6Addresses []*IPAddr `json:"floating_intf_ip6_addresses,omitempty"`
-
 	// Updated whenever this entry is created. When the sees this has changed, it means that the SE should disrupt, since there was a delete then create, not an update. Field introduced in 18.1.5,18.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Incarnation *string `json:"incarnation,omitempty"`
 
@@ -59,9 +56,6 @@ type SeList struct {
 	// Management IPv6 address of SE. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	MgmtIp6 *IPAddr `json:"mgmt_ip6,omitempty"`
 
-	// VIP Route is revoked as pool went down. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	RouteRevokedPoolDown *bool `json:"route_revoked_pool_down,omitempty"`
-
 	// This flag is set when a VS is actively scaling out to this SE. Field introduced in 18.1.5, 18.2.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	ScaleoutInProgress *bool `json:"scaleout_in_progress,omitempty"`
 
@@ -80,9 +74,6 @@ type SeList struct {
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SnatIP *IPAddr `json:"snat_ip,omitempty"`
-
-	// IPV6 address for SE snat. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	SnatIp6Address *IPAddr `json:"snat_ip6_address,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Vcpus *int32 `json:"vcpus,omitempty"`

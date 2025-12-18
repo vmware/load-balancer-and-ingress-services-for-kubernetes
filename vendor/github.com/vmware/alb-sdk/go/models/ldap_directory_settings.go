@@ -9,8 +9,7 @@ package models
 type LdapDirectorySettings struct {
 
 	// LDAP Admin User DN. Administrator credentials are required to search for users under user search DN or groups under group search DN. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	// Required: true
-	AdminBindDn *string `json:"admin_bind_dn"`
+	AdminBindDn *string `json:"admin_bind_dn,omitempty"`
 
 	// Group filter is used to identify groups during search. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	GroupFilter *string `json:"group_filter,omitempty"`
@@ -31,15 +30,13 @@ type LdapDirectorySettings struct {
 	IgnoreReferrals *bool `json:"ignore_referrals,omitempty"`
 
 	// LDAP Admin User Password. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	// Required: true
-	Password *string `json:"password"`
+	Password *string `json:"password,omitempty"`
 
 	// LDAP user attributes to fetch on a successful user bind. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	UserAttributes []string `json:"user_attributes,omitempty"`
 
 	// LDAP user id attribute is the login attribute that uniquely identifies a single user record. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	// Required: true
-	UserIDAttribute *string `json:"user_id_attribute"`
+	UserIDAttribute *string `json:"user_id_attribute,omitempty"`
 
 	// LDAP user search DN is the root of search for a given user in the LDAP directory. Only user records present in this LDAP directory sub-tree will be validated. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	UserSearchDn *string `json:"user_search_dn,omitempty"`

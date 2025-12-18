@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -26,7 +26,6 @@ import (
 )
 
 const ObjectDeletionStatus = "AviObjectDeletionStatus"
-const GatewayObjectDeletionStatus = "AviGatewayObjectDeletionStatus"
 
 // ResetStatefulSetStatus removes the condition set by AKO from AKO statefulset
 func ResetStatefulSetStatus() {
@@ -56,11 +55,7 @@ func ResetStatefulSetStatus() {
 	utils.AviLog.Debugf("Successfully reset ako statefulset: %v", u)
 }
 
-func (l *leader) ResetStatefulSetAnnotation(statusName string) {
-	// AKO is not deployed as a stateful set in WCP clusters
-	if utils.IsWCP() {
-		return
-	}
+func (l *leader) ResetStatefulSetAnnotation() {
 	ss, err := utils.GetInformers().ClientSet.AppsV1().StatefulSets(utils.GetAKONamespace()).Get(context.TODO(), lib.AKOStatefulSet, metav1.GetOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("Error in getting ako statefulset: %v", err)
@@ -70,12 +65,12 @@ func (l *leader) ResetStatefulSetAnnotation(statusName string) {
 	if ann == nil {
 		return
 	}
-	if _, ok := ann[statusName]; !ok {
+	if _, ok := ann[ObjectDeletionStatus]; !ok {
 		return
 	}
 	payloadValue := make(map[string]*string)
 	// To delete an annotation with patch call, the value has to be set to nil
-	payloadValue[statusName] = nil
+	payloadValue[ObjectDeletionStatus] = nil
 
 	patchPayload := map[string]interface{}{
 		"metadata": map[string]map[string]*string{
@@ -89,17 +84,13 @@ func (l *leader) ResetStatefulSetAnnotation(statusName string) {
 		utils.AviLog.Warnf("Error in patching ako statefulset: %v", err)
 		return
 	}
-	utils.AviLog.Infof("Successfully removed annotation %s from ako statefulset", statusName)
+	utils.AviLog.Infof("Successfully removed annotation %s from ako statefulset", ObjectDeletionStatus)
 
 	//Remove any status from previous versions of AKO
 	ResetStatefulSetStatus()
 }
 
-func (l *leader) AddStatefulSetAnnotation(statusName string, reason string) {
-	// AKO is not deployed as a stateful set in WCP clusters
-	if utils.IsWCP() {
-		return
-	}
+func (l *leader) AddStatefulSetAnnotation(reason string) {
 	ss, err := utils.GetInformers().ClientSet.AppsV1().StatefulSets(utils.GetAKONamespace()).Get(context.TODO(), lib.AKOStatefulSet, metav1.GetOptions{})
 	if err != nil {
 		utils.AviLog.Warnf("Error in getting ako statefulset: %v", err)
@@ -110,12 +101,12 @@ func (l *leader) AddStatefulSetAnnotation(statusName string, reason string) {
 	if ann == nil {
 		ann = make(map[string]string)
 	}
-	if val, ok := ann[statusName]; ok {
+	if val, ok := ann[ObjectDeletionStatus]; ok {
 		if val == reason {
 			return
 		}
 	}
-	ann[statusName] = reason
+	ann[ObjectDeletionStatus] = reason
 	patchPayload := map[string]interface{}{
 		"metadata": map[string]map[string]string{
 			"annotations": ann,
@@ -128,13 +119,13 @@ func (l *leader) AddStatefulSetAnnotation(statusName string, reason string) {
 		utils.AviLog.Warnf("Error in patching ako statefulset annotation: %v", err)
 		return
 	}
-	utils.AviLog.Debugf("Successfully updated annotation %s in ako statefulset", statusName)
+	utils.AviLog.Debugf("Successfully updated annotation %s in ako statefulset", ObjectDeletionStatus)
 }
 
-func (f *follower) AddStatefulSetAnnotation(statusName string, reason string) {
+func (f *follower) AddStatefulSetAnnotation(reason string) {
 	utils.AviLog.Debugf("key: %s, AKO is not a leader, not updating the StatefulSet Annotation")
 }
 
-func (f *follower) ResetStatefulSetAnnotation(statusName string) {
+func (f *follower) ResetStatefulSetAnnotation() {
 	utils.AviLog.Debugf("key: %s, AKO is not a leader, not deleting the StatefulSet Annotation")
 }

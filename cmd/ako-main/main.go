@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-
 	"io/fs"
 	"os"
 	"strconv"
@@ -26,18 +25,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-logr/zapr"
-
 	avicache "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api/models"
 	crd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned"
-
-	v1alpha2crd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/clientset/versioned"
-	v1beta1crd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	advl4 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/clientset/versioned"
 
@@ -67,10 +60,7 @@ func main() {
 }
 
 func InitializeAKOApi() {
-	if lib.IsPrometheusEnabled() {
-		lib.SetPrometheusRegistry()
-	}
-	akoApi := api.NewServer(lib.GetAkoApiServerPort(), []models.ApiModel{}, lib.IsPrometheusEnabled(), lib.GetPrometheusRegistry())
+	akoApi := api.NewServer(lib.GetAkoApiServerPort(), []models.ApiModel{})
 	akoApi.InitApi()
 	lib.SetApiServerInstance(akoApi)
 }
@@ -81,14 +71,14 @@ func InitializeAKC() {
 	utils.AviLog.Infof("AKO is running with version: %s", version)
 
 	// set the logger for k8s as AviLogger.
-	klog.SetLogger(zapr.NewLogger(utils.AviLog.Sugar.Desugar()))
+	klog.SetLogger(utils.AviLog)
 
 	// Check if we are running inside kubernetes. Hence try authenticating with service token
 	cfg, err := rest.InClusterConfig()
 	if err != nil {
 		utils.AviLog.Warnf("We are not running inside kubernetes cluster. %s", err.Error())
 	} else {
-		utils.AviLog.Infof("We are running inside kubernetes cluster. Won't use kubeconfig files.")
+		utils.AviLog.Info("We are running inside kubernetes cluster. Won't use kubeconfig files.")
 		kubeCluster = true
 	}
 
@@ -100,10 +90,6 @@ func InitializeAKC() {
 		}
 	}
 
-	// Configure QPS and Burst with custom values to increase rate limit
-	cfg.QPS = 100
-	cfg.Burst = 100
-
 	// Initialize akoControlConfig
 	akoControlConfig := lib.AKOControlConfig()
 	//Used to set vrf context, static routes
@@ -113,40 +99,16 @@ func InitializeAKC() {
 	}
 	akoControlConfig.SetAKOInstanceFlag(isPrimaryAKO)
 	akoControlConfig.SetAKOBlockedNSList(lib.GetGlobalBlockedNSList())
-	akoControlConfig.SetControllerVRFContext(lib.GetControllerVRFContext())
-	akoControlConfig.SetAKOPrometheusFlag(lib.IsPrometheusEnabled())
-	akoControlConfig.SetAKOFQDNReusePolicy(strings.ToLower(os.Getenv("FQDN_REUSE_POLICY")))
-
 	var crdClient *crd.Clientset
 	var advl4Client *advl4.Clientset
 	var svcAPIClient *svcapi.Clientset
 
-	isDefaultLBController, err := strconv.ParseBool(os.Getenv("DEFAULT_LB_CONTROLLER"))
-	if err != nil {
-		isDefaultLBController = true
-	}
-	akoControlConfig.SetDefaultLBController(isDefaultLBController)
-
-	v1beta1crdClient, err := v1beta1crd.NewForConfig(cfg)
-	if err != nil {
-		utils.AviLog.Fatalf("Error building AKO CRD v1beta1 clientset: %s", err.Error())
-	}
-
-	v1alpha2crdClient, err := v1alpha2crd.NewForConfig(cfg)
-	if err != nil {
-		utils.AviLog.Fatalf("Error building AKO CRD v1alpha2 clientset: %s", err.Error())
-	}
-
-	if utils.IsWCP() {
+	if lib.IsWCP() {
 		advl4Client, err = advl4.NewForConfig(cfg)
 		if err != nil {
 			utils.AviLog.Fatalf("Error building service-api v1alpha1pre1 clientset: %s", err.Error())
 		}
 		akoControlConfig.SetAdvL4Clientset(advl4Client)
-		akoControlConfig.SetCRDClientsetAndEnableInfraSettingParam(v1beta1crdClient)
-		if lib.GetVPCMode() {
-			akoControlConfig.SetV1Alpha2CRDClientSetAndEnableL4RuleParam(v1alpha2crdClient)
-		}
 	} else {
 		if lib.UseServicesAPI() {
 			svcAPIClient, err = svcapi.NewForConfig(cfg)
@@ -156,16 +118,11 @@ func InitializeAKC() {
 			akoControlConfig.SetServicesAPIClientset(svcAPIClient)
 		}
 
-		// This is kept as MCI and Service Import uses v1alpha1
-		// In Next release, MCI and serviceImport should be taken out
 		crdClient, err = crd.NewForConfig(cfg)
 		if err != nil {
 			utils.AviLog.Fatalf("Error building AKO CRD clientset: %s", err.Error())
 		}
 		akoControlConfig.SetCRDClientset(crdClient)
-		akoControlConfig.Setv1beta1CRDClientset(v1beta1crdClient)
-		akoControlConfig.Setv1alpha2CRDClientset(v1alpha2crdClient)
-
 	}
 
 	dynamicClient, err := lib.NewDynamicClientSet(cfg)
@@ -179,24 +136,11 @@ func InitializeAKC() {
 	}
 
 	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, kubeClient, false)
-
-	// POD_NAME is not set in case of a WCP cluster
-	if os.Getenv("POD_NAME") == "" {
-		pods, err := kubeClient.CoreV1().Pods(utils.GetAKONamespace()).List(context.TODO(), metav1.ListOptions{Limit: 1})
-		if err != nil {
-			utils.AviLog.Warnf("Error getting AKO pod details, %s.", err.Error())
-		} else {
-			for _, pod := range pods.Items {
-				akoControlConfig.SaveAKOPodObjectMeta(&pod)
-			}
-		}
-	} else {
-		pod, err := kubeClient.CoreV1().Pods(utils.GetAKONamespace()).Get(context.TODO(), os.Getenv("POD_NAME"), metav1.GetOptions{})
-		if err != nil {
-			utils.AviLog.Warnf("Error getting AKO pod details, %s.", err.Error())
-		}
-		akoControlConfig.SaveAKOPodObjectMeta(pod)
+	pod, err := kubeClient.CoreV1().Pods(utils.GetAKONamespace()).Get(context.TODO(), os.Getenv("POD_NAME"), metav1.GetOptions{})
+	if err != nil {
+		utils.AviLog.Warnf("Error getting AKO pod details, %s.", err.Error())
 	}
+	akoControlConfig.SaveAKOPodObjectMeta(pod)
 
 	// Check for kubernetes apiserver version compatibility with AKO version.
 	if serverVersionInfo, err := kubeClient.Discovery().ServerVersion(); err != nil {
@@ -212,8 +156,8 @@ func InitializeAKC() {
 	}
 
 	oshiftClient, err := oshiftclient.NewForConfig(cfg)
-	if err != nil && (lib.GetCNIPlugin() == lib.OPENSHIFT_CNI || lib.GetCNIPlugin() == lib.OVN_KUBERNETES_CNI) {
-		utils.AviLog.Fatalf("Failed to initialize Openshift ClientSet")
+	if err != nil {
+		utils.AviLog.Warnf("Error in creating openshift clientset")
 	}
 
 	registeredInformers, err := lib.InformersToRegister(kubeClient, oshiftClient)
@@ -231,20 +175,16 @@ func InitializeAKC() {
 
 	// Namespace bound Secret informers should be initialized for AKO in VDS,
 	// For AKO in VCF, we will need to watch on Secrets across all namespaces.
-	if !utils.IsVCFCluster() && utils.GetAdvancedL4() {
+	if !utils.IsVCFCluster() && lib.GetAdvancedL4() {
 		informersArg[utils.INFORMERS_ADVANCED_L4] = true
 	}
 
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, registeredInformers, informersArg)
 	lib.NewDynamicInformers(dynamicClient, false)
-	if utils.IsWCP() {
-		k8s.NewInfraSettingCRDInformer()
+	if lib.IsWCP() {
 		k8s.NewAdvL4Informers(advl4Client)
-		if lib.GetVPCMode() {
-			k8s.NewL4RuleCRDInformer()
-		}
 	} else {
-		k8s.NewCRDInformers()
+		k8s.NewCRDInformers(crdClient)
 		if lib.UseServicesAPI() {
 			k8s.NewSvcApiInformers(svcAPIClient)
 		}
@@ -298,13 +238,9 @@ func InitializeAKC() {
 		lib.ShutdownApi()
 	}
 
-	aviRestClientPool := avicache.SharedAVIClients(lib.GetTenant())
+	aviRestClientPool := avicache.SharedAVIClients()
 	if aviRestClientPool == nil {
 		utils.AviLog.Fatalf("Avi client not initialized")
-	}
-
-	if akoControlConfig.GetAKOAKOPrometheusFlag() {
-		lib.RegisterPromMetrics()
 	}
 
 	if aviRestClientPool != nil && !avicache.IsAviClusterActive(aviRestClientPool.AviClient[0]) {
@@ -314,7 +250,7 @@ func InitializeAKC() {
 
 	akoControlConfig.SetLicenseType(aviRestClientPool.AviClient[0])
 
-	if utils.GetAdvancedL4() {
+	if lib.GetAdvancedL4() {
 		err, seGroupToUse := lib.FetchSEGroupWithMarkerSet(aviRestClientPool.AviClient[0])
 		if err != nil {
 			utils.AviLog.Warnf("Setting SEGroup with markerset failed: %s", err)

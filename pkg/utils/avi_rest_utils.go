@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -20,14 +20,12 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
-	"time"
 
-	"github.com/vmware/alb-sdk/go/clients"
-	"github.com/vmware/alb-sdk/go/session"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
 )
 
 type AviRestClientPool struct {
@@ -37,7 +35,7 @@ type AviRestClientPool struct {
 var AviClientInstance *AviRestClientPool
 
 func NewAviRestClientPool(num uint32, api_ep, username,
-	password, authToken, controllerVersion, ctrlCAData, tenant, protocol string, userHeaders map[string]string) (*AviRestClientPool, string, error) {
+	password, authToken, controllerVersion, ctrlCAData string) (*AviRestClientPool, string, error) {
 	var clientPool AviRestClientPool
 	var wg sync.WaitGroup
 	var globalErr error
@@ -45,18 +43,12 @@ func NewAviRestClientPool(num uint32, api_ep, username,
 	rootPEMCerts := ctrlCAData
 	transport, isSecure := GetHTTPTransportWithCert(rootPEMCerts)
 	options := []func(*session.AviSession) error{
-		session.DisableControllerStatusCheckOnFailure(true),
+		session.SetNoControllerStatusCheck,
 		session.SetTransport(transport),
-		session.SetTimeout(120 * time.Second),
-		session.SetTenant(tenant),
-		session.SetUserHeader(userHeaders),
 	}
 
-	if !isSecure || protocol == "http" {
+	if !isSecure {
 		options = append(options, session.SetInsecure)
-	}
-	if protocol == "http" {
-		options = append(options, session.SetScheme("http"))
 	}
 
 	if authToken == "" {
@@ -267,27 +259,13 @@ func GetHTTPTransportWithCert(rootPEMCerts string) (*http.Transport, bool) {
 	var transport *http.Transport
 	var isSecure bool
 	if rootPEMCerts != "" {
-		caCertPool, err := x509.SystemCertPool()
-		if err != nil {
-			AviLog.Warnf("Failed to get System Cert Pool, error: %s", err.Error())
-			caCertPool = x509.NewCertPool()
-		}
+		caCertPool := x509.NewCertPool()
 		caCertPool.AppendCertsFromPEM([]byte(rootPEMCerts))
 
-		tlsConfig := &tls.Config{
-			RootCAs: caCertPool,
-		}
-
-		// Check if this is a managed VKS deployment that needs SNI override
-		if managedMode, _ := strconv.ParseBool(os.Getenv(VKS_MANAGED)); managedMode {
-			if actualControllerIP := os.Getenv(ENV_CTRL_ADDRESS); actualControllerIP != "" {
-				tlsConfig.ServerName = actualControllerIP
-				AviLog.Infof("VKS managed mode: Setting TLS ServerName to %s for certificate validation", actualControllerIP)
-			}
-		}
-
 		transport = &http.Transport{
-			TLSClientConfig: tlsConfig,
+			TLSClientConfig: &tls.Config{
+				RootCAs: caCertPool,
+			},
 		}
 		isSecure = true
 	}

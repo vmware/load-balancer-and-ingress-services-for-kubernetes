@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2022-2023 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -27,8 +27,6 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
-	v1beta1crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned/fake"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
@@ -43,7 +41,6 @@ import (
 var KubeClient *k8sfake.Clientset
 var OshiftClient *oshiftfake.Clientset
 var CRDClient *crdfake.Clientset
-var v1beta1CRDClient *v1beta1crdfake.Clientset
 var followerCtrl *k8s.AviController
 var akoApiServer *api.FakeApiServer
 var keyChan chan string
@@ -63,12 +60,9 @@ func TestMain(m *testing.M) {
 	akoControlConfig := lib.AKOControlConfig()
 	KubeClient = k8sfake.NewSimpleClientset()
 	CRDClient = crdfake.NewSimpleClientset()
-	v1beta1CRDClient = v1beta1crdfake.NewSimpleClientset()
 	akoControlConfig.SetCRDClientset(CRDClient)
-	akoControlConfig.Setv1beta1CRDClientset(v1beta1CRDClient)
 	akoControlConfig.SetAKOInstanceFlag(true)
 	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, KubeClient, true)
-	akoControlConfig.SetDefaultLBController(true)
 	data := map[string][]byte{
 		"username": []byte("admin"),
 		"password": []byte("admin"),
@@ -82,7 +76,7 @@ func TestMain(m *testing.M) {
 	informersArg[utils.INFORMERS_OPENSHIFT_CLIENT] = OshiftClient
 	registeredInformers := []string{
 		utils.ServiceInformer,
-		utils.EndpointSlicesInformer,
+		utils.EndpointInformer,
 		utils.IngressInformer,
 		utils.IngressClassInformer,
 		utils.RouteInformer,
@@ -93,7 +87,7 @@ func TestMain(m *testing.M) {
 	}
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: KubeClient}, registeredInformers, informersArg)
 	informers := k8s.K8sinformers{Cs: KubeClient}
-	k8s.NewCRDInformers()
+	k8s.NewCRDInformers(CRDClient)
 
 	mcache := cache.SharedAviObjCache()
 	cloudObj := &cache.AviCloudPropertyCache{Name: "Default-Cloud", VType: "mock"}
@@ -140,7 +134,6 @@ func TestMain(m *testing.M) {
 	integrationtest.KubeClient = KubeClient
 	go createAndPeriodicallyRenewLease()
 	integrationtest.AddDefaultIngressClass()
-	integrationtest.AddDefaultNamespace()
 	go followerCtrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 	os.Exit(m.Run())
 }

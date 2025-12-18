@@ -29,7 +29,4 @@ type MetricThresoldUpDetails struct {
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Threshold *float64 `json:"threshold,omitempty"`
-
-	// VM at which Metric thresold details collected. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	VMType *string `json:"vm_type,omitempty"`
 }

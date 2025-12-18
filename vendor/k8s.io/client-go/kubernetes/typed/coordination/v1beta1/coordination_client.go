@@ -19,17 +19,14 @@ limitations under the License.
 package v1beta1
 
 import (
-	http "net/http"
-
-	coordinationv1beta1 "k8s.io/api/coordination/v1beta1"
-	scheme "k8s.io/client-go/kubernetes/scheme"
+	v1beta1 "k8s.io/api/coordination/v1beta1"
+	"k8s.io/client-go/kubernetes/scheme"
 	rest "k8s.io/client-go/rest"
 )
 
 type CoordinationV1beta1Interface interface {
 	RESTClient() rest.Interface
 	LeasesGetter
-	LeaseCandidatesGetter
 }
 
 // CoordinationV1beta1Client is used to interact with features provided by the coordination.k8s.io group.
@@ -41,29 +38,13 @@ func (c *CoordinationV1beta1Client) Leases(namespace string) LeaseInterface {
 	return newLeases(c, namespace)
 }
 
-func (c *CoordinationV1beta1Client) LeaseCandidates(namespace string) LeaseCandidateInterface {
-	return newLeaseCandidates(c, namespace)
-}
-
 // NewForConfig creates a new CoordinationV1beta1Client for the given config.
-// NewForConfig is equivalent to NewForConfigAndClient(c, httpClient),
-// where httpClient was generated with rest.HTTPClientFor(c).
 func NewForConfig(c *rest.Config) (*CoordinationV1beta1Client, error) {
 	config := *c
-	setConfigDefaults(&config)
-	httpClient, err := rest.HTTPClientFor(&config)
-	if err != nil {
+	if err := setConfigDefaults(&config); err != nil {
 		return nil, err
 	}
-	return NewForConfigAndClient(&config, httpClient)
-}
-
-// NewForConfigAndClient creates a new CoordinationV1beta1Client for the given config and http client.
-// Note the http client provided takes precedence over the configured transport values.
-func NewForConfigAndClient(c *rest.Config, h *http.Client) (*CoordinationV1beta1Client, error) {
-	config := *c
-	setConfigDefaults(&config)
-	client, err := rest.RESTClientForConfigAndClient(&config, h)
+	client, err := rest.RESTClientFor(&config)
 	if err != nil {
 		return nil, err
 	}
@@ -85,15 +66,17 @@ func New(c rest.Interface) *CoordinationV1beta1Client {
 	return &CoordinationV1beta1Client{c}
 }
 
-func setConfigDefaults(config *rest.Config) {
-	gv := coordinationv1beta1.SchemeGroupVersion
+func setConfigDefaults(config *rest.Config) error {
+	gv := v1beta1.SchemeGroupVersion
 	config.GroupVersion = &gv
 	config.APIPath = "/apis"
-	config.NegotiatedSerializer = rest.CodecFactoryForGeneratedClient(scheme.Scheme, scheme.Codecs).WithoutConversion()
+	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 
 	if config.UserAgent == "" {
 		config.UserAgent = rest.DefaultKubernetesUserAgent()
 	}
+
+	return nil
 }
 
 // RESTClient returns a RESTClient that is used to communicate

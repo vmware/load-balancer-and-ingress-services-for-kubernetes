@@ -81,9 +81,6 @@ type UpgradeStatusInfo struct {
 	// Image path of previous patch image. Field introduced in 18.2.10, 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	PrevPatchImagePath *string `json:"prev_patch_image_path,omitempty"`
 
-	// Remote image reference of previous base image. Field introduced in 30.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	PrevRemoteImageRef *string `json:"prev_remote_image_ref,omitempty"`
-
 	// Image uuid for identifying previous base image.Example  Base-image was 18.2.5 and an upgrade was done to 18.2.6, then this field will indicate the 18.2.5 value. . It is a reference to an object of type Image. Field introduced in 18.2.6. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	PreviousImageRef *string `json:"previous_image_ref,omitempty"`
 
@@ -100,13 +97,7 @@ type UpgradeStatusInfo struct {
 	PreviousVersion *string `json:"previous_version,omitempty"`
 
 	// Upgrade operations progress which holds value between 0-100. Allowed values are 0-100. Field introduced in 18.2.8, 20.1.1. Unit is PERCENT. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	Progress *uint32 `json:"progress,omitempty"`
-
-	// Descriptive reason for the Upgrade state. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	Reason *string `json:"reason,omitempty"`
-
-	// Remote image reference of current base image. Field introduced in 30.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	RemoteImageRef *string `json:"remote_image_ref,omitempty"`
+	Progress *int32 `json:"progress,omitempty"`
 
 	// Image path of se patch image.(required in case of reimage and upgrade + patch). Field introduced in 18.2.10, 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SePatchImagePath *string `json:"se_patch_image_path,omitempty"`
@@ -135,9 +126,6 @@ type UpgradeStatusInfo struct {
 	// Flag is set only in the cluster if the upgrade is initiated as a system-upgrade. . Field introduced in 18.2.6. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	System *bool `json:"system,omitempty"`
 
-	// Tracks the list of reports created for node. It is a reference to an object of type SystemReport. Field introduced in 22.1.6, 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	SystemReportRefs []string `json:"system_report_refs,omitempty"`
-
 	// Completed set of tasks in the Upgrade operation. Field introduced in 18.2.6. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	TasksCompleted *int32 `json:"tasks_completed,omitempty"`
 
@@ -150,11 +138,8 @@ type UpgradeStatusInfo struct {
 	// Events performed for Upgrade operation. Field introduced in 18.2.6. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	UpgradeEvents []*EventMap `json:"upgrade_events,omitempty"`
 
-	// Upgrade operations requested. Enum options - UPGRADE, PATCH, ROLLBACK, ROLLBACKPATCH, SEGROUP_RESUME, EVAL_UPGRADE, EVAL_PATCH, EVAL_ROLLBACK, EVAL_ROLLBACKPATCH, EVAL_SEGROUP_RESUME, EVAL_RESTORE, RESTORE. Field introduced in 18.2.6. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
+	// Upgrade operations requested. Enum options - UPGRADE, PATCH, ROLLBACK, ROLLBACKPATCH, SEGROUP_RESUME. Field introduced in 18.2.6. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	UpgradeOps *string `json:"upgrade_ops,omitempty"`
-
-	// Upgrade readiness check execution detail. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	UpgradeReadiness *UpgradeReadinessCheckObj `json:"upgrade_readiness,omitempty"`
 
 	// url
 	// Read Only: true

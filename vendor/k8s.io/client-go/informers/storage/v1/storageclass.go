@@ -19,16 +19,16 @@ limitations under the License.
 package v1
 
 import (
-	context "context"
+	"context"
 	time "time"
 
-	apistoragev1 "k8s.io/api/storage/v1"
+	storagev1 "k8s.io/api/storage/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
 	internalinterfaces "k8s.io/client-go/informers/internalinterfaces"
 	kubernetes "k8s.io/client-go/kubernetes"
-	storagev1 "k8s.io/client-go/listers/storage/v1"
+	v1 "k8s.io/client-go/listers/storage/v1"
 	cache "k8s.io/client-go/tools/cache"
 )
 
@@ -36,7 +36,7 @@ import (
 // StorageClasses.
 type StorageClassInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() storagev1.StorageClassLister
+	Lister() v1.StorageClassLister
 }
 
 type storageClassInformer struct {
@@ -61,28 +61,16 @@ func NewFilteredStorageClassInformer(client kubernetes.Interface, resyncPeriod t
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.StorageV1().StorageClasses().List(context.Background(), options)
+				return client.StorageV1().StorageClasses().List(context.TODO(), options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.StorageV1().StorageClasses().Watch(context.Background(), options)
-			},
-			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
-				if tweakListOptions != nil {
-					tweakListOptions(&options)
-				}
-				return client.StorageV1().StorageClasses().List(ctx, options)
-			},
-			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
-				if tweakListOptions != nil {
-					tweakListOptions(&options)
-				}
-				return client.StorageV1().StorageClasses().Watch(ctx, options)
+				return client.StorageV1().StorageClasses().Watch(context.TODO(), options)
 			},
 		},
-		&apistoragev1.StorageClass{},
+		&storagev1.StorageClass{},
 		resyncPeriod,
 		indexers,
 	)
@@ -93,9 +81,9 @@ func (f *storageClassInformer) defaultInformer(client kubernetes.Interface, resy
 }
 
 func (f *storageClassInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apistoragev1.StorageClass{}, f.defaultInformer)
+	return f.factory.InformerFor(&storagev1.StorageClass{}, f.defaultInformer)
 }
 
-func (f *storageClassInformer) Lister() storagev1.StorageClassLister {
-	return storagev1.NewStorageClassLister(f.Informer().GetIndexer())
+func (f *storageClassInformer) Lister() v1.StorageClassLister {
+	return v1.NewStorageClassLister(f.Informer().GetIndexer())
 }

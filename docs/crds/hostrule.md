@@ -3,12 +3,9 @@
 HostRule CRD is primarily targeted to be used by the Operator. This CRD can be used to express additional virtual host
 properties. The virtual host FQDN is matched from either Kubernetes Ingress or OpenShift Route based objects. 
 
-***Note***
-With AKO 1.11.1, HostRule is transitioned to v1beta1 version. There are no schema changes between version v1alpha1 and v1beta1. AKO 1.11.1 supports both v1alpha1 and v1beta1 but recommendation is to create new CRD objects in v1beta1 version and transition existing objects to v1beta1 version. AKO will deprecate v1alpha1 version in future releases.
-
 A sample HostRule CRD looks like this:
 
-    apiVersion: ako.vmware.com/v1beta1
+    apiVersion: ako.vmware.com/v1alpha1
     kind: HostRule
     metadata:
       name: my-host-rule
@@ -38,16 +35,12 @@ A sample HostRule CRD looks like this:
         - avi-datascript-redirect-app1
         wafPolicy: avi-waf-policy
         applicationProfile: avi-app-ref
-        networkSecurityPolicy: avi-network-security-policy-ref
-        icapProfile: 
-        - avi-icap-ref
         analyticsProfile: avi-analytics-ref
         errorPageProfile: avi-errorpage-ref
         analyticsPolicy: # optional
           fullClientLogs:
             enabled: true
             throttle: HIGH
-            duration: 30
           logAllHeaders: true
         tcpSettings:
           listeners:
@@ -58,7 +51,6 @@ A sample HostRule CRD looks like this:
         aliases: # optional
         -  bar.com
         -  baz.com
-        l7Rule: my-l7-rule-name
 
 
 ### Specific usage of HostRule CRD
@@ -130,16 +122,6 @@ prior to this CRD creation. The application profile should be of `TYPE` of `APPL
  This property can be applied only for secure FQDNs and cannot be applied for insecure routes.
  The application profiles can be used for various HTTP/HTTP2 protocol settings.
 
-#### Express custom ICAP profile
-
-HostRule CRD can be used to express a single ICAP profile reference per host. The ICAP profile reference should have been created in the Avi Controller prior to this CRD creation.
-
-        icapProfile: 
-        - avi-icap-ref
- 
- This property can be applied for both secure and insecure hosts via EVH parent and child Virtual Services, SNI child Virtual Services and dedicated VS's.
- The [ICAP profile](https://avinetworks.com/docs/22.1/icap/) can be used for transporting HTTP traffic to 3rd party services for processes such as content sanitization and antivirus scanning.
-
 #### Express custom analytics profiles
 
 HostRule CRD can be used to express analytics profile references. The analytics profile reference should have been created in the Avi Controller prior to this CRD creation.
@@ -209,8 +191,6 @@ This additional FQDN inherits all the properties of the root FQDN specified unde
 Use this flag if you would want traffic with a GSLB FQDN to get routed to a site local FQDN. For example, in the above CRD, the client request from a GSLB
 DNS will arrive with the host header as foo.com to the VIP hosting foo.region1.com in region1. This CRD property would ensure that the request is routed appropriately to the backend service of `foo.region1.com`
 
-**Note**: In **SNI** mode, if GSLB FQDN is specified for an insecure hostname (defined in an Ingress or an OpenShift route) or a secure hostname defined in an OpenShift route with **insecureEdgeTerminationPolicy** set to **Allow**, then we can define GSLB FQDN only for a limited number of such hostnames per shared parent VS. This is because when GSLB FQDN is specified, one httppolicyset is added to the parent shared VS for each above-category host, but a virtual service has a limitation on the number of httppolicyset that can be associated with it depending upon the license. Say, for an Enterprise license, the limit is sixteen (16). So, if a SMALL shard size is used in AKO configuration and AKO creates only one shared parent VS, GSLB FQDN will be configured only for the first sixteen above-category hostnames processed. This limitation will be fixed in a future release.
-
 This knob is currently only supported with the SNI model and not with Enhanced Virtual Hosting model.
 
 The `includeAliases` is used by AMKO. Whenever a GSLB FQDN is provided and the `useCustomGlobalFqdn` is set to true in AMKO, a GSLB Service is created for the GSLB FQDN instead of the local FQDN(hostname). [Refer this](https://github.com/vmware/global-load-balancing-services-for-kubernetes/blob/master/docs/local_and_global_fqdn.md)
@@ -227,12 +207,11 @@ The HostRule CRD can be used to configure analytics policies such as enable/disa
           fullClientLogs:
             enabled: true
             throttle: HIGH
-            duration: 30
           logAllHeaders: true
 
 The `throttle` will be in effect only when `enabled` is set to `true`. The possible values of `throttle` are DISABLED (0), LOW (50), MEDIUM (30) and HIGH (10).
 
-AKO sets the duration of logging the non-significant logs to infinity by default. `duration` field can be used to modify the duration for which the system should capture non-significant logs, measured in minutes.
+The AKO sets the duration of logging the non-significant logs to infinity by default. It is the responsibility of the user to disable the non-significant logs when it is no longer required.
 
 #### Configure TCP Settings
 
@@ -244,7 +223,7 @@ Where dedicated VSes are created corresponding to a single application, Shared V
 
         fqdn: foo.com     # dedicated VS
         fqdnType: Exact
-        tcpSettings:
+        tcpSetting:
           listeners:
           - port: 6443
             enableSSL: true
@@ -252,13 +231,13 @@ Where dedicated VSes are created corresponding to a single application, Shared V
 
         fqdn: Shared-VS-L7-1.admin.avi.com    # AKO configured Shared VS fqdn
         fqdnType: Exact
-        tcpSettings:
+        tcpSetting:
           loadBalancerIP: 10.10.10.1
 
 
         fqdn: Shared-VS-L7-1      # bound for clusterName--Shared-VS-L7-1
         fqdnType: Contains
-        tcpSettings:
+        tcpSetting:
           loadBalancerIP: 10.10.10.1
 
 ##### Custom Ports
@@ -284,11 +263,6 @@ The `loadBalancerIP` field can be used to provide a valid preferred IPv4 address
 
 **Note**: The HostRule CRD is not aware of the misconfigurations while it is being created, therefore the HostRule will be `Accepted` nonetheless.
 
-#### L7Rule 
-
-L7rule field can be used to specify the name of [L7Rule](./l7rule.md) CRD. It is used to modify select VS Properties which are not part of HostRule CRD.
-
-**Note**: This property is available only in HostRule `v1beta1` schema definition.
 
 #### <a id="aliases"> Configure aliases for FQDN
 
@@ -302,114 +276,6 @@ This list of FQDNs inherits all the properties of the root FQDN specified under 
 Traffic would arrive with the host header as bar.com to the VIP hosting foo.region1.com and this CRD property would ensure that the request is routed appropriately to the backend service of `foo.region1.com`.
 
 Aliases field must contain unique FQDNs and must not contain GSLB FQDN or the root FQDN. Users must ensure that the `fqdnType` is set as `Exact` before setting this field.
-
-#### Express custom network security policy object ref
-HostRule CRD can be used to express network security policy object references. The network security policy object should have been created in the Avi Controller prior to this CRD creation.
-The `networkSecurityPolicy` setting, in addition to any other parameters provided in the HostRule, is only applied to Parent VSes and dedicated VSes. The `networkSecurityPolicy` setting does not have any effect on child VSes.
-
-         networkSecurityPolicy: avi-network-security-policy-ref
-
-***Note***
-1. This property is available only in HostRule `v1beta1` schema definition.
-2. The HostRule CRD is not aware of the misconfigurations if it is applied to Child VS while it is being created, therefore the HostRule will be `Accepted` nonetheless. AKO will print warning message regarding this.
-
-#### Enable Regular Expression in path
-When at least one of the paths in Kubernetes Ingress or OpenShift Route is a regular expression, hostrule should be defined with the `useRegex` field. It is an optional field.  
-
-Based on whether a hostrule is defined with the `useRegex` field, AKO will handle the Ingress/Route in the following ways :
-
-1. If a hostrule is defined with the `useRegex` field set to **True** for a given host, then all paths defined for that host, regardless of what Ingress/Route they are defined on, will be considered as case-insensitive regular expressions. Avi will create rules for each path for regex pattern matching.
-
-        fqdn: test-avi.vmware.com
-        fqdnType: Exact
-        useRegex: True
-
-   Avi will always follow the longest match approach to match the path in the incoming request URL, against the available regex paths for the host.
-
-        apiVersion: networking.k8s.io/v1
-        kind: Ingress
-        metadata:
-          name: test-ingress
-        spec:
-          rules:
-          - host: test-avi.vmware.com
-            http:
-              paths:
-              - backend:
-                  service:
-                    name: my-app-0
-                    port:
-                      number: 80
-                path: /bar.*
-                pathType: ImplementationSpecific
-              - backend:
-                  service:
-                    name: my-app-1
-                    port:
-                      number: 80
-                path: /bar/foo
-                pathType: ImplementationSpecific
-          tls:
-          - hosts:
-            - test-avi.vmware.com
-            secretName: ingress-secret
-
-   For the above Ingress definition, if we create a hostrule with `useRegex` set to True, then :  
-   a) A request that comes on the URL **https://test-avi.vmware.com/bar/foo** will be routed to backend **my-app-1**.  
-   b) A request that comes on the URL **https://test-avi.vmware.com/bar/baz** will be routed to backend **my-app-0**.
-
-2. If a hostrule is defined with the useRegex field set to **False**, or no hostrule is defined for a host and the user specifies paths that are regular expressions in Ingress/Route for the same host, then Avi will not consider the paths as regular expressions and will create rules that will match the whole path instead of regex pattern matching.
-
-***Note***
-1. This property is available only in HostRule `v1beta1` schema definition.
-2. The `useRegex` field will not be supported for insecure ingress/route when AKO is running in SNI mode or SNI Dedicated mode.
-3. For secure SNI and secure SNI dedicated virtual services, pool creation may fail in Avi if regular expression paths are defined and hostrule is not defined with **useRegex** set to **True**. This limitation is because the naming convention for pools followed by AKO includes the path in the pool name, and Avi Controller does not allow some special characters in pool names. To overcome this, the user should always define a hostrule with **useRegex** set to **True** if regular expression paths are defined in secure Ingress/Route. If **useRegex** is **True**, AKO will create pools with encoded names even for secure SNI and secure SNI dedicated virtual services.
-
-#### Specifying Application Root Redirect path
-If the application root path, i.e., path `/`, for a given host, defined in Ingress or Route, is exposed on a different path in the backend and needs to be redirected, then set this field to the required path in a hostrule to redirect requests. This is an optional field. The host and query strings in the redirect URI will be kept the same. The port in the redirect request will be set as the front-end port specified in the ingress, and the redirect protocol will be set based on the redirect port (HTTPS for ports 443 and 6443 and HTTP for any other port).
-
-        fqdn: test-avi.vmware.com
-        fqdnType: Exact
-        applicationRootPath: "/foo"
-
-If any other path (along with the application root **/**) is also specified for the host in the Ingress/Route, then Avi will route requests for that path normally (without any redirect). The path used as the **applicationRootPath** should not be used as a regular path in the Ingress/Route, as it will lead to ambiguity during backend selection in Avi.
-
-        apiVersion: networking.k8s.io/v1
-        kind: Ingress
-        metadata:
-          name: test-ingress
-        spec:
-          rules:
-          - host: test-avi.vmware.com
-            http:
-              paths:
-              - backend:
-                  service:
-                    name: my-app-0
-                    port:
-                      number: 80
-                path: /bar
-                pathType: ImplementationSpecific
-              - backend:
-                  service:
-                    name: my-app-1
-                    port:
-                      number: 443
-                path: /
-                pathType: Exact
-          tls:
-          - hosts:
-            - test-avi.vmware.com
-            secretName: ingress-secret
-
-For the above Ingress definition, if we create a hostrule with `applicationRootPath` set to `/foo`, then :
-1. A request that comes on the URL **https://test-avi.vmware.com/** will first be redirected to **https://test-avi.vmware.com:443/foo** and then routed to the backend **my-app-1**.
-2. A request that comes on the URL **https://test-avi.vmware.com/bar** will be routed to backend **my-app-0**.
-
-***Note***
-1. This property is available only in HostRule `v1beta1` schema definition.
-2. The `applicationRootPath` field will not be supported for insecure Ingress/Route when AKO is running in SNI mode or SNI Dedicated mode.
-3. The `useRegex` and `applicationRootPath` fields can be used together; i.e., useRegex can be set to **True**, and applicationRootPath can be specified in the same hostrule, and both properties will have the same effect as described in their respective sections.
 
 #### Status Messages
 

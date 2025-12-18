@@ -19,16 +19,16 @@ limitations under the License.
 package v1
 
 import (
-	context "context"
+	"context"
 	time "time"
 
-	apinetworkingv1 "k8s.io/api/networking/v1"
+	networkingv1 "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
 	internalinterfaces "k8s.io/client-go/informers/internalinterfaces"
 	kubernetes "k8s.io/client-go/kubernetes"
-	networkingv1 "k8s.io/client-go/listers/networking/v1"
+	v1 "k8s.io/client-go/listers/networking/v1"
 	cache "k8s.io/client-go/tools/cache"
 )
 
@@ -36,7 +36,7 @@ import (
 // NetworkPolicies.
 type NetworkPolicyInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() networkingv1.NetworkPolicyLister
+	Lister() v1.NetworkPolicyLister
 }
 
 type networkPolicyInformer struct {
@@ -62,28 +62,16 @@ func NewFilteredNetworkPolicyInformer(client kubernetes.Interface, namespace str
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.NetworkingV1().NetworkPolicies(namespace).List(context.Background(), options)
+				return client.NetworkingV1().NetworkPolicies(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.NetworkingV1().NetworkPolicies(namespace).Watch(context.Background(), options)
-			},
-			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
-				if tweakListOptions != nil {
-					tweakListOptions(&options)
-				}
-				return client.NetworkingV1().NetworkPolicies(namespace).List(ctx, options)
-			},
-			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
-				if tweakListOptions != nil {
-					tweakListOptions(&options)
-				}
-				return client.NetworkingV1().NetworkPolicies(namespace).Watch(ctx, options)
+				return client.NetworkingV1().NetworkPolicies(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&apinetworkingv1.NetworkPolicy{},
+		&networkingv1.NetworkPolicy{},
 		resyncPeriod,
 		indexers,
 	)
@@ -94,9 +82,9 @@ func (f *networkPolicyInformer) defaultInformer(client kubernetes.Interface, res
 }
 
 func (f *networkPolicyInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apinetworkingv1.NetworkPolicy{}, f.defaultInformer)
+	return f.factory.InformerFor(&networkingv1.NetworkPolicy{}, f.defaultInformer)
 }
 
-func (f *networkPolicyInformer) Lister() networkingv1.NetworkPolicyLister {
-	return networkingv1.NewNetworkPolicyLister(f.Informer().GetIndexer())
+func (f *networkPolicyInformer) Lister() v1.NetworkPolicyLister {
+	return v1.NewNetworkPolicyLister(f.Informer().GetIndexer())
 }
