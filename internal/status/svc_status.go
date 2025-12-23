@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ func (l *leader) UpdateL4LBStatus(options []UpdateOptions, bulk bool) {
 	var updateServiceOptions []UpdateOptions
 
 	for _, option := range options {
-		if len(option.ServiceMetadata.HostNames) != 1 && !utils.IsWCP() {
+		if len(option.ServiceMetadata.HostNames) != 1 && !lib.IsWCP() {
 			utils.AviLog.Warnf("key: %s, msg: Service hostname not found for service %v status update", option.Key, option.ServiceMetadata.NamespaceServiceName)
 		}
 
@@ -60,49 +60,44 @@ func (l *leader) UpdateL4LBStatus(options []UpdateOptions, bulk bool) {
 			if len(svcMetadata.HostNames) > 0 {
 				svcHostname = svcMetadata.HostNames[0]
 			}
-			service.Status.LoadBalancer.Ingress = []corev1.LoadBalancerIngress{}
 			for _, vip := range option.Vip {
-				service.Status.LoadBalancer.Ingress = append(
-					service.Status.LoadBalancer.Ingress,
-					corev1.LoadBalancerIngress{IP: vip, Hostname: svcHostname})
-			}
+				service.Status = corev1.ServiceStatus{
+					LoadBalancer: corev1.LoadBalancerStatus{
+						Ingress: []corev1.LoadBalancerIngress{{
+							IP:       vip,
+							Hostname: svcHostname,
+						}}}}
 
-			sameStatus, _, _ := compareLBStatus(oldServiceStatus, &service.Status.LoadBalancer)
-			var updatedSvc *corev1.Service
-			var err error
-			if !sameStatus {
-				patchPayload, _ := json.Marshal(map[string]interface{}{
-					"status": service.Status,
-				})
+				sameStatus, _, _ := compareLBStatus(oldServiceStatus, &service.Status.LoadBalancer)
+				var updatedSvc *corev1.Service
+				var err error
+				if !sameStatus {
+					patchPayload, _ := json.Marshal(map[string]interface{}{
+						"status": service.Status,
+					})
 
-				updatedSvc, err = utils.GetInformers().ClientSet.CoreV1().Services(service.Namespace).Patch(context.TODO(), service.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
-				if err != nil {
-					utils.AviLog.Errorf("key: %s, msg: there was an error in updating the loadbalancer status: %v", key, err)
-				} else {
-					if len(service.Status.LoadBalancer.Ingress) > 0 {
-						lib.AKOControlConfig().EventRecorder().Eventf(service, corev1.EventTypeNormal, lib.Synced, "Added virtualservice %s for %s", option.VSName, service.Name)
+					updatedSvc, err = utils.GetInformers().ClientSet.CoreV1().Services(service.Namespace).Patch(context.TODO(), service.Name, types.MergePatchType, patchPayload, metav1.PatchOptions{}, "status")
+					if err != nil {
+						utils.AviLog.Errorf("key: %s, msg: there was an error in updating the loadbalancer status: %v", key, err)
 					} else {
-						lib.AKOControlConfig().EventRecorder().Eventf(service, corev1.EventTypeNormal, lib.Removed, "Removed virtualservice for %s", service.Name)
+						if len(service.Status.LoadBalancer.Ingress) > 0 {
+							lib.AKOControlConfig().EventRecorder().Eventf(service, corev1.EventTypeNormal, lib.Synced, "Added virtualservice %s for %s", option.VSName, service.Name)
+						} else {
+							lib.AKOControlConfig().EventRecorder().Eventf(service, corev1.EventTypeNormal, lib.Removed, "Removed virtualservice for %s", service.Name)
+						}
+						utils.AviLog.Infof("key: %s, msg: Successfully updated the status of serviceLB: %s old: %+v new %+v",
+							key, option.IngSvc, oldServiceStatus.Ingress, service.Status.LoadBalancer.Ingress)
 					}
-					utils.AviLog.Infof("key: %s, msg: Successfully updated the status of serviceLB: %s old: %+v new %+v",
-						key, option.IngSvc, oldServiceStatus.Ingress, service.Status.LoadBalancer.Ingress)
+				} else {
+					utils.AviLog.Debugf("key: %s, msg: No changes detected in service status. old: %+v new: %+v",
+						key, oldServiceStatus.Ingress, service.Status.LoadBalancer.Ingress)
 				}
-			} else {
-				utils.AviLog.Debugf("key: %s, msg: No changes detected in service status. old: %+v new: %+v",
-					key, oldServiceStatus.Ingress, service.Status.LoadBalancer.Ingress)
-			}
 
-			if utils.IsVCFCluster() {
-				if err = updateSvcAnnotationsWithVSUUID(updatedSvc, option, service); err != nil {
-					utils.AviLog.Errorf("key: %s, msg: there was an error in updating the service annotations: %v", key, err)
-				}
-			} else {
 				if err = updateSvcAnnotations(updatedSvc, option, service, svcHostname); err != nil {
 					utils.AviLog.Errorf("key: %s, msg: there was an error in updating the service annotations: %v", key, err)
 				}
 			}
 		}
-
 		skipDelete[option.IngSvc] = true
 	}
 
@@ -118,38 +113,6 @@ func (l *leader) UpdateL4LBStatus(options []UpdateOptions, bulk bool) {
 	}
 }
 
-func updateSvcAnnotationsWithVSUUID(svc *corev1.Service, updateOption UpdateOptions, oldSvc *corev1.Service) error {
-	if updateOption.VirtualServiceUUID == "" {
-		utils.AviLog.Debugf("key: %s, msg: VirtualServiceUUID is empty, not updating the VS annotations for service %s/%s", updateOption.Key, svc.Namespace, svc.Name)
-		return nil
-	}
-	if svc == nil {
-		svc = oldSvc
-	}
-	if svc.Annotations == nil {
-		svc.Annotations = make(map[string]string)
-	}
-	if value, ok := svc.Annotations[lib.VSAnnotation]; ok && value == updateOption.VirtualServiceUUID {
-		return nil
-	}
-	svc.Annotations[lib.VSUUIDAnnotation] = updateOption.VirtualServiceUUID
-	patchPayload := map[string]interface{}{
-		"metadata": map[string]map[string]string{
-			"annotations": svc.Annotations,
-		},
-	}
-	patchPayloadBytes, err := json.Marshal(patchPayload)
-	if err != nil {
-		return fmt.Errorf("error in marshalling patch payload for service %s/%s: %s", svc.Namespace, svc.Name, err.Error())
-	}
-	if _, err := utils.GetInformers().ClientSet.CoreV1().Services(svc.Namespace).Patch(context.TODO(), svc.Name,
-		types.MergePatchType, patchPayloadBytes, metav1.PatchOptions{}); err != nil {
-		return fmt.Errorf("error in patching service %s/%s: %s", svc.Namespace, svc.Name, err.Error())
-	}
-	utils.AviLog.Infof("key: %s, msg: Successfully updated the VS annotations for service %s/%s", updateOption.Key, svc.Namespace, svc.Name)
-	return nil
-}
-
 func updateSvcAnnotations(svc *corev1.Service, updateOption UpdateOptions, oldSvc *corev1.Service, svcHostname string) error {
 	if svcHostname == "" {
 		utils.AviLog.Infof("Can't update the service annotations as hostname for this service is empty.")
@@ -162,7 +125,7 @@ func updateSvcAnnotations(svc *corev1.Service, updateOption UpdateOptions, oldSv
 		updateOption.ServiceMetadata.HostNames[0]: updateOption.VirtualServiceUUID,
 	}
 
-	if !isAnnotationsUpdateRequired(svc.Annotations, vsAnnotations, updateOption.Tenant, false) {
+	if !isAnnotationsUpdateRequired(svc.Annotations, vsAnnotations) {
 		utils.AviLog.Debugf("No annotations update required for service %s/%s", svc.Namespace, svc.Name)
 		return nil
 	}
@@ -178,7 +141,6 @@ func updateSvcAnnotations(svc *corev1.Service, updateOption UpdateOptions, oldSv
 	}
 	annotations[lib.VSAnnotation] = string(vsAnnotationsStr)
 	annotations[lib.ControllerAnnotation] = avicache.GetControllerClusterUUID()
-	annotations[lib.TenantAnnotation] = updateOption.Tenant
 
 	patchPayload := map[string]interface{}{
 		"metadata": map[string]map[string]string{
@@ -229,8 +191,6 @@ func deleteSvcAnnotation(svc *corev1.Service) error {
 			"annotations": {
 				lib.VSAnnotation:         nil,
 				lib.ControllerAnnotation: nil,
-				lib.TenantAnnotation:     nil,
-				lib.VSUUIDAnnotation:     nil,
 			},
 		},
 	}
@@ -262,8 +222,8 @@ func getServices(serviceNSNames []string, bulk bool, retryNum ...int) map[string
 		serviceLBList, err := utils.GetInformers().ServiceInformer.Lister().List(labels.Set(nil).AsSelector())
 		if err != nil {
 			utils.AviLog.Warnf("Could not get the service object for UpdateStatus: %s", err)
-			// retry get if request timeout or Unauthorized
-			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) || strings.Contains(err.Error(), utils.K8S_UNAUTHORIZED) {
+			// retry get if request timeout
+			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
 				return getServices(serviceNSNames, bulk, retry+1)
 			}
 		}
@@ -291,8 +251,8 @@ func getServices(serviceNSNames []string, bulk bool, retryNum ...int) map[string
 		serviceLB, err := utils.GetInformers().ServiceInformer.Lister().Services(nsNameSplit[0]).Get(nsNameSplit[1])
 		if err != nil {
 			utils.AviLog.Warnf("Could not get the service object for UpdateStatus: %s", err)
-			// retry get if request timeout or Unauthorized
-			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) || strings.Contains(err.Error(), utils.K8S_UNAUTHORIZED) {
+			// retry get if request timeout
+			if strings.Contains(err.Error(), utils.K8S_ETIMEDOUT) {
 				return getServices(serviceNSNames, bulk, retry+1)
 			}
 			continue

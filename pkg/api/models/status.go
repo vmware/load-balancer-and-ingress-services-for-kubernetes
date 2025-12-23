@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -21,9 +21,6 @@ import (
 	"time"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
-
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // AviApiRestStatus holds status details for AKO/AMKO <-> AVI connection
@@ -57,7 +54,7 @@ func (a *StatusModel) InitModel() {
 	})
 }
 
-func (a *StatusModel) ApiOperationMap(prometheusEnavbled bool, reg *prometheus.Registry) []OperationMap {
+func (a *StatusModel) ApiOperationMap() []OperationMap {
 	var operationMapList []OperationMap
 
 	get := OperationMap{
@@ -68,15 +65,8 @@ func (a *StatusModel) ApiOperationMap(prometheusEnavbled bool, reg *prometheus.R
 			utils.Respond(w, response)
 		},
 	}
+
 	operationMapList = append(operationMapList, get)
-	if prometheusEnavbled {
-		metrics := OperationMap{
-			Route:   "/metrics",
-			Method:  "GET",
-			Handler: promhttp.HandlerFor(reg, promhttp.HandlerOpts{Registry: reg}).ServeHTTP,
-		}
-		operationMapList = append(operationMapList, metrics)
-	}
 	return operationMapList
 }
 

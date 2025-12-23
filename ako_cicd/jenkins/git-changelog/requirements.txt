@@ -1,3 +1,0 @@
-jinja2
-python-dateutil
-pygal=2.4.0

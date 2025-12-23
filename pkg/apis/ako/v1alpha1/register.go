@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -48,6 +48,12 @@ func Resource(resource string) schema.GroupResource {
 func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(
 		SchemeGroupVersion,
+		&HostRule{},
+		&HostRuleList{},
+		&HTTPRule{},
+		&HTTPRuleList{},
+		&AviInfraSetting{},
+		&AviInfraSettingList{},
 		&MultiClusterIngress{},
 		&MultiClusterIngressList{},
 		&ServiceImport{},

@@ -34,16 +34,10 @@ type VirtualService struct {
 	// Read Only: true
 	AzureAvailabilitySet *string `json:"azure_availability_set,omitempty"`
 
-	// LOCAL_PREF to be used for VsVip advertised. Applicable only over iBGP. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
-	BgpLocalPreference *uint32 `json:"bgp_local_preference,omitempty"`
-
-	// Number of times the local AS should be prepended additionally to VsVip. Applicable only over eBGP. Allowed values are 1-10. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
-	BgpNumAsPathPrepend *uint32 `json:"bgp_num_as_path_prepend,omitempty"`
-
 	// Select BGP peers, using peer label, for VsVip advertisement. Field introduced in 20.1.5. Maximum of 128 items allowed. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	BgpPeerLabels []string `json:"bgp_peer_labels,omitempty"`
 
-	// Bot detection policy for the Virtual Service. It is a reference to an object of type BotDetectionPolicy. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// Bot detection policy for the Virtual Service. It is a reference to an object of type BotDetectionPolicy. Field introduced in 21.1.1.
 	BotPolicyRef *string `json:"bot_policy_ref,omitempty"`
 
 	// (This is a beta feature). Sync Key-Value cache to the new SEs when VS is scaled out. For ex  SSL sessions are stored using VS's Key-Value cache. When the VS is scaled out, the SSL session information is synced to the new SE, allowing existing SSL sessions to be reused on the new SE. . Field introduced in 17.2.7, 18.1.1. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- false), Basic edition(Allowed values- false), Enterprise with Cloud Services edition.
@@ -73,9 +67,6 @@ type VirtualService struct {
 	// Creator name. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CreatedBy *string `json:"created_by,omitempty"`
 
-	// CSRF Protection policy for the Virtual Service. It is a reference to an object of type CSRFPolicy. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	CsrfPolicyRef *string `json:"csrf_policy_ref,omitempty"`
-
 	// Select the algorithm for QoS fairness.  This determines how multiple Virtual Services sharing the same Service Engines will prioritize traffic over a congested network. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- false), Basic edition(Allowed values- false), Enterprise with Cloud Services edition.
 	DelayFairness *bool `json:"delay_fairness,omitempty"`
 
@@ -99,9 +90,6 @@ type VirtualService struct {
 
 	// Enable Route Health Injection for Source NAT'ted floating IP Address using the BGP Config in the vrf context. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	EnableRhiSnat *bool `json:"enable_rhi_snat,omitempty"`
-
-	// Enable HTTP sessions for this virtual service. If enabled, a session cookie will be added to HTTP responses and persistent key-value store will be activated. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	EnableSession *bool `json:"enable_session,omitempty"`
 
 	// Enable or disable the Virtual Service. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Enabled *bool `json:"enabled,omitempty"`
@@ -146,13 +134,13 @@ type VirtualService struct {
 	Markers []*RoleFilterMatchLabel `json:"markers,omitempty"`
 
 	// Maximum connections per second per client IP. Allowed values are 10-1000. Special values are 0- unlimited. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MaxCpsPerClient *uint32 `json:"max_cps_per_client,omitempty"`
+	MaxCpsPerClient *int32 `json:"max_cps_per_client,omitempty"`
 
 	// Microservice representing the virtual service. It is a reference to an object of type MicroService. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	MicroserviceRef *string `json:"microservice_ref,omitempty"`
 
 	// Minimum number of UP pools to mark VS up. Field introduced in 18.2.1, 17.2.12. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	MinPoolsUp *uint32 `json:"min_pools_up,omitempty"`
+	MinPoolsUp *int32 `json:"min_pools_up,omitempty"`
 
 	// Name for the Virtual Service. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
@@ -185,9 +173,6 @@ type VirtualService struct {
 	// Rate limit the incoming requests to this virtual service. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	RequestsRateLimit *RateProfile `json:"requests_rate_limit,omitempty"`
 
-	// Revoke the advertisement of Virtual Service via the cloud if it is marked down by health monitor. Supported for NSXT clouds only.This setting takes effect for future Virtual Service flaps. To advertise current VSes that are down, please disable and re-enable the Virtual Service. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	RevokeVipRoute *bool `json:"revoke_vip_route,omitempty"`
-
 	// Application-specific SAML config. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	SamlSpConfig *SAMLSPConfig `json:"saml_sp_config,omitempty"`
 
@@ -218,9 +203,6 @@ type VirtualService struct {
 	// NAT'ted floating source IP Address(es) for upstream connection to servers. Maximum of 32 items allowed. Allowed in Enterprise edition with any value, Basic, Enterprise with Cloud Services edition.
 	SnatIP []*IPAddr `json:"snat_ip,omitempty"`
 
-	// IPV6 address for SE snat. Field introduced in 30.2.1. Maximum of 32 items allowed. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	SnatIp6Addresses []*IPAddr `json:"snat_ip6_addresses,omitempty"`
-
 	// GSLB pools used to manage site-persistence functionality. Each site-persistence pool contains the virtualservices in all the other sites, that is auto-generated by the GSLB manager. This is a read-only field for the user. It is a reference to an object of type Pool. Field introduced in 17.2.2. Allowed in Enterprise edition with any value, Essentials edition with any value, Basic edition with any value, Enterprise with Cloud Services edition.
 	// Read Only: true
 	SpPoolRefs []string `json:"sp_pool_refs,omitempty"`
@@ -235,7 +217,7 @@ type VirtualService struct {
 	SslProfileSelectors []*SSLProfileSelector `json:"ssl_profile_selectors,omitempty"`
 
 	// Expected number of SSL session cache entries (may be exceeded). Allowed values are 1024-16383. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	SslSessCacheAvgSize *uint32 `json:"ssl_sess_cache_avg_size,omitempty"`
+	SslSessCacheAvgSize *int32 `json:"ssl_sess_cache_avg_size,omitempty"`
 
 	// The SSO Policy attached to the virtualservice. It is a reference to an object of type SSOPolicy. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	SsoPolicyRef *string `json:"sso_policy_ref,omitempty"`
@@ -277,13 +259,13 @@ type VirtualService struct {
 	// The exact name requested from the client's SNI-enabled TLS hello domain name field. If this is a match, the parent VS will forward the connection to this child VS. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VhDomainName []string `json:"vh_domain_name,omitempty"`
 
-	// Match criteria to select this child VS. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
+	// Host and path match criteria to select this child VS. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	VhMatches []*VHMatch `json:"vh_matches,omitempty"`
 
 	// Specifies the Virtual Service acting as Virtual Hosting (SNI) parent. It is a reference to an object of type VirtualService. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VhParentVsRef *string `json:"vh_parent_vs_ref,omitempty"`
 
-	// Specify if the Virtual Hosting VS is of type SNI or Enhanced. Enum options - VS_TYPE_VH_SNI, VS_TYPE_VH_ENHANCED. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Basic edition(Allowed values- VS_TYPE_VH_SNI,VS_TYPE_VH_ENHANCED), Enterprise with Cloud Services edition.
+	// Specify if the Virtual Hosting VS is of type SNI or Enhanced. Enum options - VS_TYPE_VH_SNI, VS_TYPE_VH_ENHANCED. Field introduced in 20.1.3. Allowed in Enterprise edition with any value, Basic edition(Allowed values- VS_TYPE_VH_ENHANCED), Enterprise with Cloud Services edition. Special default for Basic edition is VS_TYPE_VH_ENHANCED, Enterprise is VS_TYPE_VH_SNI.
 	VhType *string `json:"vh_type,omitempty"`
 
 	// List of Virtual Service IPs. While creating a 'Shared VS',please use vsvip_ref to point to the shared entities. Field introduced in 17.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
@@ -305,5 +287,5 @@ type VirtualService struct {
 	WafPolicyRef *string `json:"waf_policy_ref,omitempty"`
 
 	// The Quality of Service weight to assign to traffic transmitted from this Virtual Service.  A higher weight will prioritize traffic versus other Virtual Services sharing the same Service Engines. Allowed values are 1-128. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 1), Basic edition(Allowed values- 1), Enterprise with Cloud Services edition.
-	Weight *uint32 `json:"weight,omitempty"`
+	Weight *int32 `json:"weight,omitempty"`
 }

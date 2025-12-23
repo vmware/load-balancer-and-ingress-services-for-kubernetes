@@ -19,16 +19,16 @@ limitations under the License.
 package v1
 
 import (
-	context "context"
+	"context"
 	time "time"
 
-	apicorev1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
 	internalinterfaces "k8s.io/client-go/informers/internalinterfaces"
 	kubernetes "k8s.io/client-go/kubernetes"
-	corev1 "k8s.io/client-go/listers/core/v1"
+	v1 "k8s.io/client-go/listers/core/v1"
 	cache "k8s.io/client-go/tools/cache"
 )
 
@@ -36,7 +36,7 @@ import (
 // Pods.
 type PodInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() corev1.PodLister
+	Lister() v1.PodLister
 }
 
 type podInformer struct {
@@ -62,28 +62,16 @@ func NewFilteredPodInformer(client kubernetes.Interface, namespace string, resyn
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CoreV1().Pods(namespace).List(context.Background(), options)
+				return client.CoreV1().Pods(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CoreV1().Pods(namespace).Watch(context.Background(), options)
-			},
-			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
-				if tweakListOptions != nil {
-					tweakListOptions(&options)
-				}
-				return client.CoreV1().Pods(namespace).List(ctx, options)
-			},
-			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
-				if tweakListOptions != nil {
-					tweakListOptions(&options)
-				}
-				return client.CoreV1().Pods(namespace).Watch(ctx, options)
+				return client.CoreV1().Pods(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&apicorev1.Pod{},
+		&corev1.Pod{},
 		resyncPeriod,
 		indexers,
 	)
@@ -94,9 +82,9 @@ func (f *podInformer) defaultInformer(client kubernetes.Interface, resyncPeriod 
 }
 
 func (f *podInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apicorev1.Pod{}, f.defaultInformer)
+	return f.factory.InformerFor(&corev1.Pod{}, f.defaultInformer)
 }
 
-func (f *podInformer) Lister() corev1.PodLister {
-	return corev1.NewPodLister(f.Informer().GetIndexer())
+func (f *podInformer) Lister() v1.PodLister {
+	return v1.NewPodLister(f.Informer().GetIndexer())
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -34,10 +34,9 @@ import (
 	"github.com/onsi/gomega"
 	"golang.org/x/crypto/ssh"
 
-	"github.com/vmware/alb-sdk/go/clients"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/scaletest/lib"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
 )
 
 const (

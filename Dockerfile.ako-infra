@@ -11,13 +11,13 @@ WORKDIR $GOPATH/src/$BUILD_PATH
 RUN GOARCH=amd64 \
     CGO_ENABLED=0 \
     GOOS=linux \
-    go build -buildvcs=false -o $GOPATH/bin/ako-infra \
+    go build -o $GOPATH/bin/ako-infra \
     -ldflags "$AKO_LDFLAGS" \
     -mod=vendor \
     $BUILD_PATH/cmd/infra-main
 
 FROM ${photon_src_repo}
-RUN yum install -y tar.x86_64 && yum clean all
+RUN yum install -y tar.x86_64
 COPY --from=build /go/bin/ako-infra .
 EXPOSE 8080
 ENTRYPOINT ["./ako-infra"]

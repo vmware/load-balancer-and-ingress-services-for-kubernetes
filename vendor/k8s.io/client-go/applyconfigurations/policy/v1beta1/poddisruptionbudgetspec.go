@@ -19,21 +19,19 @@ limitations under the License.
 package v1beta1
 
 import (
-	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	intstr "k8s.io/apimachinery/pkg/util/intstr"
 	v1 "k8s.io/client-go/applyconfigurations/meta/v1"
 )
 
-// PodDisruptionBudgetSpecApplyConfiguration represents a declarative configuration of the PodDisruptionBudgetSpec type for use
+// PodDisruptionBudgetSpecApplyConfiguration represents an declarative configuration of the PodDisruptionBudgetSpec type for use
 // with apply.
 type PodDisruptionBudgetSpecApplyConfiguration struct {
-	MinAvailable               *intstr.IntOrString                           `json:"minAvailable,omitempty"`
-	Selector                   *v1.LabelSelectorApplyConfiguration           `json:"selector,omitempty"`
-	MaxUnavailable             *intstr.IntOrString                           `json:"maxUnavailable,omitempty"`
-	UnhealthyPodEvictionPolicy *policyv1beta1.UnhealthyPodEvictionPolicyType `json:"unhealthyPodEvictionPolicy,omitempty"`
+	MinAvailable   *intstr.IntOrString                 `json:"minAvailable,omitempty"`
+	Selector       *v1.LabelSelectorApplyConfiguration `json:"selector,omitempty"`
+	MaxUnavailable *intstr.IntOrString                 `json:"maxUnavailable,omitempty"`
 }
 
-// PodDisruptionBudgetSpecApplyConfiguration constructs a declarative configuration of the PodDisruptionBudgetSpec type for use with
+// PodDisruptionBudgetSpecApplyConfiguration constructs an declarative configuration of the PodDisruptionBudgetSpec type for use with
 // apply.
 func PodDisruptionBudgetSpec() *PodDisruptionBudgetSpecApplyConfiguration {
 	return &PodDisruptionBudgetSpecApplyConfiguration{}
@@ -60,13 +58,5 @@ func (b *PodDisruptionBudgetSpecApplyConfiguration) WithSelector(value *v1.Label
 // If called multiple times, the MaxUnavailable field is set to the value of the last call.
 func (b *PodDisruptionBudgetSpecApplyConfiguration) WithMaxUnavailable(value intstr.IntOrString) *PodDisruptionBudgetSpecApplyConfiguration {
 	b.MaxUnavailable = &value
-	return b
-}
-
-// WithUnhealthyPodEvictionPolicy sets the UnhealthyPodEvictionPolicy field in the declarative configuration to the given value
-// and returns the receiver, so that objects can be built by chaining "With" function invocations.
-// If called multiple times, the UnhealthyPodEvictionPolicy field is set to the value of the last call.
-func (b *PodDisruptionBudgetSpecApplyConfiguration) WithUnhealthyPodEvictionPolicy(value policyv1beta1.UnhealthyPodEvictionPolicyType) *PodDisruptionBudgetSpecApplyConfiguration {
-	b.UnhealthyPodEvictionPolicy = &value
 	return b
 }

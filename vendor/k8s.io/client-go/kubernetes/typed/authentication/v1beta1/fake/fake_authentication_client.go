@@ -28,12 +28,8 @@ type FakeAuthenticationV1beta1 struct {
 	*testing.Fake
 }
 
-func (c *FakeAuthenticationV1beta1) SelfSubjectReviews() v1beta1.SelfSubjectReviewInterface {
-	return newFakeSelfSubjectReviews(c)
-}
-
 func (c *FakeAuthenticationV1beta1) TokenReviews() v1beta1.TokenReviewInterface {
-	return newFakeTokenReviews(c)
+	return &FakeTokenReviews{c}
 }
 
 // RESTClient returns a RESTClient that is used to communicate

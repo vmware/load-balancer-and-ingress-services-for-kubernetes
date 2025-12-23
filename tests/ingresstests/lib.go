@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2022-2023 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -23,23 +23,18 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
-func SetUpTestForIngress(t *testing.T, svcName string, modelNames ...string) {
+func SetUpTestForIngress(t *testing.T, modelNames ...string) {
 	for _, model := range modelNames {
 		objects.SharedAviGraphLister().Delete(model)
 	}
-	integrationtest.CreateSVC(t, "default", svcName, corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPS(t, "default", svcName, false, false, "1.1.1")
+	integrationtest.CreateSVC(t, "default", "avisvc", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEP(t, "default", "avisvc", false, false, "1.1.1")
 }
 
-func TearDownTestForIngress(t *testing.T, svcName string, modelNames ...string) {
+func TearDownTestForIngress(t *testing.T, modelNames ...string) {
 	for _, model := range modelNames {
 		objects.SharedAviGraphLister().Delete(model)
 	}
-	integrationtest.DelSVC(t, "default", svcName)
-	integrationtest.DelEPS(t, "default", svcName)
-}
-
-func TearDownTestForIngressForAliasUseCase(t *testing.T, svcName string) {
-	integrationtest.DelSVC(t, "default", svcName)
-	integrationtest.DelEPS(t, "default", svcName)
+	integrationtest.DelSVC(t, "default", "avisvc")
+	integrationtest.DelEP(t, "default", "avisvc")
 }

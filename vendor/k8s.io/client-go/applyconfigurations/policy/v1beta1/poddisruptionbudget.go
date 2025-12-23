@@ -27,7 +27,7 @@ import (
 	v1 "k8s.io/client-go/applyconfigurations/meta/v1"
 )
 
-// PodDisruptionBudgetApplyConfiguration represents a declarative configuration of the PodDisruptionBudget type for use
+// PodDisruptionBudgetApplyConfiguration represents an declarative configuration of the PodDisruptionBudget type for use
 // with apply.
 type PodDisruptionBudgetApplyConfiguration struct {
 	v1.TypeMetaApplyConfiguration    `json:",inline"`
@@ -36,7 +36,7 @@ type PodDisruptionBudgetApplyConfiguration struct {
 	Status                           *PodDisruptionBudgetStatusApplyConfiguration `json:"status,omitempty"`
 }
 
-// PodDisruptionBudget constructs a declarative configuration of the PodDisruptionBudget type for use with
+// PodDisruptionBudget constructs an declarative configuration of the PodDisruptionBudget type for use with
 // apply.
 func PodDisruptionBudget(name, namespace string) *PodDisruptionBudgetApplyConfiguration {
 	b := &PodDisruptionBudgetApplyConfiguration{}
@@ -50,7 +50,7 @@ func PodDisruptionBudget(name, namespace string) *PodDisruptionBudgetApplyConfig
 // ExtractPodDisruptionBudget extracts the applied configuration owned by fieldManager from
 // podDisruptionBudget. If no managedFields are found in podDisruptionBudget for fieldManager, a
 // PodDisruptionBudgetApplyConfiguration is returned with only the Name, Namespace (if applicable),
-// APIVersion and Kind populated. It is possible that no managed fields were found for because other
+// APIVersion and Kind populated. Is is possible that no managed fields were found for because other
 // field managers have taken ownership of all the fields previously owned by fieldManager, or because
 // the fieldManager never owned fields any fields.
 // podDisruptionBudget must be a unmodified PodDisruptionBudget API object that was retrieved from the Kubernetes API.
@@ -59,19 +59,8 @@ func PodDisruptionBudget(name, namespace string) *PodDisruptionBudgetApplyConfig
 // applied if another fieldManager has updated or force applied any of the previously applied fields.
 // Experimental!
 func ExtractPodDisruptionBudget(podDisruptionBudget *policyv1beta1.PodDisruptionBudget, fieldManager string) (*PodDisruptionBudgetApplyConfiguration, error) {
-	return extractPodDisruptionBudget(podDisruptionBudget, fieldManager, "")
-}
-
-// ExtractPodDisruptionBudgetStatus is the same as ExtractPodDisruptionBudget except
-// that it extracts the status subresource applied configuration.
-// Experimental!
-func ExtractPodDisruptionBudgetStatus(podDisruptionBudget *policyv1beta1.PodDisruptionBudget, fieldManager string) (*PodDisruptionBudgetApplyConfiguration, error) {
-	return extractPodDisruptionBudget(podDisruptionBudget, fieldManager, "status")
-}
-
-func extractPodDisruptionBudget(podDisruptionBudget *policyv1beta1.PodDisruptionBudget, fieldManager string, subresource string) (*PodDisruptionBudgetApplyConfiguration, error) {
 	b := &PodDisruptionBudgetApplyConfiguration{}
-	err := managedfields.ExtractInto(podDisruptionBudget, internal.Parser().Type("io.k8s.api.policy.v1beta1.PodDisruptionBudget"), fieldManager, b, subresource)
+	err := managedfields.ExtractInto(podDisruptionBudget, internal.Parser().Type("io.k8s.api.policy.v1beta1.PodDisruptionBudget"), fieldManager, b)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +76,7 @@ func extractPodDisruptionBudget(podDisruptionBudget *policyv1beta1.PodDisruption
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Kind field is set to the value of the last call.
 func (b *PodDisruptionBudgetApplyConfiguration) WithKind(value string) *PodDisruptionBudgetApplyConfiguration {
-	b.TypeMetaApplyConfiguration.Kind = &value
+	b.Kind = &value
 	return b
 }
 
@@ -95,7 +84,7 @@ func (b *PodDisruptionBudgetApplyConfiguration) WithKind(value string) *PodDisru
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the APIVersion field is set to the value of the last call.
 func (b *PodDisruptionBudgetApplyConfiguration) WithAPIVersion(value string) *PodDisruptionBudgetApplyConfiguration {
-	b.TypeMetaApplyConfiguration.APIVersion = &value
+	b.APIVersion = &value
 	return b
 }
 
@@ -104,7 +93,7 @@ func (b *PodDisruptionBudgetApplyConfiguration) WithAPIVersion(value string) *Po
 // If called multiple times, the Name field is set to the value of the last call.
 func (b *PodDisruptionBudgetApplyConfiguration) WithName(value string) *PodDisruptionBudgetApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.Name = &value
+	b.Name = &value
 	return b
 }
 
@@ -113,7 +102,7 @@ func (b *PodDisruptionBudgetApplyConfiguration) WithName(value string) *PodDisru
 // If called multiple times, the GenerateName field is set to the value of the last call.
 func (b *PodDisruptionBudgetApplyConfiguration) WithGenerateName(value string) *PodDisruptionBudgetApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.GenerateName = &value
+	b.GenerateName = &value
 	return b
 }
 
@@ -122,7 +111,16 @@ func (b *PodDisruptionBudgetApplyConfiguration) WithGenerateName(value string) *
 // If called multiple times, the Namespace field is set to the value of the last call.
 func (b *PodDisruptionBudgetApplyConfiguration) WithNamespace(value string) *PodDisruptionBudgetApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.Namespace = &value
+	b.Namespace = &value
+	return b
+}
+
+// WithSelfLink sets the SelfLink field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the SelfLink field is set to the value of the last call.
+func (b *PodDisruptionBudgetApplyConfiguration) WithSelfLink(value string) *PodDisruptionBudgetApplyConfiguration {
+	b.ensureObjectMetaApplyConfigurationExists()
+	b.SelfLink = &value
 	return b
 }
 
@@ -131,7 +129,7 @@ func (b *PodDisruptionBudgetApplyConfiguration) WithNamespace(value string) *Pod
 // If called multiple times, the UID field is set to the value of the last call.
 func (b *PodDisruptionBudgetApplyConfiguration) WithUID(value types.UID) *PodDisruptionBudgetApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.UID = &value
+	b.UID = &value
 	return b
 }
 
@@ -140,7 +138,7 @@ func (b *PodDisruptionBudgetApplyConfiguration) WithUID(value types.UID) *PodDis
 // If called multiple times, the ResourceVersion field is set to the value of the last call.
 func (b *PodDisruptionBudgetApplyConfiguration) WithResourceVersion(value string) *PodDisruptionBudgetApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.ResourceVersion = &value
+	b.ResourceVersion = &value
 	return b
 }
 
@@ -149,7 +147,7 @@ func (b *PodDisruptionBudgetApplyConfiguration) WithResourceVersion(value string
 // If called multiple times, the Generation field is set to the value of the last call.
 func (b *PodDisruptionBudgetApplyConfiguration) WithGeneration(value int64) *PodDisruptionBudgetApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.Generation = &value
+	b.Generation = &value
 	return b
 }
 
@@ -158,7 +156,7 @@ func (b *PodDisruptionBudgetApplyConfiguration) WithGeneration(value int64) *Pod
 // If called multiple times, the CreationTimestamp field is set to the value of the last call.
 func (b *PodDisruptionBudgetApplyConfiguration) WithCreationTimestamp(value metav1.Time) *PodDisruptionBudgetApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.CreationTimestamp = &value
+	b.CreationTimestamp = &value
 	return b
 }
 
@@ -167,7 +165,7 @@ func (b *PodDisruptionBudgetApplyConfiguration) WithCreationTimestamp(value meta
 // If called multiple times, the DeletionTimestamp field is set to the value of the last call.
 func (b *PodDisruptionBudgetApplyConfiguration) WithDeletionTimestamp(value metav1.Time) *PodDisruptionBudgetApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.DeletionTimestamp = &value
+	b.DeletionTimestamp = &value
 	return b
 }
 
@@ -176,7 +174,7 @@ func (b *PodDisruptionBudgetApplyConfiguration) WithDeletionTimestamp(value meta
 // If called multiple times, the DeletionGracePeriodSeconds field is set to the value of the last call.
 func (b *PodDisruptionBudgetApplyConfiguration) WithDeletionGracePeriodSeconds(value int64) *PodDisruptionBudgetApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.DeletionGracePeriodSeconds = &value
+	b.DeletionGracePeriodSeconds = &value
 	return b
 }
 
@@ -186,11 +184,11 @@ func (b *PodDisruptionBudgetApplyConfiguration) WithDeletionGracePeriodSeconds(v
 // overwriting an existing map entries in Labels field with the same key.
 func (b *PodDisruptionBudgetApplyConfiguration) WithLabels(entries map[string]string) *PodDisruptionBudgetApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	if b.ObjectMetaApplyConfiguration.Labels == nil && len(entries) > 0 {
-		b.ObjectMetaApplyConfiguration.Labels = make(map[string]string, len(entries))
+	if b.Labels == nil && len(entries) > 0 {
+		b.Labels = make(map[string]string, len(entries))
 	}
 	for k, v := range entries {
-		b.ObjectMetaApplyConfiguration.Labels[k] = v
+		b.Labels[k] = v
 	}
 	return b
 }
@@ -201,11 +199,11 @@ func (b *PodDisruptionBudgetApplyConfiguration) WithLabels(entries map[string]st
 // overwriting an existing map entries in Annotations field with the same key.
 func (b *PodDisruptionBudgetApplyConfiguration) WithAnnotations(entries map[string]string) *PodDisruptionBudgetApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	if b.ObjectMetaApplyConfiguration.Annotations == nil && len(entries) > 0 {
-		b.ObjectMetaApplyConfiguration.Annotations = make(map[string]string, len(entries))
+	if b.Annotations == nil && len(entries) > 0 {
+		b.Annotations = make(map[string]string, len(entries))
 	}
 	for k, v := range entries {
-		b.ObjectMetaApplyConfiguration.Annotations[k] = v
+		b.Annotations[k] = v
 	}
 	return b
 }
@@ -219,7 +217,7 @@ func (b *PodDisruptionBudgetApplyConfiguration) WithOwnerReferences(values ...*v
 		if values[i] == nil {
 			panic("nil value passed to WithOwnerReferences")
 		}
-		b.ObjectMetaApplyConfiguration.OwnerReferences = append(b.ObjectMetaApplyConfiguration.OwnerReferences, *values[i])
+		b.OwnerReferences = append(b.OwnerReferences, *values[i])
 	}
 	return b
 }
@@ -230,8 +228,17 @@ func (b *PodDisruptionBudgetApplyConfiguration) WithOwnerReferences(values ...*v
 func (b *PodDisruptionBudgetApplyConfiguration) WithFinalizers(values ...string) *PodDisruptionBudgetApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
 	for i := range values {
-		b.ObjectMetaApplyConfiguration.Finalizers = append(b.ObjectMetaApplyConfiguration.Finalizers, values[i])
+		b.Finalizers = append(b.Finalizers, values[i])
 	}
+	return b
+}
+
+// WithClusterName sets the ClusterName field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the ClusterName field is set to the value of the last call.
+func (b *PodDisruptionBudgetApplyConfiguration) WithClusterName(value string) *PodDisruptionBudgetApplyConfiguration {
+	b.ensureObjectMetaApplyConfigurationExists()
+	b.ClusterName = &value
 	return b
 }
 
@@ -255,10 +262,4 @@ func (b *PodDisruptionBudgetApplyConfiguration) WithSpec(value *PodDisruptionBud
 func (b *PodDisruptionBudgetApplyConfiguration) WithStatus(value *PodDisruptionBudgetStatusApplyConfiguration) *PodDisruptionBudgetApplyConfiguration {
 	b.Status = value
 	return b
-}
-
-// GetName retrieves the value of the Name field in the declarative configuration.
-func (b *PodDisruptionBudgetApplyConfiguration) GetName() *string {
-	b.ensureObjectMetaApplyConfigurationExists()
-	return b.ObjectMetaApplyConfiguration.Name
 }

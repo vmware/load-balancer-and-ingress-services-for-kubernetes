@@ -9,8 +9,8 @@ import (
 	"reflect"
 
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/reflect/protoreflect"
-	"google.golang.org/protobuf/runtime/protoiface"
+	pref "google.golang.org/protobuf/reflect/protoreflect"
+	piface "google.golang.org/protobuf/runtime/protoiface"
 )
 
 type mergeOptions struct{}
@@ -20,17 +20,17 @@ func (o mergeOptions) Merge(dst, src proto.Message) {
 }
 
 // merge is protoreflect.Methods.Merge.
-func (mi *MessageInfo) merge(in protoiface.MergeInput) protoiface.MergeOutput {
+func (mi *MessageInfo) merge(in piface.MergeInput) piface.MergeOutput {
 	dp, ok := mi.getPointer(in.Destination)
 	if !ok {
-		return protoiface.MergeOutput{}
+		return piface.MergeOutput{}
 	}
 	sp, ok := mi.getPointer(in.Source)
 	if !ok {
-		return protoiface.MergeOutput{}
+		return piface.MergeOutput{}
 	}
 	mi.mergePointer(dp, sp, mergeOptions{})
-	return protoiface.MergeOutput{Flags: protoiface.MergeComplete}
+	return piface.MergeOutput{Flags: piface.MergeComplete}
 }
 
 func (mi *MessageInfo) mergePointer(dst, src pointer, opts mergeOptions) {
@@ -41,38 +41,11 @@ func (mi *MessageInfo) mergePointer(dst, src pointer, opts mergeOptions) {
 	if src.IsNil() {
 		return
 	}
-
-	var presenceSrc presence
-	var presenceDst presence
-	if mi.presenceOffset.IsValid() {
-		presenceSrc = src.Apply(mi.presenceOffset).PresenceInfo()
-		presenceDst = dst.Apply(mi.presenceOffset).PresenceInfo()
-	}
-
 	for _, f := range mi.orderedCoderFields {
 		if f.funcs.merge == nil {
 			continue
 		}
 		sfptr := src.Apply(f.offset)
-
-		if f.presenceIndex != noPresence {
-			if !presenceSrc.Present(f.presenceIndex) {
-				continue
-			}
-			dfptr := dst.Apply(f.offset)
-			if f.isLazy {
-				if sfptr.AtomicGetPointer().IsNil() {
-					mi.lazyUnmarshal(src, f.num)
-				}
-				if presenceDst.Present(f.presenceIndex) && dfptr.AtomicGetPointer().IsNil() {
-					mi.lazyUnmarshal(dst, f.num)
-				}
-			}
-			f.funcs.merge(dst.Apply(f.offset), sfptr, f, opts)
-			presenceDst.SetPresentUnatomic(f.presenceIndex, mi.presenceSize)
-			continue
-		}
-
 		if f.isPointer && sfptr.Elem().IsNil() {
 			continue
 		}
@@ -91,7 +64,7 @@ func (mi *MessageInfo) mergePointer(dst, src pointer, opts mergeOptions) {
 				continue
 			}
 			dx := (*dext)[num]
-			var dv protoreflect.Value
+			var dv pref.Value
 			if dx.Type() == sx.Type() {
 				dv = dx.Value()
 			}
@@ -112,15 +85,15 @@ func (mi *MessageInfo) mergePointer(dst, src pointer, opts mergeOptions) {
 	}
 }
 
-func mergeScalarValue(dst, src protoreflect.Value, opts mergeOptions) protoreflect.Value {
+func mergeScalarValue(dst, src pref.Value, opts mergeOptions) pref.Value {
 	return src
 }
 
-func mergeBytesValue(dst, src protoreflect.Value, opts mergeOptions) protoreflect.Value {
-	return protoreflect.ValueOfBytes(append(emptyBuf[:], src.Bytes()...))
+func mergeBytesValue(dst, src pref.Value, opts mergeOptions) pref.Value {
+	return pref.ValueOfBytes(append(emptyBuf[:], src.Bytes()...))
 }
 
-func mergeListValue(dst, src protoreflect.Value, opts mergeOptions) protoreflect.Value {
+func mergeListValue(dst, src pref.Value, opts mergeOptions) pref.Value {
 	dstl := dst.List()
 	srcl := src.List()
 	for i, llen := 0, srcl.Len(); i < llen; i++ {
@@ -129,29 +102,29 @@ func mergeListValue(dst, src protoreflect.Value, opts mergeOptions) protoreflect
 	return dst
 }
 
-func mergeBytesListValue(dst, src protoreflect.Value, opts mergeOptions) protoreflect.Value {
+func mergeBytesListValue(dst, src pref.Value, opts mergeOptions) pref.Value {
 	dstl := dst.List()
 	srcl := src.List()
 	for i, llen := 0, srcl.Len(); i < llen; i++ {
 		sb := srcl.Get(i).Bytes()
 		db := append(emptyBuf[:], sb...)
-		dstl.Append(protoreflect.ValueOfBytes(db))
+		dstl.Append(pref.ValueOfBytes(db))
 	}
 	return dst
 }
 
-func mergeMessageListValue(dst, src protoreflect.Value, opts mergeOptions) protoreflect.Value {
+func mergeMessageListValue(dst, src pref.Value, opts mergeOptions) pref.Value {
 	dstl := dst.List()
 	srcl := src.List()
 	for i, llen := 0, srcl.Len(); i < llen; i++ {
 		sm := srcl.Get(i).Message()
 		dm := proto.Clone(sm.Interface()).ProtoReflect()
-		dstl.Append(protoreflect.ValueOfMessage(dm))
+		dstl.Append(pref.ValueOfMessage(dm))
 	}
 	return dst
 }
 
-func mergeMessageValue(dst, src protoreflect.Value, opts mergeOptions) protoreflect.Value {
+func mergeMessageValue(dst, src pref.Value, opts mergeOptions) pref.Value {
 	opts.Merge(dst.Message().Interface(), src.Message().Interface())
 	return dst
 }

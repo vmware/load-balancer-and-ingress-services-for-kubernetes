@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -36,13 +36,11 @@ import (
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
-	v1beta1crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned/fake"
 )
 
 var KubeClient *k8sfake.Clientset
 var ctrl *k8s.AviController
 var CRDClient *crdfake.Clientset
-var V1beta1CRDClient *v1beta1crdfake.Clientset
 
 func TestMain(m *testing.M) {
 	os.Setenv("INGRESS_API", "extensionv1")
@@ -54,14 +52,11 @@ func TestMain(m *testing.M) {
 	os.Setenv("SERVICE_TYPE", "ClusterIP")
 	os.Setenv("POD_NAMESPACE", utils.AKO_DEFAULT_NS)
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
-	os.Setenv("POD_NAME", "ako-0")
 
 	akoControlConfig := lib.AKOControlConfig()
 	KubeClient = k8sfake.NewSimpleClientset()
 	CRDClient = crdfake.NewSimpleClientset()
-	V1beta1CRDClient = v1beta1crdfake.NewSimpleClientset()
 	akoControlConfig.SetCRDClientset(CRDClient)
-	akoControlConfig.Setv1beta1CRDClientset(V1beta1CRDClient)
 	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, KubeClient, true)
 	akoControlConfig.SetAKOInstanceFlag(true)
 	data := map[string][]byte{
@@ -74,7 +69,7 @@ func TestMain(m *testing.M) {
 
 	registeredInformers := []string{
 		utils.ServiceInformer,
-		utils.EndpointSlicesInformer,
+		utils.EndpointInformer,
 		utils.IngressInformer,
 		utils.IngressClassInformer,
 		utils.SecretInformer,
@@ -84,7 +79,7 @@ func TestMain(m *testing.M) {
 	}
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: KubeClient}, registeredInformers)
 	informers := k8s.K8sinformers{Cs: KubeClient}
-	k8s.NewCRDInformers()
+	k8s.NewCRDInformers(CRDClient)
 
 	mcache := cache.SharedAviObjCache()
 	cloudObj := &cache.AviCloudPropertyCache{Name: "Default-Cloud", VType: "mock"}
@@ -136,8 +131,8 @@ func SetupNamespaceSync(key, value string) {
 }
 
 func UpdateIngress(t *testing.T, modelName, namespace string) {
-	integrationtest.CreateSVC(t, namespace, "avisvc1", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPS(t, namespace, "avisvc1", false, false, "2.2.2")
+	integrationtest.CreateSVC(t, namespace, "avisvc1", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEP(t, namespace, "avisvc1", false, false, "2.2.2")
 	integrationtest.PollForCompletion(t, modelName, 5)
 	ingressObject := (integrationtest.FakeIngress{
 		Name:        "foo-with-targets",
@@ -157,8 +152,8 @@ func UpdateIngress(t *testing.T, modelName, namespace string) {
 func SetupIngress(t *testing.T, modelName, namespace string, withSecret, tlsIngress bool) {
 
 	objects.SharedAviGraphLister().Delete(modelName)
-	integrationtest.CreateSVC(t, namespace, "avisvc", corev1.ProtocolTCP, corev1.ServiceTypeClusterIP, false)
-	integrationtest.CreateEPS(t, namespace, "avisvc", false, false, "1.1.1")
+	integrationtest.CreateSVC(t, namespace, "avisvc", corev1.ServiceTypeClusterIP, false)
+	integrationtest.CreateEP(t, namespace, "avisvc", false, false, "1.1.1")
 	integrationtest.PollForCompletion(t, modelName, 5)
 
 	ingressObject := (integrationtest.FakeIngress{
@@ -196,7 +191,7 @@ func TearDownTestForIngressNamespace(t *testing.T, modelName, namespace string, 
 
 	objects.SharedAviGraphLister().Delete(modelName)
 	integrationtest.DelSVC(t, namespace, "avisvc")
-	integrationtest.DelEPS(t, namespace, "avisvc")
+	integrationtest.DelEP(t, namespace, "avisvc")
 	integrationtest.DeleteNamespace(namespace)
 	integrationtest.PollForCompletion(t, modelName, 10)
 }

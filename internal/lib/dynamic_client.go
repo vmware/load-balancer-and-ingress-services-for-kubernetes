@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@ package lib
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -29,7 +28,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/dynamic/dynamicinformer"
@@ -56,13 +54,6 @@ var (
 		Resource: "hostsubnets",
 	}
 
-	// CiliumNodeGVR : Cilium's CiliumNode CRD resource identifier
-	CiliumNodeGVR = schema.GroupVersionResource{
-		Group:    "cilium.io",
-		Version:  "v2",
-		Resource: "ciliumnodes",
-	}
-
 	NetworkInfoGVR = schema.GroupVersionResource{
 		Group:    "nsx.vmware.com",
 		Version:  "v1alpha1",
@@ -80,37 +71,6 @@ var (
 		Version:  "v1alpha1",
 		Resource: "availabilityzones",
 	}
-
-	VPCNetworkConfigurationGVR = schema.GroupVersionResource{
-		Group:    "crd.nsx.vmware.com",
-		Version:  "v1alpha1",
-		Resource: "vpcnetworkconfigurations",
-	}
-
-	SupervisorCapabilityGVR = schema.GroupVersionResource{
-		Group:    "iaas.vmware.com",
-		Version:  "v1alpha1",
-		Resource: "capabilities",
-	}
-
-	HealthMonitorGVR = schema.GroupVersionResource{
-		Group:    "ako.vmware.com",
-		Version:  "v1alpha1",
-		Resource: "healthmonitors",
-	}
-
-	AddonInstallGVR = schema.GroupVersionResource{
-		Group:    "addons.kubernetes.vmware.com",
-		Version:  "v1alpha1",
-		Resource: "addoninstalls",
-	}
-
-	// ClusterGVR defines the cluster.x-k8s.io/v1beta2 Cluster resource
-	ClusterGVR = schema.GroupVersionResource{
-		Group:    "cluster.x-k8s.io",
-		Version:  "v1beta2",
-		Resource: "clusters",
-	}
 )
 
 type BootstrapCRData struct {
@@ -119,11 +79,8 @@ type BootstrapCRData struct {
 
 // NewDynamicClientSet initializes dynamic client set instance
 func NewDynamicClientSet(config *rest.Config) (dynamic.Interface, error) {
-	// Always instantiate the dynamic client set if:
-	// 1. CNI being used is calico or OpenShift or Cilium, OR
-	// 2. it is VCF cluster, OR
-	// 3. AKO CRD Operator is enabled and L4Rules are enabled (for HealthMonitor support)
-	if !utils.IsVCFCluster() && GetCNIPlugin() != CALICO_CNI && GetCNIPlugin() != OPENSHIFT_CNI && GetCNIPlugin() != CILIUM_CNI && !(IsAKOCRDOperatorEnabled() && AKOControlConfig().L4RuleEnabled()) {
+	// do not instantiate the dynamic client set if the CNI being used is NOT calico
+	if !utils.IsVCFCluster() && GetCNIPlugin() != CALICO_CNI && GetCNIPlugin() != OPENSHIFT_CNI {
 		return nil, nil
 	}
 
@@ -156,33 +113,15 @@ func GetDynamicClientSet() dynamic.Interface {
 type DynamicInformers struct {
 	CalicoBlockAffinityInformer informers.GenericInformer
 	HostSubnetInformer          informers.GenericInformer
-	CiliumNodeInformer          informers.GenericInformer
 
 	VCFNetworkInfoInformer    informers.GenericInformer
 	VCFClusterNetworkInformer informers.GenericInformer
 
 	AvailabilityZoneInformer informers.GenericInformer
-
-	VPCNetworkConfigurationInformer informers.GenericInformer
-
-	// AKO CRD informers
-	HealthMonitorInformer informers.GenericInformer
-
-	SupervisorCapabilityInformer informers.GenericInformer
-
-	AddonInstallInformer informers.GenericInformer
-
-	ClusterInformer informers.GenericInformer
 }
 
 // NewDynamicInformers initializes the DynamicInformers struct
 func NewDynamicInformers(client dynamic.Interface, akoInfra bool) *DynamicInformers {
-	// Return nil if client is nil to avoid nil pointer dereference
-	if client == nil {
-		utils.AviLog.Infof("Dynamic client is nil, skipping dynamic informers initialization")
-		return nil
-	}
-
 	informers := &DynamicInformers{}
 	f := dynamicinformer.NewFilteredDynamicSharedInformerFactory(client, 0, v1.NamespaceAll, nil)
 
@@ -191,25 +130,16 @@ func NewDynamicInformers(client dynamic.Interface, akoInfra bool) *DynamicInform
 		informers.CalicoBlockAffinityInformer = f.ForResource(CalicoBlockaffinityGVR)
 	case OPENSHIFT_CNI:
 		informers.HostSubnetInformer = f.ForResource(HostSubnetGVR)
-	case CILIUM_CNI:
-		informers.CiliumNodeInformer = f.ForResource(CiliumNodeGVR)
 	default:
-		utils.AviLog.Infof("Skipped initializing CNI-specific dynamic informers for cniPlugin %s", GetCNIPlugin())
+		utils.AviLog.Infof("Skipped initializing dynamic informers for cniPlugin %s", GetCNIPlugin())
 	}
 
-	if utils.IsVCFCluster() && akoInfra {
+	if utils.IsVCFCluster() {
 		informers.VCFNetworkInfoInformer = f.ForResource(NetworkInfoGVR)
-		informers.VCFClusterNetworkInformer = f.ForResource(ClusterNetworkGVR)
-		informers.AvailabilityZoneInformer = f.ForResource(AvailabilityZoneVR)
-		informers.VPCNetworkConfigurationInformer = f.ForResource(VPCNetworkConfigurationGVR)
-		informers.SupervisorCapabilityInformer = f.ForResource(SupervisorCapabilityGVR)
-		informers.AddonInstallInformer = f.ForResource(AddonInstallGVR)
-		informers.ClusterInformer = f.ForResource(ClusterGVR)
-	}
-
-	// Initialize HealthMonitor informer only when L4Rules are enabled AND AKO CRD Operator is enabled
-	if AKOControlConfig().L4RuleEnabled() && IsAKOCRDOperatorEnabled() {
-		informers.HealthMonitorInformer = f.ForResource(HealthMonitorGVR)
+		if akoInfra {
+			informers.VCFClusterNetworkInformer = f.ForResource(ClusterNetworkGVR)
+			informers.AvailabilityZoneInformer = f.ForResource(AvailabilityZoneVR)
+		}
 	}
 
 	dynamicInformerInstance = informers
@@ -225,32 +155,19 @@ func GetDynamicInformers() *DynamicInformers {
 	return dynamicInformerInstance
 }
 
-func GetNetworkInfoCRData() (map[string]string, map[string]string, map[string]map[string]struct{}) {
-	clientSet := GetDynamicClientSet()
-	lrlsMap := make(map[string]string)
-	nsLRMap := make(map[string]string)
+func GetNetworkInfoCRData(clientSet dynamic.Interface) (map[string]string, map[string]map[string]struct{}) {
+	lslrMap := make(map[string]string)
 	cidrs := make(map[string]map[string]struct{})
 
 	crList, err := clientSet.Resource(NetworkInfoGVR).List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		utils.AviLog.Errorf("Error getting Networkinfo CR %v", err)
-		return lrlsMap, nsLRMap, cidrs
+		return lslrMap, cidrs
 	}
 
 	if len(crList.Items) == 0 {
 		utils.AviLog.Infof("No Networkinfo CRs found.")
-		return lrlsMap, nsLRMap, cidrs
-	}
-
-	if cidrIntf, clusterNetworkCIDRFound := GetClusterNetworkInfoCRData(clientSet); clusterNetworkCIDRFound {
-		// Set the namespace to cluster name for the cluster ingress cidr
-		ns := GetClusterName()
-		cidrs[ns] = make(map[string]struct{})
-		cidrMap := cidrs[ns]
-		for _, cidr := range cidrIntf {
-			cidrMap[cidr.(string)] = struct{}{}
-		}
-		utils.AviLog.Infof("Ingress CIDR found from Cluster Network Info %v", cidrIntf)
+		return lslrMap, cidrs
 	}
 
 	for _, obj := range crList.Items {
@@ -258,19 +175,26 @@ func GetNetworkInfoCRData() (map[string]string, map[string]string, map[string]ma
 		spec := obj.Object["topology"].(map[string]interface{})
 		lr, ok := spec["gatewayPath"].(string)
 		if !ok {
-			utils.AviLog.Infof("lr not found in networkinfo object, name: %s, namespace: %s", obj.GetName(), ns)
+			utils.AviLog.Infof("lr not found in networkinfo object")
 			continue
 		}
 		ls, ok := spec["aviSegmentPath"].(string)
 		if !ok {
-			utils.AviLog.Infof("ls not found in networkinfo object, name: %s, namespace: %s", obj.GetName(), ns)
+			utils.AviLog.Infof("ls not found in networkinfo object")
 			continue
 		}
-		lrlsMap[lr] = ls
-		nsLRMap[ns] = lr
+		lslrMap[ls] = lr
 		cidrIntf, ok := spec["ingressCIDRs"].([]interface{})
 		if !ok {
-			continue
+			utils.AviLog.Infof("cidr not found in networkinfo object")
+			// If not found, try fetching from cluster network info CRD
+			var clusterNetworkCIDRFound bool
+			if cidrIntf, clusterNetworkCIDRFound = GetClusterNetworkInfoCRData(clientSet); !clusterNetworkCIDRFound {
+				continue
+			}
+			// Set the namespace to cluster name for the cluster ingress cidr
+			ns = GetClusterName()
+			utils.AviLog.Infof("Ingress CIDR found from Cluster Network Info %v", cidrIntf)
 		}
 		for _, cidr := range cidrIntf {
 			if _, ok := cidrs[ns]; !ok {
@@ -281,7 +205,7 @@ func GetNetworkInfoCRData() (map[string]string, map[string]string, map[string]ma
 		}
 	}
 
-	return lrlsMap, nsLRMap, cidrs
+	return lslrMap, cidrs
 }
 
 func GetAvailabilityZonesCRData(clientSet dynamic.Interface) ([]string, error) {
@@ -393,70 +317,6 @@ func GetPodCIDR(node *v1.Node) ([]string, error) {
 			}
 		}
 
-	} else if GetCNIPlugin() == OVN_KUBERNETES_CNI {
-		var nodeSubnets string
-		var found bool
-		if nodeSubnets, found = node.Annotations[OVNNodeSubnetAnnotation]; !found {
-			return nil, errors.New("k8s.ovn.org/node-subnets annotation not found in Node Metadata")
-		}
-		var nodeSubnetJson map[string]interface{}
-		err := json.Unmarshal([]byte(nodeSubnets), &nodeSubnetJson)
-		if err != nil {
-			return nil, errors.New("Error while unmarshalling k8s.ovn.org/node-subnets annotation in Node Metadata : " + err.Error())
-		}
-		if podCIDR, ok := nodeSubnetJson["default"].(string); ok {
-			if podCIDR == "" {
-				utils.AviLog.Errorf("Error in fetching Pod CIDR from Node Metadata %v", node.ObjectMeta.Name)
-				return nil, errors.New("podcidr not found")
-			}
-			podCIDRs = append(podCIDRs, podCIDR)
-		} else if podCIDRList, ok := nodeSubnetJson["default"].([]interface{}); ok {
-			if len(podCIDRList) == 0 {
-				utils.AviLog.Errorf("Error in fetching Pod CIDR from Node Metadata %v", node.ObjectMeta.Name)
-				return nil, errors.New("podcidr not found")
-			}
-			for _, cidr := range podCIDRList {
-				if podCIDR, ok := cidr.(string); ok {
-					if podCIDR == "" {
-						utils.AviLog.Errorf("Error in fetching Pod CIDR from Node Metadata %v", node.ObjectMeta.Name)
-						return nil, errors.New("podcidr not found")
-					}
-					podCIDRs = append(podCIDRs, podCIDR)
-				}
-			}
-		}
-	} else if GetCNIPlugin() == CILIUM_CNI && dynamicClientSet != nil {
-		crdClient := dynamicClient.Resource(CiliumNodeGVR)
-		crdList, err := crdClient.List(context.TODO(), metav1.ListOptions{})
-		if err != nil {
-			utils.AviLog.Errorf("Error getting CRD %v", err)
-			return nil, err
-		}
-
-		for _, i := range crdList.Items {
-			crdMetadata := (i.Object["metadata"]).(map[string]interface{})
-			crdNodeName := crdMetadata["name"].(string)
-			if crdNodeName == nodename {
-				crdSpec := (i.Object["spec"]).(map[string]interface{})
-				crdIpam, ok := crdSpec["ipam"].(map[string]interface{})
-				if !ok {
-					utils.AviLog.Errorf("Error in fetching ipam from CiliumNode")
-					return nil, errors.New("Error in parsing ciliumnode crd list")
-				}
-				crdPodCidrs, ok := crdIpam["podCIDRs"].([]interface{})
-				if !ok {
-					utils.AviLog.Errorf("Error in fetching Pod CIDR from CiliumNode")
-					return nil, errors.New("Error in parsing ciliumnode crd list")
-				}
-				for _, podCIDR := range crdPodCidrs {
-					podCIDRString := podCIDR.(string)
-					if !utils.HasElem(podCIDRs, podCIDRString) {
-						podCIDRs = append(podCIDRs, podCIDRString)
-					}
-				}
-			}
-		}
-
 	} else {
 		if podCidrsFromAnnotation, ok := node.Annotations[StaticRouteAnnotation]; ok {
 			podCidrSlice := strings.Split(strings.TrimSpace(podCidrsFromAnnotation), ",")
@@ -479,6 +339,7 @@ func GetPodCIDR(node *v1.Node) ([]string, error) {
 			podCIDRs = append(podCIDRs, node.Spec.PodCIDRs...)
 		}
 	}
+
 	return podCIDRs, nil
 }
 
@@ -519,129 +380,4 @@ func WaitForInitSecretRecreateAndReboot() {
 		}
 		time.Sleep(5 * time.Second)
 	}
-}
-
-func GetVPCs() (map[string]string, error) {
-	clientSet := GetDynamicClientSet()
-	nsToVPCMap := make(map[string]string)
-	vpcNetworkConfigCRs, err := clientSet.Resource(VPCNetworkConfigurationGVR).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		return nsToVPCMap, err
-	}
-	namespaces, err := utils.GetInformers().NSInformer.Lister().List(labels.Set(nil).AsSelector())
-	if err != nil {
-		return nsToVPCMap, err
-	}
-	vpcNetworkConfigToNamespaceMap := make(map[string][]string)
-	for _, ns := range namespaces {
-		vpcNetCR := ns.Annotations["nsx.vmware.com/vpc_network_config"]
-		if vpcNetCR == "" {
-			continue
-		}
-		vpcNetworkConfigToNamespaceMap[vpcNetCR] = append(vpcNetworkConfigToNamespaceMap[vpcNetCR], ns.GetName())
-	}
-
-	for _, obj := range vpcNetworkConfigCRs.Items {
-		status, ok := obj.Object["status"].(map[string]interface{})
-		if !ok {
-			continue
-		}
-		vpcs, ok := status["vpcs"].([]interface{})
-		if !ok {
-			continue
-		}
-		for _, vpc := range vpcs {
-			vpcInfo, ok := vpc.(map[string]interface{})
-			if !ok {
-				continue
-			}
-			aviSubnetPath, ok := vpcInfo["lbSubnetPath"].(string)
-			if !ok {
-				continue
-			}
-			if aviSubnetPath == "" {
-				utils.AviLog.Warnf("invalid value for aviSubnetPath: %s in the VPCNetworkConfig CR %s", aviSubnetPath, obj.GetName())
-				continue
-			}
-			vpcPath := strings.Split(aviSubnetPath, "/subnets/")[0]
-			for _, ns := range vpcNetworkConfigToNamespaceMap[obj.GetName()] {
-				nsToVPCMap[ns] = vpcPath
-			}
-		}
-	}
-	return nsToVPCMap, nil
-}
-
-func IsGatewayAPICapabilityEnabled() bool {
-	clientSet := GetDynamicClientSet()
-	crList, err := clientSet.Resource(SupervisorCapabilityGVR).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		utils.AviLog.Errorf("Error getting SupervisorCapability CR %v", err)
-		return false
-	}
-	if len(crList.Items) == 0 {
-		utils.AviLog.Errorf("No SupervisorCapability CRs found.")
-		return false
-	}
-	for _, obj := range crList.Items {
-		status := obj.Object["status"].(map[string]interface{})
-		supervisorCapabilities, ok := status["supervisor"].(map[string]interface{})
-		if !ok {
-			utils.AviLog.Errorf("supervisor capability not found in the CR %+v", obj)
-			continue
-		}
-		gatewayAPISupportInSupervisor, ok := supervisorCapabilities["supports_gatewayapi_in_supervisor"].(map[string]interface{})
-		if !ok {
-			utils.AviLog.Errorf("supports_gatewayapi_in_supervisor not found in the CR %+v", obj)
-			continue
-		}
-		return gatewayAPISupportInSupervisor["activated"].(bool)
-	}
-	return false
-}
-
-func IsVKSCapabilityActivated() bool {
-	clientSet := GetDynamicClientSet()
-	if clientSet == nil {
-		utils.AviLog.Debugf("VKS capability: dynamic client not initialized yet")
-		return false
-	}
-	crList, err := clientSet.Resource(SupervisorCapabilityGVR).List(context.TODO(), metav1.ListOptions{})
-	if err != nil {
-		utils.AviLog.Errorf("VKS capability: error getting SupervisorCapability CR %v", err)
-		return false
-	}
-	if len(crList.Items) == 0 {
-		utils.AviLog.Debugf("VKS capability: no SupervisorCapability CRs found")
-		return false
-	}
-	for _, obj := range crList.Items {
-		status, ok := obj.Object["status"].(map[string]interface{})
-		if !ok {
-			utils.AviLog.Debugf("VKS capability: status field not found in SupervisorCapability CR %s", obj.GetName())
-			continue
-		}
-		supervisor, ok := status["supervisor"].(map[string]interface{})
-		if !ok {
-			utils.AviLog.Debugf("VKS capability: supervisor field not found in SupervisorCapability CR %s", obj.GetName())
-			continue
-		}
-		vksCap, ok := supervisor["supports_ako_vks_integration"].(map[string]interface{})
-		if !ok {
-			utils.AviLog.Debugf("VKS capability: supports_ako_vks_integration field not found in SupervisorCapability CR %s", obj.GetName())
-			continue
-		}
-		activated, ok := vksCap["activated"].(bool)
-		if !ok {
-			utils.AviLog.Debugf("VKS capability: activated field not found or not a boolean in SupervisorCapability CR %s", obj.GetName())
-			continue
-		}
-		if activated {
-			utils.AviLog.Infof("VKS capability: found activated=true in SupervisorCapability CR %s", obj.GetName())
-			return true
-		}
-		utils.AviLog.Debugf("VKS capability: found activated=false in SupervisorCapability CR %s", obj.GetName())
-	}
-	utils.AviLog.Debugf("VKS capability: not found or not activated in any SupervisorCapability CR")
-	return false
 }

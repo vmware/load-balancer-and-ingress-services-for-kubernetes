@@ -12,8 +12,6 @@ Fig: AKO High Availability Architecture
 
 Active and passive modes are assigned automatically by performing a leadership election among the AKOs. A lease lock(Kubernetes object) named `ako-lease-lock` in `avi-system` has been used to keep track of the current active AKO. The lease lock object has the identity of the current active AKO and a field named `renewTime` which active AKO periodically refreshes. The passive AKO periodically polls the lease lock object and updates its identity in the lease lock object when the `renewTime` goes beyond the deadline.
 
-**Note:** Lease lock object won't be created when AKO is running with single replica.
-
 Leader election between AKOs occurs as described below:
 ![Alt text](images/ako_ha_election.png?raw=true)
 <div align="center">
@@ -36,27 +34,10 @@ Passive AKO does the following:
 
 ## Steps to run AKO in High Availability
 
-Pull AKO helm chart and update helm dependency if not done by following these [steps](install/helm.md)
+* Change the `replicaCount` in `values.yaml` to two.
+* Execute the helm upgrade command and provide the updated `values.yaml` file.
 
-### Transitioning from Single Replica to High Availability
-
-To transition from a single AKO replica to high availability mode, you must follow this specific sequence to ensure proper leader election:
-
-1. **Scale down to zero replicas**: Change the `replicaCount` in `values.yaml` to 0 and execute the helm upgrade command.
-2. **Scale up to two replicas**: Change the `replicaCount` in `values.yaml` to 2 and execute the helm upgrade command.
-
-```bash
-# upgrade command
-helm upgrade ako-1593523840 . --set ControllerSettings.controllerHost=<IP or Hostname> --set avicredentials.password=<username> --set avicredentials.username=<username> --set ako-crd-operator.enabled=false --namespace=avi-system
-```
-
-**Note**: Set ako-crd-operator.enabled to true to install ako-crd-operator as part of upgrade.
-
-**Important:** This two-step process is required because:
-- When scaling directly from 1 to 2 replicas, the first replica skips leader election (thinking it's still single replica)
-- The second replica starts leader election, but the first replica doesn't participate
-- This can lead to both replicas becoming active simultaneously
-- By scaling to 0 first, both replicas start fresh and properly participate in leader election
+Helm upgrade ako-1593523840 ako/ako -f /path/to/values.yaml --version 1.10.1 --set ControllerSettings.controllerHost=<IP or Hostname> --set avicredentials.password=<username> --set avicredentials.username=<username> --namespace=avi-system
 
 **Note:**
 1. Currently, more than two replicas are not supported.

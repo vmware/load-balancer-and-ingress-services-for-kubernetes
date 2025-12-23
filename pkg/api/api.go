@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -24,7 +24,6 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"github.com/gorilla/mux"
-	"github.com/prometheus/client_golang/prometheus"
 )
 
 type ApiServer struct {
@@ -34,17 +33,17 @@ type ApiServer struct {
 }
 
 type ApiServerInterface interface {
-	SetRouter(prometheusEnavbled bool, reg *prometheus.Registry) *mux.Router
+	SetRouter() *mux.Router
 	InitApi()
 	ShutDown()
 }
 
-func (a *ApiServer) SetRouter(prometheusEnavbled bool, reg *prometheus.Registry) *mux.Router {
+func (a *ApiServer) SetRouter() *mux.Router {
 	router := mux.NewRouter()
 	routerMap := make(map[string]bool)
 
 	for _, model := range a.Models {
-		opermaps := model.ApiOperationMap(prometheusEnavbled, reg)
+		opermaps := model.ApiOperationMap()
 		for _, o := range opermaps {
 			routerMapKey := fmt.Sprintf("%s:%s", o.Method, o.Route)
 
@@ -87,7 +86,7 @@ func (a *ApiServer) initModels() {
 	}
 }
 
-func NewServer(port string, models []models.ApiModel, prometheusEnavbled bool, reg *prometheus.Registry) *ApiServer {
+func NewServer(port string, models []models.ApiModel) *ApiServer {
 
 	s := &ApiServer{
 		Server: http.Server{
@@ -98,7 +97,7 @@ func NewServer(port string, models []models.ApiModel, prometheusEnavbled bool, r
 	}
 	s.Models = models
 	s.initModels()
-	router := s.SetRouter(prometheusEnavbled, reg)
+	router := s.SetRouter()
 
 	//set http server handler
 	s.Handler = router

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -65,7 +65,6 @@ func (l *leader) SyncObjectStatuses() {
 					Vip:             IPAddrs,
 					ServiceMetadata: vsSvcMetadataObj,
 					Key:             lib.SyncStatusKey,
-					Tenant:          vsCacheObj.Tenant,
 				})
 			for _, poolKey := range vsCacheObj.PoolKeyCollection {
 				poolCache, ok := l.restOp.cache.PoolCache.AviCacheGet(poolKey)
@@ -86,7 +85,6 @@ func (l *leader) SyncObjectStatuses() {
 							Key:                lib.SyncStatusKey,
 							VSName:             vsCacheObj.Name,
 							VirtualServiceUUID: vsCacheObj.Uuid,
-							Tenant:             vsCacheObj.Tenant,
 						})
 				}
 			}
@@ -116,7 +114,6 @@ func (l *leader) SyncObjectStatuses() {
 								ServiceMetadata:    poolCacheObj.ServiceMetadataObj,
 								Key:                lib.SyncStatusKey,
 								VirtualServiceUUID: vsCacheObj.Uuid,
-								Tenant:             vsCacheObj.Tenant,
 							})
 					}
 				}
@@ -142,7 +139,6 @@ func (l *leader) SyncObjectStatuses() {
 							ServiceMetadata:    poolCacheObj.ServiceMetadataObj,
 							Key:                lib.SyncStatusKey,
 							VirtualServiceUUID: vsCacheObj.Uuid,
-							Tenant:             vsCacheObj.Tenant,
 						})
 				} else if len(poolCacheObj.ServiceMetadataObj.NamespaceServiceName) > 0 {
 					allServiceLBUpdateOptions = append(allServiceLBUpdateOptions,
@@ -151,7 +147,6 @@ func (l *leader) SyncObjectStatuses() {
 							ServiceMetadata:    poolCacheObj.ServiceMetadataObj,
 							Key:                lib.SyncStatusKey,
 							VirtualServiceUUID: vsCacheObj.Uuid,
-							Tenant:             vsCacheObj.Tenant,
 						})
 				}
 			}
@@ -165,13 +160,12 @@ func (l *leader) SyncObjectStatuses() {
 					ServiceMetadata:    vsSvcMetadataObj,
 					Key:                lib.SyncStatusKey,
 					VirtualServiceUUID: vsCacheObj.Uuid,
-					Tenant:             vsCacheObj.Tenant,
 				})
 		}
 	}
 
 	publisher := status.NewStatusPublisher()
-	if utils.IsWCP() {
+	if lib.IsWCP() {
 		publisher.UpdateGatewayStatusAddress(allGatewayUpdateOptions, true)
 		publisher.UpdateL4LBStatus(allServiceLBUpdateOptions, true)
 		publisher.UpdateRouteIngressStatus(allIngressUpdateOptions, true)

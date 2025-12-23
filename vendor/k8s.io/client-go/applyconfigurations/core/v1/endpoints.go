@@ -19,23 +19,23 @@ limitations under the License.
 package v1
 
 import (
-	corev1 "k8s.io/api/core/v1"
-	apismetav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	apicorev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	managedfields "k8s.io/apimachinery/pkg/util/managedfields"
 	internal "k8s.io/client-go/applyconfigurations/internal"
-	metav1 "k8s.io/client-go/applyconfigurations/meta/v1"
+	v1 "k8s.io/client-go/applyconfigurations/meta/v1"
 )
 
-// EndpointsApplyConfiguration represents a declarative configuration of the Endpoints type for use
+// EndpointsApplyConfiguration represents an declarative configuration of the Endpoints type for use
 // with apply.
 type EndpointsApplyConfiguration struct {
-	metav1.TypeMetaApplyConfiguration    `json:",inline"`
-	*metav1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
-	Subsets                              []EndpointSubsetApplyConfiguration `json:"subsets,omitempty"`
+	v1.TypeMetaApplyConfiguration    `json:",inline"`
+	*v1.ObjectMetaApplyConfiguration `json:"metadata,omitempty"`
+	Subsets                          []EndpointSubsetApplyConfiguration `json:"subsets,omitempty"`
 }
 
-// Endpoints constructs a declarative configuration of the Endpoints type for use with
+// Endpoints constructs an declarative configuration of the Endpoints type for use with
 // apply.
 func Endpoints(name, namespace string) *EndpointsApplyConfiguration {
 	b := &EndpointsApplyConfiguration{}
@@ -49,7 +49,7 @@ func Endpoints(name, namespace string) *EndpointsApplyConfiguration {
 // ExtractEndpoints extracts the applied configuration owned by fieldManager from
 // endpoints. If no managedFields are found in endpoints for fieldManager, a
 // EndpointsApplyConfiguration is returned with only the Name, Namespace (if applicable),
-// APIVersion and Kind populated. It is possible that no managed fields were found for because other
+// APIVersion and Kind populated. Is is possible that no managed fields were found for because other
 // field managers have taken ownership of all the fields previously owned by fieldManager, or because
 // the fieldManager never owned fields any fields.
 // endpoints must be a unmodified Endpoints API object that was retrieved from the Kubernetes API.
@@ -57,20 +57,9 @@ func Endpoints(name, namespace string) *EndpointsApplyConfiguration {
 // Note that an extracted apply configuration will contain fewer fields than what the fieldManager previously
 // applied if another fieldManager has updated or force applied any of the previously applied fields.
 // Experimental!
-func ExtractEndpoints(endpoints *corev1.Endpoints, fieldManager string) (*EndpointsApplyConfiguration, error) {
-	return extractEndpoints(endpoints, fieldManager, "")
-}
-
-// ExtractEndpointsStatus is the same as ExtractEndpoints except
-// that it extracts the status subresource applied configuration.
-// Experimental!
-func ExtractEndpointsStatus(endpoints *corev1.Endpoints, fieldManager string) (*EndpointsApplyConfiguration, error) {
-	return extractEndpoints(endpoints, fieldManager, "status")
-}
-
-func extractEndpoints(endpoints *corev1.Endpoints, fieldManager string, subresource string) (*EndpointsApplyConfiguration, error) {
+func ExtractEndpoints(endpoints *apicorev1.Endpoints, fieldManager string) (*EndpointsApplyConfiguration, error) {
 	b := &EndpointsApplyConfiguration{}
-	err := managedfields.ExtractInto(endpoints, internal.Parser().Type("io.k8s.api.core.v1.Endpoints"), fieldManager, b, subresource)
+	err := managedfields.ExtractInto(endpoints, internal.Parser().Type("io.k8s.api.core.v1.Endpoints"), fieldManager, b)
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +75,7 @@ func extractEndpoints(endpoints *corev1.Endpoints, fieldManager string, subresou
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Kind field is set to the value of the last call.
 func (b *EndpointsApplyConfiguration) WithKind(value string) *EndpointsApplyConfiguration {
-	b.TypeMetaApplyConfiguration.Kind = &value
+	b.Kind = &value
 	return b
 }
 
@@ -94,7 +83,7 @@ func (b *EndpointsApplyConfiguration) WithKind(value string) *EndpointsApplyConf
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the APIVersion field is set to the value of the last call.
 func (b *EndpointsApplyConfiguration) WithAPIVersion(value string) *EndpointsApplyConfiguration {
-	b.TypeMetaApplyConfiguration.APIVersion = &value
+	b.APIVersion = &value
 	return b
 }
 
@@ -103,7 +92,7 @@ func (b *EndpointsApplyConfiguration) WithAPIVersion(value string) *EndpointsApp
 // If called multiple times, the Name field is set to the value of the last call.
 func (b *EndpointsApplyConfiguration) WithName(value string) *EndpointsApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.Name = &value
+	b.Name = &value
 	return b
 }
 
@@ -112,7 +101,7 @@ func (b *EndpointsApplyConfiguration) WithName(value string) *EndpointsApplyConf
 // If called multiple times, the GenerateName field is set to the value of the last call.
 func (b *EndpointsApplyConfiguration) WithGenerateName(value string) *EndpointsApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.GenerateName = &value
+	b.GenerateName = &value
 	return b
 }
 
@@ -121,7 +110,16 @@ func (b *EndpointsApplyConfiguration) WithGenerateName(value string) *EndpointsA
 // If called multiple times, the Namespace field is set to the value of the last call.
 func (b *EndpointsApplyConfiguration) WithNamespace(value string) *EndpointsApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.Namespace = &value
+	b.Namespace = &value
+	return b
+}
+
+// WithSelfLink sets the SelfLink field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the SelfLink field is set to the value of the last call.
+func (b *EndpointsApplyConfiguration) WithSelfLink(value string) *EndpointsApplyConfiguration {
+	b.ensureObjectMetaApplyConfigurationExists()
+	b.SelfLink = &value
 	return b
 }
 
@@ -130,7 +128,7 @@ func (b *EndpointsApplyConfiguration) WithNamespace(value string) *EndpointsAppl
 // If called multiple times, the UID field is set to the value of the last call.
 func (b *EndpointsApplyConfiguration) WithUID(value types.UID) *EndpointsApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.UID = &value
+	b.UID = &value
 	return b
 }
 
@@ -139,7 +137,7 @@ func (b *EndpointsApplyConfiguration) WithUID(value types.UID) *EndpointsApplyCo
 // If called multiple times, the ResourceVersion field is set to the value of the last call.
 func (b *EndpointsApplyConfiguration) WithResourceVersion(value string) *EndpointsApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.ResourceVersion = &value
+	b.ResourceVersion = &value
 	return b
 }
 
@@ -148,25 +146,25 @@ func (b *EndpointsApplyConfiguration) WithResourceVersion(value string) *Endpoin
 // If called multiple times, the Generation field is set to the value of the last call.
 func (b *EndpointsApplyConfiguration) WithGeneration(value int64) *EndpointsApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.Generation = &value
+	b.Generation = &value
 	return b
 }
 
 // WithCreationTimestamp sets the CreationTimestamp field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the CreationTimestamp field is set to the value of the last call.
-func (b *EndpointsApplyConfiguration) WithCreationTimestamp(value apismetav1.Time) *EndpointsApplyConfiguration {
+func (b *EndpointsApplyConfiguration) WithCreationTimestamp(value metav1.Time) *EndpointsApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.CreationTimestamp = &value
+	b.CreationTimestamp = &value
 	return b
 }
 
 // WithDeletionTimestamp sets the DeletionTimestamp field in the declarative configuration to the given value
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the DeletionTimestamp field is set to the value of the last call.
-func (b *EndpointsApplyConfiguration) WithDeletionTimestamp(value apismetav1.Time) *EndpointsApplyConfiguration {
+func (b *EndpointsApplyConfiguration) WithDeletionTimestamp(value metav1.Time) *EndpointsApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.DeletionTimestamp = &value
+	b.DeletionTimestamp = &value
 	return b
 }
 
@@ -175,7 +173,7 @@ func (b *EndpointsApplyConfiguration) WithDeletionTimestamp(value apismetav1.Tim
 // If called multiple times, the DeletionGracePeriodSeconds field is set to the value of the last call.
 func (b *EndpointsApplyConfiguration) WithDeletionGracePeriodSeconds(value int64) *EndpointsApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.DeletionGracePeriodSeconds = &value
+	b.DeletionGracePeriodSeconds = &value
 	return b
 }
 
@@ -185,11 +183,11 @@ func (b *EndpointsApplyConfiguration) WithDeletionGracePeriodSeconds(value int64
 // overwriting an existing map entries in Labels field with the same key.
 func (b *EndpointsApplyConfiguration) WithLabels(entries map[string]string) *EndpointsApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	if b.ObjectMetaApplyConfiguration.Labels == nil && len(entries) > 0 {
-		b.ObjectMetaApplyConfiguration.Labels = make(map[string]string, len(entries))
+	if b.Labels == nil && len(entries) > 0 {
+		b.Labels = make(map[string]string, len(entries))
 	}
 	for k, v := range entries {
-		b.ObjectMetaApplyConfiguration.Labels[k] = v
+		b.Labels[k] = v
 	}
 	return b
 }
@@ -200,11 +198,11 @@ func (b *EndpointsApplyConfiguration) WithLabels(entries map[string]string) *End
 // overwriting an existing map entries in Annotations field with the same key.
 func (b *EndpointsApplyConfiguration) WithAnnotations(entries map[string]string) *EndpointsApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	if b.ObjectMetaApplyConfiguration.Annotations == nil && len(entries) > 0 {
-		b.ObjectMetaApplyConfiguration.Annotations = make(map[string]string, len(entries))
+	if b.Annotations == nil && len(entries) > 0 {
+		b.Annotations = make(map[string]string, len(entries))
 	}
 	for k, v := range entries {
-		b.ObjectMetaApplyConfiguration.Annotations[k] = v
+		b.Annotations[k] = v
 	}
 	return b
 }
@@ -212,13 +210,13 @@ func (b *EndpointsApplyConfiguration) WithAnnotations(entries map[string]string)
 // WithOwnerReferences adds the given value to the OwnerReferences field in the declarative configuration
 // and returns the receiver, so that objects can be build by chaining "With" function invocations.
 // If called multiple times, values provided by each call will be appended to the OwnerReferences field.
-func (b *EndpointsApplyConfiguration) WithOwnerReferences(values ...*metav1.OwnerReferenceApplyConfiguration) *EndpointsApplyConfiguration {
+func (b *EndpointsApplyConfiguration) WithOwnerReferences(values ...*v1.OwnerReferenceApplyConfiguration) *EndpointsApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
 	for i := range values {
 		if values[i] == nil {
 			panic("nil value passed to WithOwnerReferences")
 		}
-		b.ObjectMetaApplyConfiguration.OwnerReferences = append(b.ObjectMetaApplyConfiguration.OwnerReferences, *values[i])
+		b.OwnerReferences = append(b.OwnerReferences, *values[i])
 	}
 	return b
 }
@@ -229,14 +227,23 @@ func (b *EndpointsApplyConfiguration) WithOwnerReferences(values ...*metav1.Owne
 func (b *EndpointsApplyConfiguration) WithFinalizers(values ...string) *EndpointsApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
 	for i := range values {
-		b.ObjectMetaApplyConfiguration.Finalizers = append(b.ObjectMetaApplyConfiguration.Finalizers, values[i])
+		b.Finalizers = append(b.Finalizers, values[i])
 	}
+	return b
+}
+
+// WithClusterName sets the ClusterName field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the ClusterName field is set to the value of the last call.
+func (b *EndpointsApplyConfiguration) WithClusterName(value string) *EndpointsApplyConfiguration {
+	b.ensureObjectMetaApplyConfigurationExists()
+	b.ClusterName = &value
 	return b
 }
 
 func (b *EndpointsApplyConfiguration) ensureObjectMetaApplyConfigurationExists() {
 	if b.ObjectMetaApplyConfiguration == nil {
-		b.ObjectMetaApplyConfiguration = &metav1.ObjectMetaApplyConfiguration{}
+		b.ObjectMetaApplyConfiguration = &v1.ObjectMetaApplyConfiguration{}
 	}
 }
 
@@ -251,10 +258,4 @@ func (b *EndpointsApplyConfiguration) WithSubsets(values ...*EndpointSubsetApply
 		b.Subsets = append(b.Subsets, *values[i])
 	}
 	return b
-}
-
-// GetName retrieves the value of the Name field in the declarative configuration.
-func (b *EndpointsApplyConfiguration) GetName() *string {
-	b.ensureObjectMetaApplyConfigurationExists()
-	return b.ObjectMetaApplyConfiguration.Name
 }

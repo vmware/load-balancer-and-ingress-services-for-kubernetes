@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -36,25 +35,16 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api"
 	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
-	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
-
-	akov1alpha2 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha2"
 	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
-	v1alpha2crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha2/clientset/versioned/fake"
-	v1beta1crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned/fake"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	"github.com/onsi/gomega"
 	"github.com/vmware/alb-sdk/go/models"
-	"google.golang.org/protobuf/proto"
 	coordinationv1 "k8s.io/api/coordination/v1"
 	corev1 "k8s.io/api/core/v1"
-	discovery "k8s.io/api/discovery/v1"
 	networking "k8s.io/api/networking/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/wait"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
@@ -71,25 +61,10 @@ const (
 	MULTIPORTMODEL      = "admin/cluster--red-ns-testsvcmulti" // multi port model name
 	RANDOMUUID          = "random-uuid"                        // random avi object uuid
 	DefaultIngressClass = "avi-lb"
-	SSOTypeOAuth        = "OAuth"
-	SSOTypeSAML         = "SAML"
-	SHAREDVIPKEY        = "shared-vip-key"
-	SHAREDVIPSVC01      = "shared-vip-svc-01"
-	SHAREDVIPSVC02      = "shared-vip-svc-02"
-	EXTDNSANNOTATION    = "custom-fqdn.com"
-	EXTDNSSVC           = "custom-fqdn-svc"
-	INVALID_LB_CLASS    = "not-ako-lb"
-	letterBytes         = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	DefaultRouteCert    = "router-certs-default"
-	DEFAULT_NAMESPACE   = "default"
-	PATHPREFIX          = "PathPrefix"
-	REGULAREXPRESSION   = "RegularExpression"
 )
 
 var KubeClient *k8sfake.Clientset
 var CRDClient *crdfake.Clientset
-var v1alpha2CRDClient *v1alpha2crdfake.Clientset
-var v1beta1CRDClient *v1beta1crdfake.Clientset
 var ctrl *k8s.AviController
 
 var AllModels = []string{
@@ -200,18 +175,6 @@ func AddNamespace(t *testing.T, nsName string, labels map[string]string) error {
 	return err
 }
 
-func AddDefaultNamespace(ns ...string) {
-	namespace := "default"
-	if len(ns) > 0 {
-		namespace = ns[0]
-	}
-	nsMetaOptions := (FakeNamespace{
-		Name: namespace,
-	}).Namespace()
-	nsMetaOptions.ResourceVersion = "1"
-	KubeClient.CoreV1().Namespaces().Create(context.TODO(), nsMetaOptions, metav1.CreateOptions{})
-}
-
 func UpdateNamespace(t *testing.T, nsName string, labels map[string]string) error {
 	nsMetaOptions := (FakeNamespace{
 		Name:   nsName,
@@ -273,17 +236,6 @@ func AddSecret(secretName string, namespace string, cert string, key string) {
 	KubeClient.CoreV1().Secrets(namespace).Create(context.TODO(), fakeSecret, metav1.CreateOptions{})
 }
 
-func UpdateSecret(secretName string, namespace string, cert string, key string) {
-	fakeSecret := (FakeSecret{
-		Cert:      cert,
-		Key:       key,
-		Namespace: namespace,
-		Name:      secretName,
-	}).Secret()
-	fakeSecret.ResourceVersion = "2"
-	KubeClient.CoreV1().Secrets(namespace).Update(context.TODO(), fakeSecret, metav1.UpdateOptions{})
-}
-
 func DeleteSecret(secretName string, namespace string) {
 	KubeClient.CoreV1().Secrets(namespace).Delete(context.TODO(), secretName, metav1.DeleteOptions{})
 }
@@ -300,7 +252,6 @@ type FakeIngress struct {
 	annotations  map[string]string
 	ServiceName  string
 	TlsSecretDNS map[string][]string
-	NoPath       bool
 }
 
 func (ing FakeIngress) Ingress(multiport ...bool) *networking.Ingress {
@@ -314,8 +265,8 @@ func (ing FakeIngress) Ingress(multiport ...bool) *networking.Ingress {
 			Rules: []networking.IngressRule{},
 		},
 		Status: networking.IngressStatus{
-			LoadBalancer: networking.IngressLoadBalancerStatus{
-				Ingress: []networking.IngressLoadBalancerIngress{},
+			LoadBalancer: corev1.LoadBalancerStatus{
+				Ingress: []corev1.LoadBalancerIngress{},
 			},
 		},
 	}
@@ -348,30 +299,17 @@ func (ing FakeIngress) Ingress(multiport ...bool) *networking.Ingress {
 							}}}}}}},
 			)
 		} else {
-			if ing.NoPath {
-				ingress.Spec.Rules = append(ingress.Spec.Rules, networking.IngressRule{
-					Host: dnsName,
-					IngressRuleValue: networking.IngressRuleValue{
-						HTTP: &networking.HTTPIngressRuleValue{
-							Paths: []networking.HTTPIngressPath{{
-								Backend: networking.IngressBackend{Service: &networking.IngressServiceBackend{
-									Name: ing.ServiceName,
-									Port: networking.ServiceBackendPort{Number: 8080},
-								}}}}}}},
-				)
-			} else {
-				ingress.Spec.Rules = append(ingress.Spec.Rules, networking.IngressRule{
-					Host: dnsName,
-					IngressRuleValue: networking.IngressRuleValue{
-						HTTP: &networking.HTTPIngressRuleValue{
-							Paths: []networking.HTTPIngressPath{{
-								Path: path,
-								Backend: networking.IngressBackend{Service: &networking.IngressServiceBackend{
-									Name: ing.ServiceName,
-									Port: networking.ServiceBackendPort{Number: 8080},
-								}}}}}}},
-				)
-			}
+			ingress.Spec.Rules = append(ingress.Spec.Rules, networking.IngressRule{
+				Host: dnsName,
+				IngressRuleValue: networking.IngressRuleValue{
+					HTTP: &networking.HTTPIngressRuleValue{
+						Paths: []networking.HTTPIngressPath{{
+							Path: path,
+							Backend: networking.IngressBackend{Service: &networking.IngressServiceBackend{
+								Name: ing.ServiceName,
+								Port: networking.ServiceBackendPort{Number: 8080},
+							}}}}}}},
+			)
 		}
 	}
 	for secret, hosts := range ing.TlsSecretDNS {
@@ -385,7 +323,7 @@ func (ing FakeIngress) Ingress(multiport ...bool) *networking.Ingress {
 		if len(ing.HostNames) >= i+1 {
 			hostname = ing.HostNames[i]
 		}
-		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, networking.IngressLoadBalancerIngress{
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, corev1.LoadBalancerIngress{
 			IP:       ing.Ips[i],
 			Hostname: hostname,
 		})
@@ -407,8 +345,8 @@ func (ing FakeIngress) IngressMultiPort() *networking.Ingress {
 			Rules: []networking.IngressRule{},
 		},
 		Status: networking.IngressStatus{
-			LoadBalancer: networking.IngressLoadBalancerStatus{
-				Ingress: []networking.IngressLoadBalancerIngress{},
+			LoadBalancer: corev1.LoadBalancerStatus{
+				Ingress: []corev1.LoadBalancerIngress{},
 			},
 		},
 	}
@@ -448,7 +386,7 @@ func (ing FakeIngress) IngressMultiPort() *networking.Ingress {
 		if len(ing.HostNames) >= i+1 {
 			hostname = ing.HostNames[i]
 		}
-		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, networking.IngressLoadBalancerIngress{
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, corev1.LoadBalancerIngress{
 			IP:       ing.Ips[i],
 			Hostname: hostname,
 		})
@@ -470,8 +408,8 @@ func (ing FakeIngress) SecureIngress() *networking.Ingress {
 			Rules: []networking.IngressRule{},
 		},
 		Status: networking.IngressStatus{
-			LoadBalancer: networking.IngressLoadBalancerStatus{
-				Ingress: []networking.IngressLoadBalancerIngress{},
+			LoadBalancer: corev1.LoadBalancerStatus{
+				Ingress: []corev1.LoadBalancerIngress{},
 			},
 		},
 	}
@@ -494,12 +432,12 @@ func (ing FakeIngress) SecureIngress() *networking.Ingress {
 	}
 
 	for _, ip := range ing.Ips {
-		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, networking.IngressLoadBalancerIngress{
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, corev1.LoadBalancerIngress{
 			IP: ip,
 		})
 	}
 	for _, hostName := range ing.HostNames {
-		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, networking.IngressLoadBalancerIngress{
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, corev1.LoadBalancerIngress{
 			Hostname: hostName,
 		})
 	}
@@ -520,8 +458,8 @@ func (ing FakeIngress) IngressNoHost() *networking.Ingress {
 			Rules: []networking.IngressRule{},
 		},
 		Status: networking.IngressStatus{
-			LoadBalancer: networking.IngressLoadBalancerStatus{
-				Ingress: []networking.IngressLoadBalancerIngress{},
+			LoadBalancer: corev1.LoadBalancerStatus{
+				Ingress: []corev1.LoadBalancerIngress{},
 			},
 		},
 	}
@@ -538,12 +476,12 @@ func (ing FakeIngress) IngressNoHost() *networking.Ingress {
 		)
 	}
 	for _, ip := range ing.Ips {
-		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, networking.IngressLoadBalancerIngress{
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, corev1.LoadBalancerIngress{
 			IP: ip,
 		})
 	}
 	for _, hostName := range ing.HostNames {
-		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, networking.IngressLoadBalancerIngress{
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, corev1.LoadBalancerIngress{
 			Hostname: hostName,
 		})
 	}
@@ -587,8 +525,8 @@ func (ing FakeIngress) IngressMultiPath() *networking.Ingress {
 			Rules: []networking.IngressRule{},
 		},
 		Status: networking.IngressStatus{
-			LoadBalancer: networking.IngressLoadBalancerStatus{
-				Ingress: []networking.IngressLoadBalancerIngress{},
+			LoadBalancer: corev1.LoadBalancerStatus{
+				Ingress: []corev1.LoadBalancerIngress{},
 			},
 		},
 	}
@@ -624,12 +562,12 @@ func (ing FakeIngress) IngressMultiPath() *networking.Ingress {
 		})
 	}
 	for _, ip := range ing.Ips {
-		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, networking.IngressLoadBalancerIngress{
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, corev1.LoadBalancerIngress{
 			IP: ip,
 		})
 	}
 	for _, hostName := range ing.HostNames {
-		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, networking.IngressLoadBalancerIngress{
+		ingress.Status.LoadBalancer.Ingress = append(ingress.Status.LoadBalancer.Ingress, corev1.LoadBalancerIngress{
 			Hostname: hostName,
 		})
 	}
@@ -686,15 +624,14 @@ func PollForSyncStart(ctrl *k8s.AviController, counter int) bool {
 }
 
 type FakeService struct {
-	Namespace         string
-	Name              string
-	Labels            map[string]string
-	Type              corev1.ServiceType
-	LoadBalancerIP    string
-	ServicePorts      []Serviceport
-	Selectors         map[string]string
-	Annotations       map[string]string
-	LoadBalancerClass string
+	Namespace      string
+	Name           string
+	Labels         map[string]string
+	Type           corev1.ServiceType
+	LoadBalancerIP string
+	ServicePorts   []Serviceport
+	Selectors      map[string]string
+	Annotations    map[string]string
 }
 
 type Serviceport struct {
@@ -716,15 +653,12 @@ func (svc FakeService) Service() *corev1.Service {
 			NodePort:   svcport.NodePort,
 		})
 	}
-	ipFamilyPolicy := corev1.IPFamilyPolicy("SingleStack")
 	svcExample := &corev1.Service{
 		Spec: corev1.ServiceSpec{
 			Type:           svc.Type,
 			Ports:          ports,
 			LoadBalancerIP: svc.LoadBalancerIP,
 			Selector:       svc.Selectors,
-			IPFamilyPolicy: &ipFamilyPolicy,
-			IPFamilies:     []corev1.IPFamily{"IPv4"},
 		},
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace:   svc.Namespace,
@@ -732,9 +666,6 @@ func (svc FakeService) Service() *corev1.Service {
 			Labels:      svc.Labels,
 			Annotations: svc.Annotations,
 		},
-	}
-	if svc.LoadBalancerClass != "" {
-		svcExample.Spec.LoadBalancerClass = &svc.LoadBalancerClass
 	}
 	return svcExample
 }
@@ -771,48 +702,6 @@ func (node FakeNode) Node() *corev1.Node {
 		nodeExample.Annotations = map[string]string{
 			lib.StaticRouteAnnotation: node.PodCIDRsAnnotation,
 		}
-	}
-	return nodeExample
-}
-
-func (node FakeNode) NodeOVN() *corev1.Node {
-	nodeExample := &corev1.Node{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            node.Name,
-			ResourceVersion: node.Version,
-		},
-		Status: corev1.NodeStatus{
-			Addresses: []corev1.NodeAddress{
-				{
-					Type:    "InternalIP",
-					Address: node.NodeIP,
-				},
-			},
-		},
-	}
-	if node.PodCIDRsAnnotation != "" {
-		subnetAnnotation := `{"default":"` + node.PodCIDRsAnnotation + `"}`
-		nodeExample.Annotations = map[string]string{
-			lib.OVNNodeSubnetAnnotation: subnetAnnotation,
-		}
-	}
-	return nodeExample
-}
-
-func (node FakeNode) NodeCalico() *corev1.Node {
-	nodeExample := &corev1.Node{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            node.Name,
-			ResourceVersion: node.Version,
-		},
-		Status: corev1.NodeStatus{
-			Addresses: []corev1.NodeAddress{
-				{
-					Type:    "InternalIP",
-					Address: node.NodeIP,
-				},
-			},
-		},
 	}
 	return nodeExample
 }
@@ -898,49 +787,26 @@ ServicePorts: [
 
 ]
 */
-func CreateSVC(t *testing.T, ns string, Name string, protocol corev1.Protocol, Type corev1.ServiceType, multiPort bool, multiProtocol ...corev1.Protocol) {
+func CreateSVC(t *testing.T, ns string, Name string, Type corev1.ServiceType, multiPort bool) {
 	selectors := make(map[string]string)
-	CreateServiceWithSelectors(t, ns, Name, protocol, Type, multiPort, selectors, multiProtocol...)
-	time.Sleep(2 * time.Second)
+	CreateServiceWithSelectors(t, ns, Name, Type, multiPort, selectors)
 }
 
-func CreateSVCWithValidOrInvalidLBClass(t *testing.T, ns string, Name string, protocol corev1.Protocol, Type corev1.ServiceType, multiPort bool, LBClass string, multiProtocol ...corev1.Protocol) {
-	selectors := make(map[string]string)
-	svcExample := ConstructService(ns, Name, protocol, Type, multiPort, selectors, LBClass, multiProtocol...)
-	_, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svcExample, metav1.CreateOptions{})
-	if err != nil {
-		t.Fatalf("error in adding Service: %v", err)
-	}
-	time.Sleep(2 * time.Second)
-}
-
-func CreateServiceWithSelectors(t *testing.T, ns string, Name string, protocol corev1.Protocol, Type corev1.ServiceType, multiPort bool, selectors map[string]string, multiProtocol ...corev1.Protocol) {
-	svcExample := ConstructService(ns, Name, protocol, Type, multiPort, selectors, "", multiProtocol...)
+func CreateServiceWithSelectors(t *testing.T, ns string, Name string, Type corev1.ServiceType, multiPort bool, selectors map[string]string) {
+	svcExample := ConstructService(ns, Name, Type, multiPort, selectors)
 	_, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svcExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
 }
 
-func CreateSvcWithExternalTrafficPolicy(t *testing.T, ns string, Name string, protocol corev1.Protocol, Type corev1.ServiceType, multiPort bool, externalTrafficPolicy string, multiProtocol ...corev1.Protocol) {
+func UpdateSVC(t *testing.T, ns string, Name string, Type corev1.ServiceType, multiPort bool) {
 	selectors := make(map[string]string)
-	svcExample := ConstructService(ns, Name, protocol, Type, multiPort, selectors, "", multiProtocol...)
-	if externalTrafficPolicy == "Local" {
-		svcExample.Spec.ExternalTrafficPolicy = corev1.ServiceExternalTrafficPolicyTypeLocal
-	}
-	_, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svcExample, metav1.CreateOptions{})
-	if err != nil {
-		t.Fatalf("error in adding Service: %v", err)
-	}
+	UpdateServiceWithSelectors(t, ns, Name, Type, multiPort, selectors)
 }
 
-func UpdateSVC(t *testing.T, ns string, Name string, protocol corev1.Protocol, Type corev1.ServiceType, multiPort bool) {
-	selectors := make(map[string]string)
-	UpdateServiceWithSelectors(t, ns, Name, protocol, Type, multiPort, selectors)
-}
-
-func UpdateServiceWithSelectors(t *testing.T, ns string, Name string, protocol corev1.Protocol, Type corev1.ServiceType, multiPort bool, selectors map[string]string) {
-	svcExample := ConstructService(ns, Name, protocol, Type, multiPort, selectors, "")
+func UpdateServiceWithSelectors(t *testing.T, ns string, Name string, Type corev1.ServiceType, multiPort bool, selectors map[string]string) {
+	svcExample := ConstructService(ns, Name, Type, multiPort, selectors)
 	svcExample.ResourceVersion = "2"
 	_, err := KubeClient.CoreV1().Services(ns).Update(context.TODO(), svcExample, metav1.UpdateOptions{})
 	if err != nil {
@@ -948,32 +814,20 @@ func UpdateServiceWithSelectors(t *testing.T, ns string, Name string, protocol c
 	}
 }
 
-func ConstructService(ns string, Name string, protocol corev1.Protocol, Type corev1.ServiceType, multiPort bool, selectors map[string]string, LBClass string, multiProtocol ...corev1.Protocol) *corev1.Service {
+func ConstructService(ns string, Name string, Type corev1.ServiceType, multiPort bool, selectors map[string]string) *corev1.Service {
 	var servicePorts []Serviceport
 	numPorts := 1
 	if multiPort {
 		numPorts = 3
 	}
-	if len(multiProtocol) != 0 {
-		numPorts = len(multiProtocol)
-	}
 
 	for i := 0; i < numPorts; i++ {
-		if len(multiProtocol) != 0 {
-			protocol = multiProtocol[i]
-		}
-		mPort, targetPort := 8080, 8080
-		if multiPort {
-			mPort = 8080 + i
-			targetPort = mPort
-		} else if len(multiProtocol) != 0 {
-			targetPort = 8080 + i
-		}
+		mPort := 8080 + i
 		sp := Serviceport{
 			PortName:   fmt.Sprintf("foo%d", i),
 			PortNumber: int32(mPort),
-			Protocol:   protocol,
-			TargetPort: intstr.FromInt(targetPort),
+			Protocol:   "TCP",
+			TargetPort: intstr.FromInt(mPort),
 		}
 		if Type != corev1.ServiceTypeClusterIP {
 			// set nodeport value in case of LoadBalancer and NodePort service type
@@ -982,12 +836,9 @@ func ConstructService(ns string, Name string, protocol corev1.Protocol, Type cor
 		}
 		servicePorts = append(servicePorts, sp)
 	}
-	svcObj := (FakeService{Name: Name, Namespace: ns, Type: Type, ServicePorts: servicePorts, Selectors: selectors})
-	if LBClass != "" {
-		svcObj.LoadBalancerClass = LBClass
-	}
-	svc := svcObj.Service()
-	return svc
+
+	svcExample := (FakeService{Name: Name, Namespace: ns, Type: Type, ServicePorts: servicePorts, Selectors: selectors}).Service()
+	return svcExample
 }
 
 func DelSVC(t *testing.T, ns string, Name string) {
@@ -997,196 +848,91 @@ func DelSVC(t *testing.T, ns string, Name string) {
 	}
 }
 
-// CreateEP creates endpoint slices based on env
-func CreateEPS(t *testing.T, ns string, Name string, multiPort bool, multiAddress bool, addressPrefix string, multiProtocol ...corev1.Protocol) {
-	addressType := discovery.AddressTypeIPv4
+/*
+CreateEP creates a sample Endpoint object
+if multiPort: False and multiAddress: False
 
+	1.1.1.1:8080
+
+if multiPort: True and multiAddress: False
+
+	1.1.1.1:8080,
+	1.1.1.2:8081,
+	1.1.1.3:8082
+
+if multiPort: False and multiAddress: True
+
+	1.1.1.1:8080, 1.1.1.2:8080, 1.1.1.2:8080
+
+if multiPort: True and multiAddress: True
+
+	1.1.1.1:8080, 1.1.1.2:8080, 1.1.1.3:8080,
+	1.1.1.4:8081, 1.1.1.5:8081,
+	1.1.1.6:8082
+*/
+func CreateEP(t *testing.T, ns string, Name string, multiPort bool, multiAddress bool, addressPrefix string) {
 	if addressPrefix == "" {
 		addressPrefix = "1.1.1"
 	}
-	if strings.Contains(addressPrefix, "::") {
-		addressType = discovery.AddressTypeIPv6
-	}
-	//var endpoints discovery.EndpointSlice
-	numPorts, numAddresses := 1, 1
+	var endpointSubsets []corev1.EndpointSubset
+	numPorts, numAddresses, addressStart := 1, 1, 0
 	if multiPort {
 		numPorts = 3
 	}
-	if len(multiProtocol) != 0 {
-		numPorts = len(multiProtocol)
-	}
 	if multiAddress {
-		numAddresses = 3
+		numAddresses, addressStart = 3, 0
 	}
-	svcName := Name
 
-	// // create separate endpoint slice if multiProtocol
-
-	// // mPort := 8080 + i
-	startIndex := 0
 	for i := 0; i < numPorts; i++ {
-		var endpoints []discovery.Endpoint
+		mPort := 8080 + i
+		var epAddresses []corev1.EndpointAddress
 		for j := 0; j < numAddresses; j++ {
-			if strings.Contains(addressPrefix, "::") {
-				endpoints = append(endpoints, discovery.Endpoint{
-					Addresses: []string{fmt.Sprintf("%s%d", addressPrefix, j+startIndex+1)},
-				})
-			} else {
-				endpoints = append(endpoints, discovery.Endpoint{Addresses: []string{fmt.Sprintf("%s.%d", addressPrefix, j+startIndex+1)}})
-			}
-			startIndex++
+			epAddresses = append(epAddresses, corev1.EndpointAddress{IP: fmt.Sprintf("%s.%d", addressPrefix, addressStart+j+i+1)})
 		}
-		numAddresses--
-		protocol := corev1.ProtocolTCP
-		if len(multiProtocol) != 0 {
-			protocol = multiProtocol[i]
-		}
-		mPort := int32(8080 + i)
-		portName := fmt.Sprintf("foo%d", i)
-		ports := []discovery.EndpointPort{{
-			Protocol: &protocol,
-			Port:     &mPort,
-			Name:     &portName,
-		}}
-		tempName := Name + "-" + randStringBytesRmndr(5)
-		epExample := &discovery.EndpointSlice{
-			AddressType: addressType,
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: ns,
-				Name:      tempName,
-				Labels:    map[string]string{discovery.LabelServiceName: svcName},
-			},
-			Endpoints: endpoints,
-			Ports:     ports,
-		}
-		_, err := KubeClient.DiscoveryV1().EndpointSlices(ns).Create(context.TODO(), epExample, metav1.CreateOptions{})
-		if err != nil {
-			t.Fatalf("error in creating Endpoint: %v", err)
-		}
+		numAddresses = numAddresses - 1
+		addressStart = addressStart + numAddresses
+		endpointSubsets = append(endpointSubsets, corev1.EndpointSubset{
+			Addresses: epAddresses,
+			Ports: []corev1.EndpointPort{{
+				Name:     fmt.Sprintf("foo%d", i),
+				Port:     int32(mPort),
+				Protocol: "TCP",
+			}},
+		})
+	}
 
+	epExample := &corev1.Endpoints{
+		ObjectMeta: metav1.ObjectMeta{Namespace: ns, Name: Name},
+		Subsets:    endpointSubsets,
 	}
-	time.Sleep(2 * time.Second)
-}
-
-// CreateEP creates endpoint based on env with Node name added
-func CreateEPSNodeName(t *testing.T, ns string, Name string, multiPort bool, multiAddress bool, addressPrefix string, nodeName string, multiProtocol ...corev1.Protocol) {
-	addressType := discovery.AddressTypeIPv4
-
-	if addressPrefix == "" {
-		addressPrefix = "1.1.1"
-	}
-	if strings.Contains(addressPrefix, "::") {
-		addressType = discovery.AddressTypeIPv6
-	}
-	//var endpoints discovery.EndpointSlice
-	numPorts, numAddresses := 1, 1
-	if multiPort {
-		numPorts = 3
-	}
-	if len(multiProtocol) != 0 {
-		numPorts = len(multiProtocol)
-	}
-	if multiAddress {
-		numAddresses = 3
-	}
-	svcName := Name
-
-	// // create separate endpoint slice if multiProtocol
-
-	// // mPort := 8080 + i
-	startIndex := 0
-	for i := 0; i < numPorts; i++ {
-		var endpoints []discovery.Endpoint
-		for j := 0; j < numAddresses; j++ {
-			if strings.Contains(addressPrefix, "::") {
-				endpoints = append(endpoints, discovery.Endpoint{
-					Addresses: []string{fmt.Sprintf("%s%d", addressPrefix, j+startIndex+1)},
-					NodeName:  &nodeName,
-				})
-			} else {
-				endpoints = append(endpoints, discovery.Endpoint{Addresses: []string{fmt.Sprintf("%s.%d", addressPrefix, j+startIndex+1)}, NodeName: &nodeName})
-			}
-			startIndex++
-		}
-		numAddresses--
-		protocol := corev1.ProtocolTCP
-		if len(multiProtocol) != 0 {
-			protocol = multiProtocol[i]
-		}
-		mPort := int32(8080 + i)
-		portName := fmt.Sprintf("foo%d", i)
-		ports := []discovery.EndpointPort{{
-			Protocol: &protocol,
-			Port:     &mPort,
-			Name:     &portName,
-		}}
-		tempName := Name + "-" + randStringBytesRmndr(5)
-		epExample := &discovery.EndpointSlice{
-			AddressType: addressType,
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: ns,
-				Name:      tempName,
-				Labels:    map[string]string{discovery.LabelServiceName: svcName},
-			},
-			Endpoints: endpoints,
-			Ports:     ports,
-		}
-		_, err := KubeClient.DiscoveryV1().EndpointSlices(ns).Create(context.TODO(), epExample, metav1.CreateOptions{})
-		if err != nil {
-			t.Fatalf("error in creating Endpoint: %v", err)
-		}
-
-	}
-	time.Sleep(2 * time.Second)
-}
-
-func randStringBytesRmndr(n int) string {
-	b := make([]byte, n)
-	for i := range b {
-		b[i] = letterBytes[rand.Int63()%int64(len(letterBytes))]
-	}
-	return string(b)
-}
-
-func ScaleCreateEPS(t *testing.T, ns string, Name string) {
-	portName := "foo"
-	port := int32(8080)
-	protocol := corev1.ProtocolTCP
-	epSlice, err := KubeClient.DiscoveryV1().EndpointSlices(ns).List(context.TODO(), metav1.ListOptions{
-		LabelSelector: discovery.LabelServiceName + "=" + Name,
-	})
-	if len(epSlice.Items) == 0 || err != nil {
-		t.Fatalf("endpoint slice not found. error : %v", err)
-	}
-	epSlice.Items[0].Endpoints = []discovery.Endpoint{
-		{
-			Addresses: []string{"1.2.3.4"},
-		},
-		{
-			Addresses: []string{"1.2.3.5"},
-		},
-	}
-	epSlice.Items[0].Ports = []discovery.EndpointPort{{Name: &portName, Port: &port, Protocol: &protocol}}
-	epSlice.Items[0].ResourceVersion = "2"
-
-	_, err = KubeClient.DiscoveryV1().EndpointSlices(ns).Update(context.TODO(), &epSlice.Items[0], metav1.UpdateOptions{})
+	_, err := KubeClient.CoreV1().Endpoints(ns).Create(context.TODO(), epExample, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("error in creating Endpoint: %v", err)
 	}
 }
 
-func DelEPS(t *testing.T, ns string, Name string) {
-	epSlice, err := KubeClient.DiscoveryV1().EndpointSlices(ns).List(context.TODO(), metav1.ListOptions{
-		LabelSelector: discovery.LabelServiceName + "=" + Name,
-	})
-	if err != nil {
-		t.Fatalf("error in listing EndpointSlices: %v", err)
+func ScaleCreateEP(t *testing.T, ns string, Name string) {
+	epExample := &corev1.Endpoints{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: ns,
+			Name:      Name,
+		},
+		Subsets: []corev1.EndpointSubset{{
+			Addresses: []corev1.EndpointAddress{{IP: "1.2.3.4"}, {IP: "1.2.3.5"}},
+			Ports:     []corev1.EndpointPort{{Name: "foo", Port: 8080, Protocol: "TCP"}},
+		}},
 	}
-	for _, es := range epSlice.Items {
-		err := KubeClient.DiscoveryV1().EndpointSlices(es.Namespace).Delete(context.TODO(), es.Name, metav1.DeleteOptions{})
-		if err != nil {
-			t.Fatalf("error in deleting EndpointSlices: %v", err)
-		}
+	epExample.ResourceVersion = "2"
+	_, err := KubeClient.CoreV1().Endpoints(ns).Update(context.TODO(), epExample, metav1.UpdateOptions{})
+	if err != nil {
+		t.Fatalf("error in creating Endpoint: %v", err)
+	}
+}
+
+func DelEP(t *testing.T, ns string, Name string) {
+	err := KubeClient.CoreV1().Endpoints(ns).Delete(context.TODO(), Name, metav1.DeleteOptions{})
+	if err != nil && !k8serrors.IsNotFound(err) {
+		t.Fatalf("error in deleting Endpoint: %v", err)
 	}
 }
 
@@ -1214,7 +960,7 @@ func GetShardVSNumber(s string) string {
 	return vsNumber
 }
 
-var DefaultMockFilePath = "../avimockobjects"
+const defaultMockFilePath = "../avimockobjects"
 
 var AviFakeClientInstance *httptest.Server
 var FakeServerMiddleware InjectFault
@@ -1261,16 +1007,16 @@ func NewAviFakeClientInstance(kubeclient *k8sfake.Clientset, skipCachePopulation
 		os.Setenv("CTRL_IPADDRESS", url)
 		os.Setenv("FULL_SYNC_INTERVAL", "600")
 		// resets avi client pool instance, allows to connect with the new `ts` server
-		//cache.AviClientInstance = nil
+		cache.AviClientInstance = nil
 		k8s.PopulateControllerProperties(kubeclient)
-		if len(skipCachePopulation) == 0 || !skipCachePopulation[0] {
+		if len(skipCachePopulation) == 0 || skipCachePopulation[0] == false {
 			k8s.PopulateCache()
 		}
 	}
 }
 
 func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...string) {
-	mockFilePath := DefaultMockFilePath
+	mockFilePath := defaultMockFilePath
 	if len(args) > 0 {
 		mockFilePath = args[0]
 	}
@@ -1446,39 +1192,7 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 
 	} else if r.Method == "GET" && strings.Contains(r.URL.RawQuery, "aviref") {
 		// block to handle
-		if strings.Contains(r.URL.RawQuery, "l4-appprofile") {
-			w.WriteHeader(http.StatusOK)
-			data, _ := os.ReadFile(fmt.Sprintf("%s/l4crd_mock.json", mockFilePath))
-			w.Write(data)
-		} else if strings.Contains(r.URL.RawQuery, "networkprofile-tcp-proxy") {
-			w.WriteHeader(http.StatusOK)
-			data, _ := os.ReadFile(fmt.Sprintf("%s/network_profile_tcp_proxy_mock.json", mockFilePath))
-			w.Write(data)
-		} else if strings.Contains(url, "/api/network") && strings.Contains(r.URL.RawQuery, "thisisaviref") {
-			w.WriteHeader(http.StatusOK)
-			data, _ := os.ReadFile(fmt.Sprintf("%s/crd_network_mock.json", mockFilePath))
-			query_components := strings.Split(r.URL.RawQuery, "&")
-			infraname := ""
-			if len(query_components) == 2 {
-				name_split := strings.Split(query_components[0], "=")
-				infraname = name_split[1]
-			} else if len(query_components) == 3 {
-				name_split := strings.Split(query_components[2], "=")
-				infraname = name_split[1]
-			}
-			json.Unmarshal(data, &resp)
-			resp1 := (resp["results"].([]interface{})[0]).(map[string]interface{})
-			name := resp1["name"]
-			if name != infraname {
-				resp1["name"] = infraname
-			}
-			finalResponse, _ = json.Marshal(resp)
-			w.Write(finalResponse)
-		} else if strings.Contains(r.URL.RawQuery, "l4-ssl-appprofile") {
-			w.WriteHeader(http.StatusOK)
-			data, _ := os.ReadFile(fmt.Sprintf("%s/l4crd_ssl_mock.json", mockFilePath))
-			w.Write(data)
-		} else if strings.Contains(r.URL.RawQuery, "thisisaviref") {
+		if strings.Contains(r.URL.RawQuery, "thisisaviref") {
 			w.WriteHeader(http.StatusOK)
 			data, _ := os.ReadFile(fmt.Sprintf("%s/crd_mock.json", mockFilePath))
 			w.Write(data)
@@ -1486,10 +1200,7 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 			w.WriteHeader(http.StatusOK)
 			w.Write([]byte(`{"results": [], "count": 0}`))
 		}
-	} else if r.Method == "GET" && strings.Contains(r.URL.RawQuery, "System-L4-Application") {
-		w.WriteHeader(http.StatusOK)
-		data, _ := os.ReadFile(fmt.Sprintf("%s/l4crd_mock.json", mockFilePath))
-		w.Write(data)
+
 	} else if r.Method == "GET" && strings.Contains(url, "/api/cloud/") {
 		var data []byte
 		if strings.HasSuffix(r.URL.RawQuery, "CLOUD_NONE") {
@@ -1498,8 +1209,6 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 			data, _ = os.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_AZURE"))
 		} else if strings.HasSuffix(r.URL.RawQuery, "CLOUD_AWS") {
 			data, _ = os.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_AWS"))
-		} else if strings.HasSuffix(r.URL.RawQuery, "CLOUD_NSXT1") {
-			data, _ = os.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_NSXT1"))
 		} else if strings.HasSuffix(r.URL.RawQuery, "CLOUD_NSXT") {
 			data, _ = os.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, "CLOUD_NSXT"))
 		} else {
@@ -1507,18 +1216,7 @@ func NormalControllerServer(w http.ResponseWriter, r *http.Request, args ...stri
 		}
 		w.WriteHeader(http.StatusOK)
 		w.Write(data)
-	} else if r.Method == "GET" && strings.Contains(url, "/api/applicationprofile/") &&
-		strings.HasSuffix(r.URL.RawQuery, lib.GetProxyEnabledApplicationProfileName()) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"results": [], "count": 0}`))
-	} else if r.Method == "GET" && strings.Contains(url, "/api/healthmonitor/") &&
-		strings.HasSuffix(r.URL.RawQuery, lib.GetTcpHalfOpenHealthMonitorName()) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"results": [], "count": 0}`))
-	} else if r.Method == "GET" && strings.Contains(url, "/api/tenant") && strings.Contains(r.URL.RawQuery, "attrs") {
-		w.WriteHeader(http.StatusOK)
-		data, _ := os.ReadFile(fmt.Sprintf("%s/tenant_mock_attrs.json", mockFilePath))
-		w.Write(data)
+
 	} else if r.Method == "GET" && inArray(FakeAviObjects, object) {
 		FeedMockCollectionData(w, r, mockFilePath)
 
@@ -1556,27 +1254,10 @@ func FeedMockCollectionData(w http.ResponseWriter, r *http.Request, mockFilePath
 	if r.Method == "GET" {
 		var data []byte
 		if len(splitURL) == 2 {
-			filePath := ""
-			if strings.Contains(r.URL.RawQuery, "multivip-network1") {
-				filePath = fmt.Sprintf("%s/crd_network_ipam1.json", mockFilePath)
-			} else if strings.Contains(r.URL.RawQuery, "multivip-network2") {
-				filePath = fmt.Sprintf("%s/crd_network_ipam2.json", mockFilePath)
-			} else if strings.Contains(r.URL.RawQuery, "multivip-network3") {
-				filePath = fmt.Sprintf("%s/crd_network_ipam3.json", mockFilePath)
-			} else if strings.Contains(r.URL.RawQuery, "kube-apiserver-lb-svc") {
-				filePath = fmt.Sprintf("%s/kube-apiserver-lb-svc-vs_mock.json", mockFilePath)
-			} else {
-				filePath = fmt.Sprintf("%s/%s_mock.json", mockFilePath, splitURL[1])
-			}
-			data, _ = os.ReadFile(filePath)
-			if strings.Contains(r.URL.RawQuery, "gateway") {
-				gwname := strings.Split(strings.Split(r.URL.RawQuery, "&")[0], "=")[1]
-				data = []byte(strings.ReplaceAll(string(data), "01", strings.Split(gwname, "-")[7]))
-			}
+			data, _ = os.ReadFile(fmt.Sprintf("%s/%s_mock.json", mockFilePath, splitURL[1]))
 		} else if len(splitURL) == 3 {
 			// with uuid
 			data, _ = os.ReadFile(fmt.Sprintf("%s/%s_uuid_mock.json", mockFilePath, splitURL[1]))
-
 		}
 		w.WriteHeader(http.StatusOK)
 		w.Write(data)
@@ -1608,127 +1289,80 @@ func (ing FakeIngress) UpdateIngress() (*networking.Ingress, error) {
 	return updatedIngress, err
 }
 
-type ListenerPorts struct {
-	Port      int
-	EnableSSL bool
-}
-
 // HostRule/HTTPRule lib functions
 type FakeHostRule struct {
-	Name                  string
-	Namespace             string
-	Fqdn                  string
-	FqdnType              string
-	SslKeyCertificate     string
-	SslProfile            string
-	WafPolicy             string
-	ApplicationProfile    string
-	ICAPProfile           []string
-	EnableVirtualHost     bool
-	AnalyticsProfile      string
-	ErrorPageProfile      string
-	Datascripts           []string
-	HttpPolicySets        []string
-	GslbFqdn              string
-	NetworkSecurityPolicy string
-	L7Rule                string
-	UseRegex              bool
-	ApplicationRootPath   string
-	ListenerPorts         []ListenerPorts
-	LoadBalancerIP        string
+	Name               string
+	Namespace          string
+	Fqdn               string
+	SslKeyCertificate  string
+	SslProfile         string
+	WafPolicy          string
+	ApplicationProfile string
+	EnableVirtualHost  bool
+	AnalyticsProfile   string
+	ErrorPageProfile   string
+	Datascripts        []string
+	HttpPolicySets     []string
+	GslbFqdn           string
 }
 
-func (hr FakeHostRule) HostRule() *akov1beta1.HostRule {
+func (hr FakeHostRule) HostRule() *akov1alpha1.HostRule {
 	enable := true
-	fqdnType := hr.FqdnType
-	if fqdnType == "" {
-		fqdnType = "Exact"
-	}
-	hostrule := &akov1beta1.HostRule{
+	hostrule := &akov1alpha1.HostRule{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: hr.Namespace,
 			Name:      hr.Name,
 		},
-		Spec: akov1beta1.HostRuleSpec{
-			VirtualHost: akov1beta1.HostRuleVirtualHost{
-				Fqdn:     hr.Fqdn,
-				FqdnType: akov1beta1.FqdnType(fqdnType),
-				TLS: akov1beta1.HostRuleTLS{
-					SSLKeyCertificate: akov1beta1.HostRuleSSLKeyCertificate{
+		Spec: akov1alpha1.HostRuleSpec{
+			VirtualHost: akov1alpha1.HostRuleVirtualHost{
+				Fqdn: hr.Fqdn,
+				TLS: akov1alpha1.HostRuleTLS{
+					SSLKeyCertificate: akov1alpha1.HostRuleSSLKeyCertificate{
 						Name: hr.SslKeyCertificate,
 						Type: "ref",
 					},
 					SSLProfile:  hr.SslProfile,
 					Termination: "edge",
 				},
-				HTTPPolicy: akov1beta1.HostRuleHTTPPolicy{
+				HTTPPolicy: akov1alpha1.HostRuleHTTPPolicy{
 					PolicySets: hr.HttpPolicySets,
 					Overwrite:  false,
 				},
 				WAFPolicy:          hr.WafPolicy,
 				ApplicationProfile: hr.ApplicationProfile,
-				ICAPProfile:        hr.ICAPProfile,
 				AnalyticsProfile:   hr.AnalyticsProfile,
 				ErrorPageProfile:   hr.ErrorPageProfile,
 				Datascripts:        hr.Datascripts,
 				EnableVirtualHost:  &enable,
-				Gslb: akov1beta1.HostRuleGSLB{
+				Gslb: akov1alpha1.HostRuleGSLB{
 					Fqdn: hr.GslbFqdn,
 				},
-				NetworkSecurityPolicy: hr.NetworkSecurityPolicy,
-				L7Rule:                hr.L7Rule,
-				UseRegex:              hr.UseRegex,
-				ApplicationRootPath:   hr.ApplicationRootPath,
 			},
 		},
 	}
-	var tcpSettings *akov1beta1.HostRuleTCPSettings
-	var listenerPorts []akov1beta1.HostRuleTCPListeners
-	for _, listenerPortHr := range hr.ListenerPorts {
-		listener := akov1beta1.HostRuleTCPListeners{
-			Port:      listenerPortHr.Port,
-			EnableSSL: listenerPortHr.EnableSSL,
-		}
-		listenerPorts = append(listenerPorts, listener)
-	}
-	if len(listenerPorts) > 0 && hr.LoadBalancerIP != "" {
-		tcpSettings = &akov1beta1.HostRuleTCPSettings{
-			Listeners:      listenerPorts,
-			LoadBalancerIP: hr.LoadBalancerIP}
-	} else if len(listenerPorts) > 0 {
-		tcpSettings = &akov1beta1.HostRuleTCPSettings{
-			Listeners: listenerPorts}
-	} else if hr.LoadBalancerIP != "" {
-		tcpSettings = &akov1beta1.HostRuleTCPSettings{
-			LoadBalancerIP: hr.LoadBalancerIP}
-	}
-	if tcpSettings != nil {
-		hostrule.Spec.VirtualHost.TCPSettings = tcpSettings
-	}
+
 	return hostrule
 }
 
 func SetupHostRule(t *testing.T, hrname, fqdn string, secure bool, gslbHost ...string) {
 	hostrule := FakeHostRule{
-		Name:                  hrname,
-		Namespace:             "default",
-		Fqdn:                  fqdn,
-		WafPolicy:             "thisisaviref-waf",
-		ApplicationProfile:    "thisisaviref-appprof",
-		AnalyticsProfile:      "thisisaviref-analyticsprof",
-		ErrorPageProfile:      "thisisaviref-errorprof",
-		ICAPProfile:           []string{"thisisaviref-icapprof"},
-		Datascripts:           []string{"thisisaviref-ds2", "thisisaviref-ds1"},
-		HttpPolicySets:        []string{"thisisaviref-httpps2", "thisisaviref-httpps1"},
-		NetworkSecurityPolicy: "thisisaviref-networksecuritypolicyref",
-		GslbFqdn:              "bar.com",
+		Name:               hrname,
+		Namespace:          "default",
+		Fqdn:               fqdn,
+		WafPolicy:          "thisisaviref-waf",
+		ApplicationProfile: "thisisaviref-appprof",
+		AnalyticsProfile:   "thisisaviref-analyticsprof",
+		ErrorPageProfile:   "thisisaviref-errorprof",
+		Datascripts:        []string{"thisisaviref-ds2", "thisisaviref-ds1"},
+		HttpPolicySets:     []string{"thisisaviref-httpps2", "thisisaviref-httpps1"},
+		GslbFqdn:           "bar.com",
 	}
 	if len(gslbHost) > 0 {
 		// It's assumed that the update case updates the gslb fqdn else bar.com is used.
 		hostrule.GslbFqdn = gslbHost[0]
 		hrUpdate := hostrule.HostRule()
 		hrUpdate.ResourceVersion = "2"
-		if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{}); err != nil {
+		if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules("default").Update(context.TODO(), hrUpdate, metav1.UpdateOptions{}); err != nil {
 			t.Fatalf("error in updating HostRule: %v", err)
 		}
 		return
@@ -1739,226 +1373,22 @@ func SetupHostRule(t *testing.T, hrname, fqdn string, secure bool, gslbHost ...s
 	}
 
 	hrCreate := hostrule.HostRule()
-	if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HostRules("default").Create(context.TODO(), hrCreate, metav1.CreateOptions{}); err != nil {
-		t.Fatalf("error in adding HostRule: %v", err)
-	}
-}
-
-type FakeSSORule struct {
-	Name      string
-	Namespace string
-	Fqdn      string
-	// SSOType valid values currently are OAuth and SAML
-	SSOType string
-}
-
-func (sr FakeSSORule) SSORule() *akov1alpha2.SSORule {
-	//enable := true
-	var oauthVsConfig *akov1alpha2.OAuthVSConfig
-	var ssoPolicyRef *string
-	var samlSpConfig *akov1alpha2.SAMLSPConfig
-
-	if sr.SSOType == SSOTypeOAuth {
-		oidcConfig := &akov1alpha2.OIDCConfig{
-			OidcEnable: proto.Bool(true),
-			Profile:    proto.Bool(true),
-			Userinfo:   proto.Bool(true),
-		}
-		accessType := proto.String(lib.ACCESS_TOKEN_TYPE_OPAQUE)
-		opaqueTokenParams := &akov1alpha2.OpaqueTokenValidationParams{
-			ServerID:     proto.String("my-server-id"),
-			ServerSecret: proto.String("my-oauth-secret"),
-		}
-		oauthVsConfig = &akov1alpha2.OAuthVSConfig{
-			CookieName:    proto.String("MY_OAUTH_COOKIE"),
-			CookieTimeout: proto.Int32(120),
-			LogoutURI:     proto.String("https://auth.com/oauth/logout"),
-			OauthSettings: []*akov1alpha2.OAuthSettings{
-				{
-					AppSettings: &akov1alpha2.OAuthAppSettings{
-						ClientID:     proto.String("my-client-id"),
-						ClientSecret: proto.String("my-oauth-secret"),
-						OidcConfig:   oidcConfig,
-						Scopes: []string{
-							"scope-1",
-						},
-					},
-					AuthProfileRef: proto.String("thisisaviref-authprofileoauth"),
-					ResourceServer: &akov1alpha2.OAuthResourceServer{
-						AccessType:               accessType,
-						IntrospectionDataTimeout: proto.Int32(60),
-						OpaqueTokenParams:        opaqueTokenParams,
-					},
-				},
-			},
-			RedirectURI:           proto.String("https://auth.com/oauth/redirect"),
-			PostLogoutRedirectURI: proto.String("https://auth.com/oauth/post-logout-redirect"),
-		}
-		ssoPolicyRef = proto.String("thisisaviref-ssopolicyoauth")
-	} else if sr.SSOType == SSOTypeSAML {
-		samlSpConfig = &akov1alpha2.SAMLSPConfig{
-			AcsIndex:                       nil,
-			AuthnReqAcsType:                proto.String("SAML_AUTHN_REQ_ACS_TYPE_NONE"),
-			CookieName:                     proto.String("MY_SAML_COOKIE"),
-			CookieTimeout:                  proto.Int32(120),
-			EntityID:                       proto.String("my-entityid"),
-			SigningSslKeyAndCertificateRef: proto.String("thisisaviref-sslkeyandcertrefsaml"),
-			SingleSignonURL:                proto.String("https://auth.com/sso/acs/"),
-			UseIdpSessionTimeout:           proto.Bool(false),
-		}
-		ssoPolicyRef = proto.String("thisisaviref-ssopolicysaml")
-	}
-
-	ssoRule := &akov1alpha2.SSORule{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: sr.Namespace,
-			Name:      sr.Name,
-		},
-		Spec: akov1alpha2.SSORuleSpec{
-			Fqdn:          proto.String(sr.Fqdn),
-			OauthVsConfig: oauthVsConfig,
-			SamlSpConfig:  samlSpConfig,
-			SsoPolicyRef:  ssoPolicyRef,
-		},
-	}
-	return ssoRule
-}
-
-func SetupSSORule(t *testing.T, srname, fqdn string, ssoType string) {
-	ssoRule := FakeSSORule{
-		Name:      srname,
-		Namespace: "default",
-		Fqdn:      fqdn,
-		SSOType:   ssoType,
-	}
-	srCreate := ssoRule.SSORule()
-	if _, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().SSORules("default").Create(context.TODO(), srCreate, metav1.CreateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules("default").Create(context.TODO(), hrCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding HostRule: %v", err)
 	}
 }
 
 func TeardownHostRule(t *testing.T, g *gomega.WithT, vskey cache.NamespaceName, hrname string) {
-	if err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HostRules("default").Delete(context.TODO(), hrname, metav1.DeleteOptions{}); err != nil {
+	if err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules("default").Delete(context.TODO(), hrname, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting HostRule: %v", err)
 	}
 	VerifyMetadataHostRule(t, g, vskey, "default/"+hrname, false)
 }
 
-func TeardownSSORule(t *testing.T, g *gomega.WithT, vskey cache.NamespaceName, srname string) {
-	if err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().SSORules("default").Delete(context.TODO(), srname, metav1.DeleteOptions{}); err != nil {
-		t.Fatalf("error in deleting SSORule: %v", err)
-	}
-	VerifyMetadataSSORule(t, g, vskey, "default/"+srname, false)
-}
-
 func TearDownHostRuleWithNoVerify(t *testing.T, g *gomega.WithT, hrname string) {
-	if err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HostRules("default").Delete(context.TODO(), hrname, metav1.DeleteOptions{}); err != nil {
+	if err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HostRules("default").Delete(context.TODO(), hrname, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting HostRule: %v", err)
 	}
-}
-
-type FakeL7Rule struct {
-	AllowInvalidClientCert        bool
-	BotPolicyRef                  string
-	CloseClientConnOnConfigUpdate bool
-	HostNameXlate                 string
-	IgnPoolNetReach               bool
-	MinPoolsUp                    uint32
-	RemoveListeningPortOnVsDown   bool
-	SecurityPolicyRef             string
-	SslSessCacheAvgSize           uint32
-	Name                          string
-	Namespace                     string
-	AnalyticsProfile              *akov1alpha2.KindNameNamespace
-	ApplicationProfile            *akov1alpha2.KindNameNamespace
-	WafPolicy                     *akov1alpha2.KindNameNamespace
-	IcapProfile                   *akov1alpha2.KindNameNamespace
-	ErrorPageProfile              *akov1alpha2.KindNameNamespace
-	HTTPPolicy                    *akov1alpha2.L7RuleHTTPPolicy
-	AnalyticsPolicy               *akov1alpha2.L7RuleAnalyticsPolicy
-}
-
-func (l7 FakeL7Rule) L7Rule() *akov1alpha2.L7Rule {
-	l7Rule := akov1alpha2.L7Rule{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace: l7.Namespace,
-			Name:      l7.Name,
-		},
-		Spec: akov1alpha2.L7RuleSpec{
-			AllowInvalidClientCert:        &l7.AllowInvalidClientCert,
-			BotPolicyRef:                  &l7.BotPolicyRef,
-			CloseClientConnOnConfigUpdate: &l7.CloseClientConnOnConfigUpdate,
-			HostNameXlate:                 &l7.HostNameXlate,
-			IgnPoolNetReach:               &l7.IgnPoolNetReach,
-			MinPoolsUp:                    &l7.MinPoolsUp,
-			RemoveListeningPortOnVsDown:   &l7.RemoveListeningPortOnVsDown,
-			SecurityPolicyRef:             &l7.SecurityPolicyRef,
-			SslSessCacheAvgSize:           &l7.SslSessCacheAvgSize,
-			AnalyticsProfile:              l7.AnalyticsProfile,
-			ApplicationProfile:            l7.ApplicationProfile,
-			WafPolicy:                     l7.WafPolicy,
-			IcapProfile:                   l7.IcapProfile,
-			ErrorPageProfile:              l7.ErrorPageProfile,
-			HTTPPolicy:                    l7.HTTPPolicy,
-			AnalyticsPolicy:               l7.AnalyticsPolicy,
-		}}
-	return &l7Rule
-}
-func getKindName(kind string, name string) *akov1alpha2.KindNameNamespace {
-	return &akov1alpha2.KindNameNamespace{
-		Kind: &kind,
-		Name: &name,
-	}
-}
-func getHTTPPSset(policyName ...string) []*string {
-	httpPSet := []*string{}
-	for _, p := range policyName {
-		httpPSet = append(httpPSet, &p)
-	}
-	return httpPSet
-}
-func getAnalyticsPolicy() *akov1alpha2.L7RuleAnalyticsPolicy {
-	return &akov1alpha2.L7RuleAnalyticsPolicy{
-		LogAllHeaders: proto.Bool(false),
-		FullClientLogs: &akov1alpha2.FullClientLogsL7{
-			Enabled: proto.Bool(true),
-		},
-	}
-}
-func SetupL7Rule(t *testing.T, name string, g *gomega.WithT) {
-	l7rule := FakeL7Rule{
-		Name:                          name,
-		Namespace:                     "default",
-		AllowInvalidClientCert:        true,
-		BotPolicyRef:                  "thisisaviref-botpolicy",
-		CloseClientConnOnConfigUpdate: true,
-		HostNameXlate:                 "hostname.com",
-		IgnPoolNetReach:               false,
-		MinPoolsUp:                    0,
-		SecurityPolicyRef:             "thisisaviref-secpolicy",
-		RemoveListeningPortOnVsDown:   false,
-		SslSessCacheAvgSize:           2024,
-		AnalyticsProfile:              getKindName("AviRef", "thisisaviref-analyticsprofile-l7"),
-		ApplicationProfile:            getKindName("AviRef", "thisisaviref-appprofile-l7"),
-		WafPolicy:                     getKindName("AviRef", "thisisaviref-wafpolicy-l7"),
-		IcapProfile:                   getKindName("AviRef", "thisisaviref-icaprofile-l7"),
-		ErrorPageProfile:              getKindName("AviRef", "thisisaviref-errorpageprofile-l7"),
-		HTTPPolicy: &akov1alpha2.L7RuleHTTPPolicy{
-			Overwrite: proto.Bool(false),
-			PolicySets: getHTTPPSset(
-				"thisisaviref-httpps1-l7",
-				"thisisaviref-httpps2-l7"),
-		},
-		AnalyticsPolicy: getAnalyticsPolicy(),
-	}
-	srCreate := l7rule.L7Rule()
-	if _, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L7Rules("default").Create(context.TODO(), srCreate, metav1.CreateOptions{}); err != nil {
-		t.Fatalf("error in adding L7Rule: %v", err)
-	}
-	g.Eventually(func() string {
-		l7Rule, _ := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L7Rules("default").Get(context.TODO(), name, metav1.GetOptions{})
-		return l7Rule.Status.Status
-	}, 25*time.Second).Should(gomega.Equal("Accepted"))
 }
 
 type FakeHTTPRule struct {
@@ -1976,24 +1406,22 @@ type FakeHTTPRulePath struct {
 	HealthMonitors []string
 	LbAlgorithm    string
 	Hash           string
-	EnableHTTP2    bool
 }
 
-func (rr FakeHTTPRule) HTTPRule() *akov1beta1.HTTPRule {
-	var rrPaths []akov1beta1.HTTPRulePaths
+func (rr FakeHTTPRule) HTTPRule() *akov1alpha1.HTTPRule {
+	var rrPaths []akov1alpha1.HTTPRulePaths
 	for _, p := range rr.PathProperties {
-		rrForPath := akov1beta1.HTTPRulePaths{
+		rrForPath := akov1alpha1.HTTPRulePaths{
 			Target:         p.Path,
 			HealthMonitors: p.HealthMonitors,
-			TLS: akov1beta1.HTTPRuleTLS{
+			TLS: akov1alpha1.HTTPRuleTLS{
 				Type:       "reencrypt",
 				SSLProfile: p.SslProfile,
 			},
-			LoadBalancerPolicy: akov1beta1.HTTPRuleLBPolicy{
+			LoadBalancerPolicy: akov1alpha1.HTTPRuleLBPolicy{
 				Algorithm: p.LbAlgorithm,
 				Hash:      p.Hash,
 			},
-			EnableHttp2: &p.EnableHTTP2,
 		}
 		if p.DestinationCA != "" {
 			rrForPath.TLS.DestinationCA = p.DestinationCA
@@ -2003,12 +1431,12 @@ func (rr FakeHTTPRule) HTTPRule() *akov1beta1.HTTPRule {
 		}
 		rrPaths = append(rrPaths, rrForPath)
 	}
-	return &akov1beta1.HTTPRule{
+	return &akov1alpha1.HTTPRule{
 		ObjectMeta: metav1.ObjectMeta{
 			Namespace: rr.Namespace,
 			Name:      rr.Name,
 		},
-		Spec: akov1beta1.HTTPRuleSpec{
+		Spec: akov1alpha1.HTTPRuleSpec{
 			Fqdn:  rr.Fqdn,
 			Paths: rrPaths,
 		},
@@ -2031,21 +1459,20 @@ func SetupHTTPRule(t *testing.T, rrname, fqdn, path string) {
 	}
 
 	rrCreate := httprule.HTTPRule()
-	if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HTTPRules("default").Create(context.TODO(), rrCreate, metav1.CreateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HTTPRules("default").Create(context.TODO(), rrCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding HTTPRule: %v", err)
 	}
 }
 
 func TeardownHTTPRule(t *testing.T, rrname string) {
-	if err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().HTTPRules("default").Delete(context.TODO(), rrname, metav1.DeleteOptions{}); err != nil {
+	if err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().HTTPRules("default").Delete(context.TODO(), rrname, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting HTTPRule: %v", err)
 	}
 }
 
 func VerifyMetadataHostRule(t *testing.T, g *gomega.WithT, vsKey cache.NamespaceName, hrnsname string, active bool) {
 	mcache := cache.SharedAviObjCache()
-
-	wait.PollUntilContextTimeout(context.TODO(), 2*time.Second, 50*time.Second, false, func(context.Context) (bool, error) {
+	wait.Poll(2*time.Second, 50*time.Second, func() (bool, error) {
 		sniCache, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
 		if active && !found {
 			t.Logf("SNI Cache not found.")
@@ -2083,49 +1510,9 @@ func VerifyMetadataHostRule(t *testing.T, g *gomega.WithT, vsKey cache.Namespace
 	})
 }
 
-func VerifyMetadataSSORule(t *testing.T, g *gomega.WithT, vsKey cache.NamespaceName, srnsname string, active bool) {
-	mcache := cache.SharedAviObjCache()
-	wait.PollUntilContextTimeout(context.TODO(), 2*time.Second, 50*time.Second, false, func(context.Context) (bool, error) {
-		sniCache, found := mcache.VsCacheMeta.AviCacheGet(vsKey)
-		if active && !found {
-			t.Logf("SNI Cache not found.")
-			return false, nil
-		}
-
-		if !active && !found {
-			return true, nil
-		}
-
-		sniCacheObj, ok := sniCache.(*cache.AviVsCache)
-		if !ok {
-			t.Logf("Unable to cast SNI Cache to AviVsCache.")
-			return false, nil
-		}
-
-		if active {
-			if sniCacheObj.ServiceMetadataObj.CRDStatus.Value != srnsname {
-				t.Logf("Expected CRD ServiceMetadata Value to be %s, found %s", srnsname, sniCacheObj.ServiceMetadataObj.CRDStatus.Value)
-				return false, nil
-			}
-
-			if sniCacheObj.ServiceMetadataObj.CRDStatus.Status != lib.CRDActive {
-				t.Logf("Expected CRD ServiceMetadata Status to be %s, found %s", lib.CRDActive, sniCacheObj.ServiceMetadataObj.CRDStatus.Status)
-				return false, nil
-			}
-		}
-
-		if !active && (sniCacheObj.ServiceMetadataObj.CRDStatus.Status == lib.CRDActive) {
-			t.Logf("Expected CRD ServiceMetadata Status to be empty/inactive, found %s", sniCacheObj.ServiceMetadataObj.CRDStatus.Status)
-			return false, nil
-		}
-
-		return true, nil
-	})
-}
-
 func VerifyMetadataHTTPRule(t *testing.T, g *gomega.WithT, poolKey cache.NamespaceName, httpruleNSNamePath string, active bool) {
 	mcache := cache.SharedAviObjCache()
-	wait.PollUntilContextTimeout(context.TODO(), 2*time.Second, 50*time.Second, false, func(context.Context) (bool, error) {
+	wait.Poll(2*time.Second, 50*time.Second, func() (bool, error) {
 		poolCache, found := mcache.PoolCache.AviCacheGet(poolKey)
 		if !found {
 			t.Logf("Pool Cache not found.")
@@ -2207,89 +1594,8 @@ func SetupIngressClass(t *testing.T, ingclassName, controller, infraSetting stri
 	}
 
 	ingClassCreate := ingclass.IngressClass()
-	if _, err := KubeClient.NetworkingV1().IngressClasses().Get(context.TODO(), ingclassName, metav1.GetOptions{}); err != nil {
-		if _, err := KubeClient.NetworkingV1().IngressClasses().Create(context.TODO(), ingClassCreate, metav1.CreateOptions{}); err != nil {
-			t.Fatalf("error in adding IngressClass: %v", err)
-		}
-	} else {
-		ingClassCreate.ResourceVersion = "2"
-		if _, err := KubeClient.NetworkingV1().IngressClasses().Update(context.TODO(), ingClassCreate, metav1.UpdateOptions{}); err != nil {
-			t.Fatalf("error in adding IngressClass: %v", err)
-		}
-	}
-
-	g := gomega.NewGomegaWithT(t)
-	g.Eventually(func() error {
-		_, err := utils.GetInformers().IngressClassInformer.Lister().Get(ingclassName)
-		return err
-	}, 30*time.Second, 2*time.Second).Should(gomega.BeNil())
-
-}
-
-func AnnotateAKONamespaceWithInfraSetting(t *testing.T, ns, infraSettingName string) {
-	namespace, err := KubeClient.CoreV1().Namespaces().Get(context.TODO(), ns, metav1.GetOptions{})
-	if err != nil {
-		namespace := (FakeNamespace{
-			Name:   ns,
-			Labels: map[string]string{},
-		}).Namespace()
-		namespace.ResourceVersion = "1"
-		namespace.Annotations = map[string]string{
-			lib.InfraSettingNameAnnotation: infraSettingName,
-		}
-		_, err = KubeClient.CoreV1().Namespaces().Create(context.TODO(), namespace, metav1.CreateOptions{})
-		if err != nil {
-			t.Fatalf("Error occurred while Adding namespace: %v", err)
-		}
-	} else {
-		namespace.ResourceVersion = "2"
-		namespace.Annotations = map[string]string{
-			lib.InfraSettingNameAnnotation: infraSettingName,
-		}
-		_, err = KubeClient.CoreV1().Namespaces().Update(context.TODO(), namespace, metav1.UpdateOptions{})
-		if err != nil {
-			t.Fatalf("Error occurred while Updating namespace: %v", err)
-		}
-	}
-}
-
-func AnnotateNamespaceWithTenant(t *testing.T, ns, tenant string) {
-	namespace, err := KubeClient.CoreV1().Namespaces().Get(context.TODO(), ns, metav1.GetOptions{})
-	if err != nil {
-		namespace := (FakeNamespace{
-			Name:   ns,
-			Labels: map[string]string{},
-		}).Namespace()
-		namespace.ResourceVersion = "1"
-		namespace.Annotations = map[string]string{
-			lib.TenantAnnotation: tenant,
-		}
-		_, err = KubeClient.CoreV1().Namespaces().Create(context.TODO(), namespace, metav1.CreateOptions{})
-		if err != nil {
-			t.Fatalf("Error occurred while Adding namespace: %v", err)
-		}
-	} else {
-		namespace.ResourceVersion = "2"
-		if namespace.Annotations == nil {
-			namespace.Annotations = make(map[string]string)
-		}
-		namespace.Annotations[lib.TenantAnnotation] = tenant
-		_, err = KubeClient.CoreV1().Namespaces().Update(context.TODO(), namespace, metav1.UpdateOptions{})
-		if err != nil {
-			t.Fatalf("Error occurred while Updating namespace: %v", err)
-		}
-	}
-}
-
-func RemoveAnnotateAKONamespaceWithInfraSetting(t *testing.T, ns string) {
-	namespace := (FakeNamespace{
-		Name:   ns,
-		Labels: map[string]string{},
-	}).Namespace()
-	namespace.ResourceVersion = "3"
-	_, err := KubeClient.CoreV1().Namespaces().Update(context.TODO(), namespace, metav1.UpdateOptions{})
-	if err != nil {
-		t.Fatalf("Error occurred while Updating namespace: %v", err)
+	if _, err := KubeClient.NetworkingV1().IngressClasses().Create(context.TODO(), ingClassCreate, metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding IngressClass: %v", err)
 	}
 }
 
@@ -2307,19 +1613,18 @@ type FakeAviInfraSetting struct {
 	EnablePublicIP bool
 	ShardSize      string
 	BGPPeerLabels  []string
-	T1LR           string
 }
 
-func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1beta1.AviInfraSetting {
-	setting := &akov1beta1.AviInfraSetting{
+func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1alpha1.AviInfraSetting {
+	setting := &akov1alpha1.AviInfraSetting{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: infraSetting.Name,
 		},
-		Spec: akov1beta1.AviInfraSettingSpec{
-			SeGroup: akov1beta1.AviInfraSettingSeGroup{
+		Spec: akov1alpha1.AviInfraSettingSpec{
+			SeGroup: akov1alpha1.AviInfraSettingSeGroup{
 				Name: infraSetting.SeGroupName,
 			},
-			Network: akov1beta1.AviInfraSettingNetwork{
+			Network: akov1alpha1.AviInfraSettingNetwork{
 				EnableRhi:      &infraSetting.EnableRhi,
 				BgpPeerLabels:  infraSetting.BGPPeerLabels,
 				EnablePublicIP: &infraSetting.EnablePublicIP,
@@ -2328,7 +1633,7 @@ func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1beta1.AviInfraSe
 	}
 
 	for _, networkName := range infraSetting.Networks {
-		setting.Spec.Network.VipNetworks = append(setting.Spec.Network.VipNetworks, akov1beta1.AviInfraSettingVipNetwork{
+		setting.Spec.Network.VipNetworks = append(setting.Spec.Network.VipNetworks, akov1alpha1.AviInfraSettingVipNetwork{
 			NetworkName: networkName,
 		})
 	}
@@ -2337,14 +1642,10 @@ func (infraSetting FakeAviInfraSetting) AviInfraSetting() *akov1beta1.AviInfraSe
 		setting.Spec.L7Settings.ShardSize = infraSetting.ShardSize
 	}
 
-	if infraSetting.T1LR != "" {
-		setting.Spec.NSXSettings.T1LR = &infraSetting.T1LR
-	}
-
 	return setting
 }
 
-func SetupAviInfraSetting(t *testing.T, infraSettingName, shardSize string, accepted ...bool) {
+func SetupAviInfraSetting(t *testing.T, infraSettingName, shardSize string) {
 	setting := FakeAviInfraSetting{
 		Name:          infraSettingName,
 		SeGroupName:   "thisisaviref-" + infraSettingName + "-seGroup",
@@ -2352,32 +1653,15 @@ func SetupAviInfraSetting(t *testing.T, infraSettingName, shardSize string, acce
 		EnableRhi:     true,
 		BGPPeerLabels: []string{"peer1", "peer2"},
 		ShardSize:     shardSize,
-		T1LR:          "avi-domain-c9:1234",
 	}
 	settingCreate := setting.AviInfraSetting()
-	if len(accepted) > 0 && accepted[0] {
-		settingCreate.Status.Status = lib.StatusAccepted
-	}
-	if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Create(context.TODO(), settingCreate, metav1.CreateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Create(context.TODO(), settingCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding AviInfraSetting: %v", err)
 	}
 }
 
-func SetAviInfraSettingStatus(t *testing.T, infraSettingName, status string) {
-	infraSetting, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), infraSettingName, metav1.GetOptions{})
-	if err != nil {
-		t.Fatalf("error in retrieving AviInfraSetting: %v", err)
-	}
-	infraSetting.Status.Status = status
-	infraSetting.ResourceVersion = "2"
-	_, err = lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Update(context.TODO(), infraSetting, metav1.UpdateOptions{})
-	if err != nil {
-		t.Fatalf("error in updating AviInfraSetting: %v", err)
-	}
-}
-
 func TeardownAviInfraSetting(t *testing.T, infraSettingName string) {
-	if err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Delete(context.TODO(), infraSettingName, metav1.DeleteOptions{}); err != nil {
+	if err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Delete(context.TODO(), infraSettingName, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting AviInfraSetting: %v", err)
 	}
 }
@@ -2508,317 +1792,4 @@ func CreateOrUpdateLease(ns, podName string) error {
 func DeleteLease(ns string) error {
 	err := KubeClient.CoordinationV1().Leases(ns).Delete(context.TODO(), "ako-lease-lock", metav1.DeleteOptions{})
 	return err
-}
-
-func SetUpOAuthSecret() (err error) {
-	data := map[string][]byte{
-		"clientSecret": []byte("my-client-secret"),
-		"serverSecret": []byte("my-server-secret"),
-	}
-
-	object := metav1.ObjectMeta{Name: "my-oauth-secret", Namespace: "default"}
-	secret := &corev1.Secret{Data: data, ObjectMeta: object}
-	_, err = KubeClient.CoreV1().Secrets("default").Create(context.TODO(), secret, metav1.CreateOptions{})
-	return
-}
-
-func TearDownOAuthSecret() (err error) {
-	err = KubeClient.CoreV1().Secrets("default").Delete(context.TODO(), "my-oauth-secret", metav1.DeleteOptions{})
-	return
-}
-
-// L4Rule lib functions
-type FakeL4Rule struct {
-	Name       string
-	Namespace  string
-	Ports      []int
-	SSLEnabled bool
-}
-
-func (lr FakeL4Rule) L4Rule() *akov1alpha2.L4Rule {
-	l4Rule := &akov1alpha2.L4Rule{
-		ObjectMeta: metav1.ObjectMeta{
-			Namespace:       lr.Namespace,
-			Name:            lr.Name,
-			ResourceVersion: "1",
-		},
-		Spec: akov1alpha2.L4RuleSpec{
-			AnalyticsPolicy: &akov1alpha2.AnalyticsPolicy{
-				FullClientLogs: &akov1alpha2.FullClientLogs{
-					Duration: proto.Uint32(10),
-					Enabled:  proto.Bool(true),
-					Throttle: proto.Uint32(20),
-				},
-			},
-			AnalyticsProfileRef:      proto.String("thisisaviref-analyticsprofile"),
-			ApplicationProfileRef:    proto.String("thisisaviref-l4-appprofile"),
-			NetworkProfileRef:        proto.String("thisisaviref-networkprofileref"),
-			NetworkSecurityPolicyRef: proto.String("thisisaviref-networksecurityprofileref"),
-			PerformanceLimits: &akov1alpha2.PerformanceLimits{
-				MaxConcurrentConnections: proto.Int32(10),
-				MaxThroughput:            proto.Int32(20),
-			},
-			SecurityPolicyRef: proto.String("thisisaviref-securitypolicyref"),
-			VsDatascriptRefs:  []string{"thisisaviref-ds1", "thisisaviref-ds2"},
-			LoadBalancerIP:    proto.String("10.10.10.1"),
-		},
-	}
-	for i := range lr.Ports {
-		l4Rule.Spec.BackendProperties = append(l4Rule.Spec.BackendProperties, &akov1alpha2.BackendProperties{
-			AnalyticsPolicy: &akov1alpha2.PoolAnalyticsPolicy{
-				EnableRealtimeMetrics: proto.Bool(true),
-			},
-			ApplicationPersistenceProfileRef: proto.String("thisisaviref-applicationpersistenceprofileref"),
-			Enabled:                          proto.Bool(true),
-			HealthMonitorRefs:                []string{"thisisaviref-hm1", "thisisaviref-hm2"},
-			LbAlgorithm:                      proto.String("LB_ALGORITHM_CONSISTENT_HASH"),
-			LbAlgorithmHash:                  proto.String("LB_ALGORITHM_CONSISTENT_HASH_CUSTOM_HEADER"),
-			LbAlgorithmConsistentHashHdr:     proto.String("custom-header"),
-			MinServersUp:                     proto.Uint32(1),
-			PkiProfileRef:                    proto.String("thisisaviref-pkiprofileref"),
-			Port:                             &lr.Ports[i],
-			Protocol:                         proto.String("TCP"),
-			SslKeyAndCertificateRef:          proto.String("thisisaviref-sslkeyandcertref"),
-			SslProfileRef:                    proto.String("thisisaviref-sslprofileref"),
-		})
-	}
-	return l4Rule
-}
-
-func convertL4RuleToSSL(l4Rule *akov1alpha2.L4Rule, ports []int, applicationProfileRef *string, networkProfileRef *string, sslProfileRef *string, sslKeyAndCertificateRefs ...string) *akov1alpha2.L4Rule {
-	if applicationProfileRef == nil {
-		l4Rule.Spec.ApplicationProfileRef = proto.String("System-L4-Application")
-	} else {
-		l4Rule.Spec.ApplicationProfileRef = applicationProfileRef
-	}
-	l4Rule.Spec.NetworkProfileRef = networkProfileRef
-	l4Rule.Spec.SslKeyAndCertificateRefs = sslKeyAndCertificateRefs
-	l4Rule.Spec.SslProfileRef = sslProfileRef
-	for _, port := range ports {
-		port32 := uint32(port)
-		l4Rule.Spec.Services = append(l4Rule.Spec.Services, &akov1alpha2.Service{
-			Port:      &port32,
-			Protocol:  proto.String("TCP"),
-			EnableSsl: proto.Bool(true),
-		})
-	}
-	return l4Rule
-}
-
-func SetupL4Rule(t *testing.T, name, namespace string, port []int) {
-	l4Rule := FakeL4Rule{
-		Name:      name,
-		Namespace: namespace,
-		Ports:     port,
-	}
-	obj := l4Rule.L4Rule()
-	if _, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(namespace).Create(context.TODO(), obj, metav1.CreateOptions{}); err != nil {
-		t.Fatalf("error in adding L4Rule: %v", err)
-	}
-}
-
-func SetupL4RuleSSL(t *testing.T, name, namespace string, port []int, applicationProfileRef *string, networkProfileRef *string, sslProfileRef *string, sslKeyAndCertificateRefs ...string) {
-	l4Rule := FakeL4Rule{
-		Name:       name,
-		Namespace:  namespace,
-		Ports:      port,
-		SSLEnabled: true,
-	}
-	obj := l4Rule.L4Rule()
-	convertL4RuleToSSL(obj, port, applicationProfileRef, networkProfileRef, sslProfileRef, sslKeyAndCertificateRefs...)
-	if _, err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(namespace).Create(context.TODO(), obj, metav1.CreateOptions{}); err != nil {
-		t.Fatalf("error in adding L4Rule: %v", err)
-	}
-}
-
-func TeardownL4Rule(t *testing.T, name, namespace string) {
-	if err := lib.AKOControlConfig().V1alpha2CRDClientset().AkoV1alpha2().L4Rules(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{}); err != nil {
-		t.Fatalf("error in deleting L4Rule: %v", err)
-	}
-}
-
-func SetupLicense(license string) {
-	AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
-		url := r.URL.EscapedPath()
-		if strings.Contains(url, "/api/systemconfiguration") {
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"default_license_tier": "` + license + `"}`))
-			return
-		}
-		NormalControllerServer(w, r)
-	})
-	// Set the license
-	aviRestClientPool := cache.SharedAVIClients(lib.GetTenant())
-	lib.AKOControlConfig().SetLicenseType(aviRestClientPool.AviClient[0])
-}
-
-type ObjectNameMap struct {
-	nameMap map[string]int
-}
-
-func (o *ObjectNameMap) InitMap() {
-	o.nameMap = make(map[string]int)
-}
-func (o *ObjectNameMap) GenerateName(s string) string {
-	if val, ok := o.nameMap[s]; ok {
-		o.nameMap[s] = val + 1
-	} else {
-		o.nameMap[s] = 1
-	}
-	return s + "-" + strconv.Itoa(o.nameMap[s])
-}
-
-func (o *ObjectNameMap) GetName(s string) string {
-	if _, ok := o.nameMap[s]; !ok {
-		o.nameMap[s] = 1
-	}
-	return s + "-" + strconv.Itoa(o.nameMap[s])
-}
-func SetEmptyDomainList() {
-	// Inject middleware with empty dns list for dns api call
-	AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
-		url := r.URL.EscapedPath()
-		if r.Method == "GET" && strings.Contains(url, "/api/ipamdnsproviderprofiledomainlist") {
-			w.WriteHeader(http.StatusOK)
-			w.Write([]byte(`{"domains": []}`))
-			return
-		}
-		NormalControllerServer(w, r)
-	})
-}
-
-// HealthMonitor CRD helper functions for integration tests
-
-func CreateTCPHealthMonitorCRD(t *testing.T, name, namespace, uuid string) {
-	CreateTCPHealthMonitorCRDWithStatus(t, name, namespace, uuid, true, "Accepted", "HealthMonitor has been successfully processed")
-}
-
-func CreateTCPHealthMonitorCRDWithStatus(t *testing.T, name, namespace, uuid string, ready bool, reason, message string) {
-	clientSet := lib.GetDynamicClientSet()
-	if clientSet == nil {
-		t.Fatalf("dynamic client not available")
-	}
-
-	status := "True"
-	if !ready {
-		status = "False"
-	}
-
-	// Create TCP HealthMonitor for L4Rule testing (L4Rule only supports TCP health monitors)
-	healthMonitor := &unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": "ako.vmware.com/v1alpha1",
-			"kind":       "HealthMonitor",
-			"metadata": map[string]interface{}{
-				"name":      name,
-				"namespace": namespace,
-			},
-			"spec": map[string]interface{}{
-				"type": "HEALTH_MONITOR_TCP",
-				"tcpMonitor": map[string]interface{}{
-					"port":        int64(8080),
-					"interval":    int64(30),
-					"timeout":     int64(10),
-					"maxRetries":  int64(3),
-					"maintenance": false,
-				},
-			},
-			"status": map[string]interface{}{
-				"conditions": []interface{}{
-					map[string]interface{}{
-						"type":    "Programmed",
-						"status":  status,
-						"reason":  reason,
-						"message": message,
-					},
-				},
-				"tenant": "admin",
-			},
-		},
-	}
-
-	// Only add uuid to status if it's provided (for ready HealthMonitors)
-	if ready && uuid != "" {
-		statusObj := healthMonitor.Object["status"].(map[string]interface{})
-		statusObj["uuid"] = uuid
-	}
-
-	_, err := clientSet.Resource(lib.HealthMonitorGVR).Namespace(namespace).Create(context.TODO(), healthMonitor, metav1.CreateOptions{})
-	if err != nil {
-		t.Fatalf("error in creating HealthMonitor: %v", err)
-	}
-	t.Logf("Created HealthMonitor %s/%s with Ready=%v", namespace, name, ready)
-}
-
-func DeleteHealthMonitorCRD(t *testing.T, name, namespace string) {
-	clientSet := lib.GetDynamicClientSet()
-	if clientSet == nil {
-		t.Fatalf("dynamic client not available")
-	}
-
-	err := clientSet.Resource(lib.HealthMonitorGVR).Namespace(namespace).Delete(context.TODO(), name, metav1.DeleteOptions{})
-	if err != nil {
-		t.Fatalf("error in deleting HealthMonitor: %v", err)
-	}
-	t.Logf("Deleted HealthMonitor %s/%s", namespace, name)
-}
-
-func UpdateHealthMonitorStatus(t *testing.T, name, namespace string, uuid string, ready bool, reason, message string) {
-	clientSet := lib.GetDynamicClientSet()
-	if clientSet == nil {
-		t.Fatalf("dynamic client not available")
-	}
-
-	healthMonitor, err := clientSet.Resource(lib.HealthMonitorGVR).Namespace(namespace).Get(context.TODO(), name, metav1.GetOptions{})
-	if err != nil {
-		t.Fatalf("error in getting HealthMonitor: %v", err)
-	}
-
-	// Update the status condition
-	status := "True"
-	if !ready {
-		status = "False"
-	}
-
-	conditions := []interface{}{
-		map[string]interface{}{
-			"type":    "Programmed",
-			"status":  status,
-			"reason":  reason,
-			"message": message,
-		},
-	}
-
-	statusObj := healthMonitor.Object["status"].(map[string]interface{})
-	statusObj["conditions"] = conditions
-
-	// Handle UUID logic: if UUID doesn't already exist AND uuid param is not empty AND ready is true, set UUID
-	if existingUUID, exists := statusObj["uuid"]; exists {
-		// Preserve existing UUID
-		statusObj["uuid"] = existingUUID
-	} else if uuid != "" && ready {
-		// Set new UUID only if none exists, uuid param is provided, and ready is true
-		statusObj["uuid"] = uuid
-	}
-
-	// Use full CRD update instead of UpdateStatus to ensure it triggers Kubernetes watch events
-	// Manually increment ResourceVersion since fake client doesn't do this automatically
-	oldResourceVersion := healthMonitor.GetResourceVersion()
-	if oldResourceVersion == "" {
-		healthMonitor.SetResourceVersion("1")
-	} else {
-		// Parse and increment the version
-		if version, err := strconv.Atoi(oldResourceVersion); err == nil {
-			healthMonitor.SetResourceVersion(strconv.Itoa(version + 1))
-		} else {
-			healthMonitor.SetResourceVersion("2") // fallback
-		}
-	}
-
-	_, err = clientSet.Resource(lib.HealthMonitorGVR).Namespace(namespace).Update(context.TODO(), healthMonitor, metav1.UpdateOptions{})
-	if err != nil {
-		t.Fatalf("error in updating HealthMonitor: %v", err)
-	}
-
-	t.Logf("Updated HealthMonitor %s/%s status to Ready=%v", namespace, name, ready)
 }

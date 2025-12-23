@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2020-2021 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -16,12 +16,7 @@ package servicesapitests
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
-	"io"
-	"net/http"
 	"os"
-	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -35,8 +30,6 @@ import (
 	avinodes "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/nodes"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
-	v1beta1crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned/fake"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 
@@ -48,16 +41,10 @@ import (
 	servicesapi "sigs.k8s.io/service-apis/apis/v1alpha1"
 )
 
-const RANDOMUUID = "random-uuid"
-
-var (
-	KubeClient       *k8sfake.Clientset
-	SvcAPIClient     *svcapifake.Clientset
-	ctrl             *k8s.AviController
-	CRDClient        *crdfake.Clientset
-	v1beta1CRDClient *v1beta1crdfake.Clientset
-	objNameMap       integrationtest.ObjectNameMap
-)
+var KubeClient *k8sfake.Clientset
+var SvcAPIClient *svcapifake.Clientset
+var ctrl *k8s.AviController
+var CRDClient *crdfake.Clientset
 
 func TestMain(m *testing.M) {
 	os.Setenv("SERVICES_API", "true")
@@ -70,18 +57,14 @@ func TestMain(m *testing.M) {
 	os.Setenv("POD_NAMESPACE", utils.AKO_DEFAULT_NS)
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
 	os.Setenv("AUTO_L4_FQDN", "default")
-	os.Setenv("POD_NAME", "ako-0")
 
 	akoControlConfig := lib.AKOControlConfig()
 	KubeClient = k8sfake.NewSimpleClientset()
 	CRDClient = crdfake.NewSimpleClientset()
-	v1beta1CRDClient = v1beta1crdfake.NewSimpleClientset()
 	akoControlConfig.SetCRDClientset(CRDClient)
-	akoControlConfig.Setv1beta1CRDClientset(v1beta1CRDClient)
 	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, KubeClient, true)
 	akoControlConfig.SetAKOInstanceFlag(true)
-	akoControlConfig.SetDefaultLBController(true)
-	k8s.NewCRDInformers()
+	k8s.NewCRDInformers(CRDClient)
 
 	data := map[string][]byte{
 		"username": []byte("admin"),
@@ -95,7 +78,7 @@ func TestMain(m *testing.M) {
 	akoControlConfig.SetServicesAPIClientset(SvcAPIClient)
 	registeredInformers := []string{
 		utils.ServiceInformer,
-		utils.EndpointSlicesInformer,
+		utils.EndpointInformer,
 		utils.IngressInformer,
 		utils.IngressClassInformer,
 		utils.SecretInformer,
@@ -140,13 +123,10 @@ func TestMain(m *testing.M) {
 	ctrl.SetSEGroupCloudNameFromNSAnnotations()
 
 	integrationtest.PollForSyncStart(ctrl, 10)
-	integrationtest.KubeClient = KubeClient
-	integrationtest.AddDefaultNamespace()
 
 	ctrl.HandleConfigMap(informers, ctrlCh, stopCh, quickSyncCh)
 	go ctrl.InitController(informers, registeredInformers, ctrlCh, stopCh, quickSyncCh, waitGroupMap)
 	integrationtest.KubeClient = KubeClient
-	objNameMap.InitMap()
 	os.Exit(m.Run())
 }
 
@@ -203,26 +183,19 @@ func (gw FakeGateway) Gateway() *servicesapi.Gateway {
 	return gateway
 }
 
-func SetupGateway(t *testing.T, gwname, namespace, gwclass string, protocols ...string) {
-	var listeners []FakeGWListener
-	if len(protocols) == 0 {
-		protocols = append(protocols, "TCP")
-	}
-	for _, protocol := range protocols {
-		listeners = append(listeners, FakeGWListener{
-			Port:     8081,
-			Protocol: protocol,
-			Labels: map[string]string{
-				lib.SvcApiGatewayNameLabelKey:      gwname,
-				lib.SvcApiGatewayNamespaceLabelKey: namespace,
-			},
-		})
-	}
+func SetupGateway(t *testing.T, gwname, namespace, gwclass string) {
 	gateway := FakeGateway{
 		Name:      gwname,
 		Namespace: namespace,
 		GWClass:   gwclass,
-		Listeners: listeners,
+		Listeners: []FakeGWListener{{
+			Port:     8081,
+			Protocol: "TCP",
+			Labels: map[string]string{
+				lib.SvcApiGatewayNameLabelKey:      gwname,
+				lib.SvcApiGatewayNamespaceLabelKey: namespace,
+			},
+		}},
 	}
 
 	gwCreate := gateway.Gateway()
@@ -283,7 +256,7 @@ func TeardownGatewayClass(t *testing.T, gwClassName string) {
 	}
 }
 
-func SetupSvcApiService(t *testing.T, svcname, namespace, gwname, gwnamespace, protocol string) {
+func SetupSvcApiService(t *testing.T, svcname, namespace, gwname, gwnamespace string) {
 	svc := integrationtest.FakeService{
 		Name:      svcname,
 		Namespace: namespace,
@@ -292,40 +265,21 @@ func SetupSvcApiService(t *testing.T, svcname, namespace, gwname, gwnamespace, p
 			lib.SvcApiGatewayNamespaceLabelKey: gwnamespace,
 		},
 		Type:         corev1.ServiceTypeClusterIP,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.Protocol(protocol), PortNumber: 8081, TargetPort: intstr.FromInt(8081)}},
+		ServicePorts: []integrationtest.Serviceport{{PortName: "foo1", Protocol: "TCP", PortNumber: 8081, TargetPort: intstr.FromInt(8081)}},
 	}
 
 	svcCreate := svc.Service()
 	if _, err := KubeClient.CoreV1().Services(namespace).Create(context.TODO(), svcCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
-	integrationtest.CreateEPS(t, namespace, svcname, false, true, "1.1.1")
-}
-
-func SetupSvcApiLBServiceWithLBClass(t *testing.T, svcname, namespace, gwname, gwnamespace, protocol string, LBClass string) {
-	svc := integrationtest.FakeService{
-		Name:      svcname,
-		Namespace: namespace,
-		Labels: map[string]string{
-			lib.SvcApiGatewayNameLabelKey:      gwname,
-			lib.SvcApiGatewayNamespaceLabelKey: gwnamespace,
-		},
-		Type:              corev1.ServiceTypeLoadBalancer,
-		ServicePorts:      []integrationtest.Serviceport{{PortName: "foo1", Protocol: corev1.Protocol(protocol), PortNumber: 8081, TargetPort: intstr.FromInt(8081)}},
-		LoadBalancerClass: LBClass,
-	}
-	svcCreate := svc.Service()
-	if _, err := KubeClient.CoreV1().Services(namespace).Create(context.TODO(), svcCreate, metav1.CreateOptions{}); err != nil {
-		t.Fatalf("error in adding Service: %v", err)
-	}
-	integrationtest.CreateEPS(t, namespace, svcname, false, true, "1.1.1")
+	integrationtest.CreateEP(t, namespace, svcname, false, true, "1.1.1")
 }
 
 func TeardownAdvLBService(t *testing.T, svcname, namespace string) {
 	if err := KubeClient.CoreV1().Services(namespace).Delete(context.TODO(), svcname, metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("error in deleting AdvLB Service: %v", err)
 	}
-	integrationtest.DelEPS(t, namespace, svcname)
+	integrationtest.DelEP(t, namespace, svcname)
 }
 
 func VerifyGatewayVSNodeDeletion(g *gomega.WithT, modelName string) {
@@ -335,169 +289,19 @@ func VerifyGatewayVSNodeDeletion(g *gomega.WithT, modelName string) {
 	}, 30*time.Second).Should(gomega.BeNil())
 }
 
-func TestServiceAPISvcWithLoadBalancerClass(t *testing.T) {
-	// This test checks whether AKO ignores gateway labels for LB services in ServiceAPI scenario
-	g := gomega.NewGomegaWithT(t)
-
-	gwClassName := objNameMap.GenerateName("avi-lb")
-	gatewayName := objNameMap.GenerateName("my-gateway")
-	svcName := objNameMap.GenerateName("svc")
-	ns := "default"
-	modelName := "admin/cluster--default-" + gatewayName
-	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
-	SetupGateway(t, gatewayName, ns, gwClassName)
-
-	// LB Service with invalid LBClass should be processed for DedicatedVS and be invalidated with AKO ignoring gateway labels
-	SetupSvcApiLBServiceWithLBClass(t, svcName, ns, gatewayName, ns, "TCP", integrationtest.INVALID_LB_CLASS)
-
-	g.Eventually(func() string {
-		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
-		if len(gw.Status.Addresses) > 0 {
-			return gw.Status.Addresses[0].Value
-		}
-		return ""
-	}, 40*time.Second).Should(gomega.Equal("10.250.250.1"))
-
-	_, aviModel := objects.SharedAviGraphLister().Get("admin/cluster--default-" + svcName)
-	g.Expect(aviModel).To(gomega.BeNil())
-
-	TeardownAdvLBService(t, svcName, ns)
-
-	// LB Service with valid LBClass should be processed for DedicatedVS and be validated with AKO ignoring gateway labels
-	SetupSvcApiLBServiceWithLBClass(t, svcName, ns, gatewayName, ns, "TCP", lib.AviIngressController)
-	g.Eventually(func() bool {
-		found, _ := objects.SharedAviGraphLister().Get("admin/cluster--default-" + svcName)
-		return found
-	}, 30*time.Second).Should(gomega.Equal(true))
-	_, aviModel = objects.SharedAviGraphLister().Get("admin/cluster--default-" + svcName)
-	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(nodes).To(gomega.HaveLen(1))
-
-	TeardownGatewayClass(t, gwClassName)
-	g.Eventually(func() int {
-		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
-		return len(gw.Status.Addresses)
-	}, 40*time.Second).Should(gomega.Equal(0))
-
-	TeardownGateway(t, gatewayName, ns)
-	TeardownAdvLBService(t, svcName, ns)
-	VerifyGatewayVSNodeDeletion(g, modelName)
-}
-func TestServicesAPISvcHostnameStatusUpdate(t *testing.T) {
-	// create gw, svc1, svc2 on separate listeners
-	// assign hostname to svc1, autofqdn for svc2, check model, check status
-	// assign hostname to svc2 via listener, check model, check status
-
-	g := gomega.NewGomegaWithT(t)
-
-	gwClassName := objNameMap.GenerateName("avi-lb")
-	gatewayName := objNameMap.GenerateName("my-gateway")
-	svcName1 := objNameMap.GenerateName("svc")
-	svcName2 := objNameMap.GenerateName("svc")
-	ns := "default"
-	modelName := "admin/cluster--default-" + gatewayName
-	labels := map[string]string{lib.SvcApiGatewayNameLabelKey: gatewayName, lib.SvcApiGatewayNamespaceLabelKey: ns}
-
-	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
-
-	gateway := FakeGateway{
-		Name:      gatewayName,
-		Namespace: ns,
-		GWClass:   gwClassName,
-		Listeners: []FakeGWListener{
-			{Port: 8081, Protocol: "TCP", Labels: labels, HostName: proto.String("foo.avi.internal")},
-			{Port: 8082, Protocol: "TCP", Labels: labels},
-		},
-	}
-	if _, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Create(context.TODO(), gateway.Gateway(), metav1.CreateOptions{}); err != nil {
-		t.Fatalf("error in adding Gateway: %v", err)
-	}
-
-	svc1 := integrationtest.FakeService{
-		Name:         svcName1,
-		Namespace:    ns,
-		Labels:       labels,
-		Type:         corev1.ServiceTypeClusterIP,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "footcp", Protocol: "TCP", PortNumber: 8081, TargetPort: intstr.FromInt(80)}},
-	}
-	if _, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svc1.Service(), metav1.CreateOptions{}); err != nil {
-		t.Fatalf("error in adding Service: %v", err)
-	}
-
-	svc2 := integrationtest.FakeService{
-		Name:         svcName2,
-		Namespace:    ns,
-		Labels:       labels,
-		Type:         corev1.ServiceTypeClusterIP,
-		ServicePorts: []integrationtest.Serviceport{{PortName: "footcp", Protocol: "TCP", PortNumber: 8082, TargetPort: intstr.FromInt(80)}},
-	}
-	if _, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svc2.Service(), metav1.CreateOptions{}); err != nil {
-		t.Fatalf("error in adding Service: %v", err)
-	}
-
-	integrationtest.CreateEPS(t, ns, svcName1, false, true, "1.1.1")
-	integrationtest.CreateEPS(t, ns, svcName2, false, true, "1.1.1")
-
-	g.Eventually(func() bool {
-		svc1, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcName1, metav1.GetOptions{})
-		svc2, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcName2, metav1.GetOptions{})
-		if len(svc1.Status.LoadBalancer.Ingress) > 0 &&
-			len(svc2.Status.LoadBalancer.Ingress) > 0 &&
-			svc1.Status.LoadBalancer.Ingress[0].Hostname == "foo.avi.internal" &&
-			svc2.Status.LoadBalancer.Ingress[0].Hostname == svcName2+".default.com" {
-			return true
-		}
-		return false
-	}, 30*time.Second).Should(gomega.Equal(true))
-
-	gatewayUpdate := FakeGateway{
-		Name:      gatewayName,
-		Namespace: ns,
-		GWClass:   gwClassName,
-		Listeners: []FakeGWListener{
-			{Port: 8081, Protocol: "TCP", Labels: labels},
-			{Port: 8082, Protocol: "TCP", Labels: labels, HostName: proto.String("bar.avi.internal")},
-		},
-	}
-	if _, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Update(context.TODO(), gatewayUpdate.Gateway(), metav1.UpdateOptions{}); err != nil {
-		t.Fatalf("error in updating Gateway: %v", err)
-	}
-
-	g.Eventually(func() bool {
-		svc1, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcName1, metav1.GetOptions{})
-		svc2, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcName2, metav1.GetOptions{})
-		if len(svc1.Status.LoadBalancer.Ingress) > 0 &&
-			len(svc2.Status.LoadBalancer.Ingress) > 0 &&
-			svc1.Status.LoadBalancer.Ingress[0].Hostname == svcName1+".default.com" &&
-			svc2.Status.LoadBalancer.Ingress[0].Hostname == "bar.avi.internal" {
-			return true
-		}
-		return false
-	}, 30*time.Second).Should(gomega.Equal(true))
-
-	TeardownAdvLBService(t, svcName1, ns)
-	TeardownAdvLBService(t, svcName2, ns)
-	TeardownGateway(t, gatewayName, ns)
-	TeardownGatewayClass(t, gwClassName)
-	VerifyGatewayVSNodeDeletion(g, modelName)
-}
-
 func TestServicesAPIBestCase(t *testing.T) {
 	// create gwclass, create gw, create 1svc
 	// check graph VsNode vals, check IP status
 	// remove gwclasss, IP removed
 	g := gomega.NewGomegaWithT(t)
 
-	gwClassName := objNameMap.GenerateName("avi-lb")
-	gatewayName := objNameMap.GenerateName("my-gateway")
-	svcName := objNameMap.GenerateName("svc")
-	ns := "default"
-	modelName := "admin/cluster--default-" + gatewayName
+	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
+	modelName := "admin/cluster--default-my-gateway"
 
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 	SetupGateway(t, gatewayName, ns, gwClassName)
 
-	SetupSvcApiService(t, svcName, ns, gatewayName, ns, "TCP")
+	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
 
 	g.Eventually(func() string {
 		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
@@ -508,7 +312,7 @@ func TestServicesAPIBestCase(t *testing.T) {
 	}, 40*time.Second).Should(gomega.Equal("10.250.250.1"))
 
 	g.Eventually(func() string {
-		svc, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcName, metav1.GetOptions{})
+		svc, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), "svc", metav1.GetOptions{})
 		if len(svc.Status.LoadBalancer.Ingress) > 0 {
 			return svc.Status.LoadBalancer.Ingress[0].IP
 		}
@@ -522,8 +326,8 @@ func TestServicesAPIBestCase(t *testing.T) {
 	g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
 	g.Expect(nodes[0].L4PolicyRefs[0].PortPool[0].Port).To(gomega.Equal(uint32(8081)))
 	g.Expect(nodes[0].L4PolicyRefs[0].PortPool[0].Protocol).To(gomega.Equal("TCP"))
-	g.Expect(nodes[0].PoolRefs[0].ServiceMetadata.NamespaceServiceName[0]).To(gomega.Equal("default/" + svcName))
-	g.Expect(nodes[0].ServiceMetadata.Gateway).To(gomega.Equal("default/" + gatewayName))
+	g.Expect(nodes[0].PoolRefs[0].ServiceMetadata.NamespaceServiceName[0]).To(gomega.Equal("default/svc"))
+	g.Expect(nodes[0].ServiceMetadata.Gateway).To(gomega.Equal("default/my-gateway"))
 	g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(3))
 
 	TeardownGatewayClass(t, gwClassName)
@@ -532,7 +336,7 @@ func TestServicesAPIBestCase(t *testing.T) {
 		return len(gw.Status.Addresses)
 	}, 40*time.Second).Should(gomega.Equal(0))
 
-	TeardownAdvLBService(t, svcName, ns)
+	TeardownAdvLBService(t, "svc", ns)
 	TeardownGateway(t, gatewayName, ns)
 	VerifyGatewayVSNodeDeletion(g, modelName)
 }
@@ -543,16 +347,13 @@ func TestServicesAPINamingConvention(t *testing.T) {
 	// checks naming convention of all generated nodes
 	g := gomega.NewGomegaWithT(t)
 
-	gwClassName := objNameMap.GenerateName("avi-lb")
-	gatewayName := objNameMap.GenerateName("my-gateway")
-	svcName := objNameMap.GenerateName("svc")
-	ns := "default"
-	modelName := "admin/cluster--default-" + gatewayName
+	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
+	modelName := "admin/cluster--default-my-gateway"
 
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 	SetupGateway(t, gatewayName, ns, gwClassName)
 
-	SetupSvcApiService(t, svcName, ns, gatewayName, ns, "TCP")
+	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
 
 	g.Eventually(func() string {
 		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
@@ -564,12 +365,12 @@ func TestServicesAPINamingConvention(t *testing.T) {
 
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(nodes[0].Name).To(gomega.Equal("cluster--default-" + gatewayName))
-	g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--default-" + svcName + "-" + gatewayName + "-TCP-8081"))
-	g.Expect(nodes[0].L4PolicyRefs[0].Name).To(gomega.Equal("cluster--default-" + gatewayName))
+	g.Expect(nodes[0].Name).To(gomega.Equal("cluster--default-my-gateway"))
+	g.Expect(nodes[0].PoolRefs[0].Name).To(gomega.Equal("cluster--default-svc-my-gateway-TCP-8081"))
+	g.Expect(nodes[0].L4PolicyRefs[0].Name).To(gomega.Equal("cluster--default-my-gateway"))
 
 	TeardownGatewayClass(t, gwClassName)
-	TeardownAdvLBService(t, svcName, ns)
+	TeardownAdvLBService(t, "svc", ns)
 	TeardownGateway(t, gatewayName, ns)
 	VerifyGatewayVSNodeDeletion(g, modelName)
 }
@@ -579,11 +380,8 @@ func TestServicesAPIWithStaticIP(t *testing.T) {
 	// check graph VsNode IPAddress val in vsvip ref
 	g := gomega.NewGomegaWithT(t)
 
-	gwClassName := objNameMap.GenerateName("avi-lb")
-	gatewayName := objNameMap.GenerateName("my-gateway")
-	svcName := objNameMap.GenerateName("svc")
-	ns := "default"
-	modelName := "admin/cluster--default-" + gatewayName
+	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
+	modelName := "admin/cluster--default-my-gateway"
 	staticIP := "80.80.80.80"
 
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
@@ -606,7 +404,7 @@ func TestServicesAPIWithStaticIP(t *testing.T) {
 		t.Fatalf("error in adding Gateway: %v", err)
 	}
 
-	SetupSvcApiService(t, svcName, ns, gatewayName, ns, "TCP")
+	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
 
 	g.Eventually(func() string {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
@@ -619,7 +417,7 @@ func TestServicesAPIWithStaticIP(t *testing.T) {
 	}, 40*time.Second).Should(gomega.Equal(staticIP))
 
 	TeardownGatewayClass(t, gwClassName)
-	TeardownAdvLBService(t, svcName, ns)
+	TeardownAdvLBService(t, "svc", ns)
 	TeardownGateway(t, gatewayName, ns)
 	VerifyGatewayVSNodeDeletion(g, modelName)
 }
@@ -632,14 +430,11 @@ func TestServicesAPIWrongControllerGWClass(t *testing.T) {
 	// update to bad gatewayclass (wrong controller), VS deleted
 	g := gomega.NewGomegaWithT(t)
 
-	gwClassName := objNameMap.GenerateName("avi-lb")
-	gatewayName := objNameMap.GenerateName("my-gateway")
-	svcName := objNameMap.GenerateName("svc")
-	ns := "default"
-	modelName := "admin/cluster--default-" + gatewayName
+	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
+	modelName := "admin/cluster--default-my-gateway"
 
 	SetupGateway(t, gatewayName, ns, gwClassName)
-	SetupSvcApiService(t, svcName, ns, gatewayName, ns, "TCP")
+	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
 
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 
@@ -665,11 +460,11 @@ func TestServicesAPIWrongControllerGWClass(t *testing.T) {
 		return len(gw.Status.Addresses)
 	}, 40*time.Second).Should(gomega.Equal(0))
 	g.Eventually(func() int {
-		svc, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcName, metav1.GetOptions{})
+		svc, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), "svc", metav1.GetOptions{})
 		return len(svc.Status.LoadBalancer.Ingress)
 	}, 40*time.Second).Should(gomega.Equal(0))
 
-	TeardownAdvLBService(t, svcName, ns)
+	TeardownAdvLBService(t, "svc", ns)
 	TeardownGateway(t, gatewayName, ns)
 	TeardownGatewayClass(t, gwClassName)
 	VerifyGatewayVSNodeDeletion(g, modelName)
@@ -681,14 +476,11 @@ func TestServicesAPIWrongClassMappingInGateway(t *testing.T) {
 	// fix class in gw, VS created
 	g := gomega.NewGomegaWithT(t)
 
-	gwClassName := objNameMap.GenerateName("avi-lb")
-	gatewayName := objNameMap.GenerateName("my-gateway")
-	svcName := objNameMap.GenerateName("svc")
-	ns := "default"
-	modelName := "admin/cluster--default-" + gatewayName
+	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
+	modelName := "admin/cluster--default-my-gateway"
 
 	SetupGateway(t, gatewayName, ns, gwClassName)
-	SetupSvcApiService(t, svcName, ns, gatewayName, ns, "TCP")
+	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
 
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 
@@ -743,7 +535,7 @@ func TestServicesAPIWrongClassMappingInGateway(t *testing.T) {
 		return len(gw.Status.Addresses)
 	}, 10*time.Second).Should(gomega.Equal(1))
 
-	TeardownAdvLBService(t, svcName, ns)
+	TeardownAdvLBService(t, "svc", ns)
 	TeardownGateway(t, gatewayName, ns)
 	TeardownGatewayClass(t, gwClassName)
 	VerifyGatewayVSNodeDeletion(g, modelName)
@@ -754,15 +546,12 @@ func TestServicesAPIProtocolChangeInService(t *testing.T) {
 	// service protocol changes Pool deleted
 	g := gomega.NewGomegaWithT(t)
 
-	gwClassName := objNameMap.GenerateName("avi-lb")
-	gatewayName := objNameMap.GenerateName("my-gateway")
-	svcName := objNameMap.GenerateName("svc")
-	ns := "default"
-	modelName := "admin/cluster--default-" + gatewayName
+	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
+	modelName := "admin/cluster--default-my-gateway"
 
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 	SetupGateway(t, gatewayName, ns, gwClassName)
-	SetupSvcApiService(t, svcName, ns, gatewayName, ns, "TCP")
+	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
 
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
@@ -775,7 +564,7 @@ func TestServicesAPIProtocolChangeInService(t *testing.T) {
 	}, 10*time.Second).Should(gomega.Equal(true))
 
 	svcUpdate := integrationtest.FakeService{
-		Name:      svcName,
+		Name:      "svc",
 		Namespace: ns,
 		Labels: map[string]string{
 			lib.SvcApiGatewayNameLabelKey:      gatewayName,
@@ -800,7 +589,7 @@ func TestServicesAPIProtocolChangeInService(t *testing.T) {
 		return false
 	}, 50*time.Second).Should(gomega.Equal(true))
 
-	TeardownAdvLBService(t, svcName, ns)
+	TeardownAdvLBService(t, "svc", ns)
 	TeardownGateway(t, gatewayName, ns)
 	TeardownGatewayClass(t, gwClassName)
 	VerifyGatewayVSNodeDeletion(g, modelName)
@@ -811,15 +600,12 @@ func TestServicesAPIPortChangeInService(t *testing.T) {
 	// service port changes Pools deleted
 	g := gomega.NewGomegaWithT(t)
 
-	gwClassName := objNameMap.GenerateName("avi-lb")
-	gatewayName := objNameMap.GenerateName("my-gateway")
-	svcName := objNameMap.GenerateName("svc")
-	ns := "default"
-	modelName := "admin/cluster--default-" + gatewayName
+	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
+	modelName := "admin/cluster--default-my-gateway"
 
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 	SetupGateway(t, gatewayName, ns, gwClassName)
-	SetupSvcApiService(t, svcName, ns, gatewayName, ns, "TCP")
+	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
 
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
@@ -832,7 +618,7 @@ func TestServicesAPIPortChangeInService(t *testing.T) {
 	}, 10*time.Second).Should(gomega.Equal(true))
 
 	svcUpdate := integrationtest.FakeService{
-		Name:      svcName,
+		Name:      "svc",
 		Namespace: ns,
 		Labels: map[string]string{
 			lib.SvcApiGatewayNameLabelKey:      gatewayName,
@@ -857,7 +643,7 @@ func TestServicesAPIPortChangeInService(t *testing.T) {
 		return false
 	}, 40*time.Second).Should(gomega.Equal(true))
 
-	TeardownAdvLBService(t, svcName, ns)
+	TeardownAdvLBService(t, "svc", ns)
 	TeardownGateway(t, gatewayName, ns)
 	TeardownGatewayClass(t, gwClassName)
 	VerifyGatewayVSNodeDeletion(g, modelName)
@@ -867,15 +653,12 @@ func TestServicesAPILabelUpdatesInService(t *testing.T) {
 	// correct labels, label mismatch, correct labels, delete labels
 	g := gomega.NewGomegaWithT(t)
 
-	gwClassName := objNameMap.GenerateName("avi-lb")
-	gatewayName := objNameMap.GenerateName("my-gateway")
-	svcName := objNameMap.GenerateName("svc")
-	ns := "default"
-	modelName := "admin/cluster--default-" + gatewayName
+	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
+	modelName := "admin/cluster--default-my-gateway"
 
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 	SetupGateway(t, gatewayName, ns, gwClassName)
-	SetupSvcApiService(t, svcName, ns, gatewayName, ns, "TCP")
+	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
 
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
@@ -888,7 +671,7 @@ func TestServicesAPILabelUpdatesInService(t *testing.T) {
 	}, 10*time.Second).Should(gomega.Equal(true))
 
 	svcUpdate := integrationtest.FakeService{
-		Name:      svcName,
+		Name:      "svc",
 		Namespace: ns,
 		Labels: map[string]string{
 			lib.SvcApiGatewayNameLabelKey:      "BADGATEWAY",
@@ -913,7 +696,7 @@ func TestServicesAPILabelUpdatesInService(t *testing.T) {
 		return false
 	}, 40*time.Second).Should(gomega.Equal(true))
 
-	TeardownAdvLBService(t, svcName, ns)
+	TeardownAdvLBService(t, "svc", ns)
 	TeardownGateway(t, gatewayName, ns)
 	TeardownGatewayClass(t, gwClassName)
 	VerifyGatewayVSNodeDeletion(g, modelName)
@@ -923,15 +706,12 @@ func TestServicesAPILabelUpdatesInGateway(t *testing.T) {
 	// correct labels, label mismatch, correct labels, delete labels
 	g := gomega.NewGomegaWithT(t)
 
-	gwClassName := objNameMap.GenerateName("avi-lb")
-	gatewayName := objNameMap.GenerateName("my-gateway")
-	svcName := objNameMap.GenerateName("svc")
-	ns := "default"
-	modelName := "admin/cluster--default-" + gatewayName
+	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
+	modelName := "admin/cluster--default-my-gateway"
 
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 	SetupGateway(t, gatewayName, ns, gwClassName)
-	SetupSvcApiService(t, svcName, ns, gatewayName, ns, "TCP")
+	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
 
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
@@ -969,7 +749,7 @@ func TestServicesAPILabelUpdatesInGateway(t *testing.T) {
 		return true
 	}, 40*time.Second).Should(gomega.Equal(false))
 
-	TeardownAdvLBService(t, svcName, ns)
+	TeardownAdvLBService(t, "svc", ns)
 	TeardownGateway(t, gatewayName, ns)
 	TeardownGatewayClass(t, gwClassName)
 	VerifyGatewayVSNodeDeletion(g, modelName)
@@ -981,15 +761,12 @@ func TestServicesAPIGatewayListenerPortUpdate(t *testing.T) {
 	// change svc port to 8080, VS creates, with 8080 exposed port
 	g := gomega.NewGomegaWithT(t)
 
-	gwClassName := objNameMap.GenerateName("avi-lb")
-	gatewayName := objNameMap.GenerateName("my-gateway")
-	svcName := objNameMap.GenerateName("svc")
-	ns := "default"
-	modelName := "admin/cluster--default-" + gatewayName
+	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
+	modelName := "admin/cluster--default-my-gateway"
 
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 	SetupGateway(t, gatewayName, ns, gwClassName)
-	SetupSvcApiService(t, svcName, ns, gatewayName, ns, "TCP")
+	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
 
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
@@ -1034,7 +811,7 @@ func TestServicesAPIGatewayListenerPortUpdate(t *testing.T) {
 
 	// match service to chaged gateway port: 8080
 	svcUpdate := integrationtest.FakeService{
-		Name:      svcName,
+		Name:      "svc",
 		Namespace: ns,
 		Labels: map[string]string{
 			lib.SvcApiGatewayNameLabelKey:      gatewayName,
@@ -1060,7 +837,7 @@ func TestServicesAPIGatewayListenerPortUpdate(t *testing.T) {
 		return false
 	}, 10*time.Second).Should(gomega.Equal(true))
 
-	TeardownAdvLBService(t, svcName, ns)
+	TeardownAdvLBService(t, "svc", ns)
 	TeardownGateway(t, gatewayName, ns)
 	TeardownGatewayClass(t, gwClassName)
 	VerifyGatewayVSNodeDeletion(g, modelName)
@@ -1072,15 +849,12 @@ func TestServicesAPIGatewayListenerProtocolUpdate(t *testing.T) {
 	// change svc protocol to UDP, VS creates, with UDP protocol
 	g := gomega.NewGomegaWithT(t)
 
-	gwClassName := objNameMap.GenerateName("avi-lb")
-	gatewayName := objNameMap.GenerateName("my-gateway")
-	svcName := objNameMap.GenerateName("svc")
-	ns := "default"
-	modelName := "admin/cluster--default-" + gatewayName
+	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
+	modelName := "admin/cluster--default-my-gateway"
 
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 	SetupGateway(t, gatewayName, ns, gwClassName)
-	SetupSvcApiService(t, svcName, ns, gatewayName, ns, "TCP")
+	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
 
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
@@ -1125,7 +899,7 @@ func TestServicesAPIGatewayListenerProtocolUpdate(t *testing.T) {
 
 	// match service to chaged gateway protocol: UDP
 	svcUpdate := integrationtest.FakeService{
-		Name:      svcName,
+		Name:      "svc",
 		Namespace: ns,
 		Labels: map[string]string{
 			lib.SvcApiGatewayNameLabelKey:      gatewayName,
@@ -1151,7 +925,7 @@ func TestServicesAPIGatewayListenerProtocolUpdate(t *testing.T) {
 		return false
 	}, 10*time.Second).Should(gomega.Equal(true))
 
-	TeardownAdvLBService(t, svcName, ns)
+	TeardownAdvLBService(t, "svc", ns)
 	TeardownGateway(t, gatewayName, ns)
 	TeardownGatewayClass(t, gwClassName)
 	VerifyGatewayVSNodeDeletion(g, modelName)
@@ -1162,23 +936,19 @@ func TestServicesAPIMultiGatewayServiceUpdate(t *testing.T) {
 	// change gateway from gw1 to gw2, gw1 Pools delete, gw2 VS is created
 	g := gomega.NewGomegaWithT(t)
 
-	gwClassName := objNameMap.GenerateName("avi-lb")
-	gateway1Name := objNameMap.GenerateName("my-gateway")
-	gateway2Name := objNameMap.GenerateName("my-gateway")
-	svcName := objNameMap.GenerateName("svc")
-	ns := "default"
-	modelName1 := "admin/cluster--default-" + gateway1Name
-	modelName2 := "admin/cluster--default-" + gateway2Name
+	gwClassName, gateway1Name, gateway2Name, ns := "avi-lb", "my-gateway1", "my-gateway2", "default"
+	modelName1 := "admin/cluster--default-my-gateway1"
+	modelName2 := "admin/cluster--default-my-gateway2"
 
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 	SetupGateway(t, gateway1Name, ns, gwClassName)
 	SetupGateway(t, gateway2Name, ns, gwClassName)
-	SetupSvcApiService(t, svcName, ns, gateway1Name, ns, "TCP")
+	SetupSvcApiService(t, "svc", ns, gateway1Name, ns)
 
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName1); found && aviModel != nil {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-			if len(nodes) > 0 && nodes[0].Name == "cluster--default-"+gateway1Name {
+			if len(nodes) > 0 && nodes[0].Name == "cluster--default-my-gateway1" {
 				return true
 			}
 		}
@@ -1191,7 +961,7 @@ func TestServicesAPIMultiGatewayServiceUpdate(t *testing.T) {
 
 	// change service gw binding from gw1 to gw2
 	svcUpdate := integrationtest.FakeService{
-		Name:      svcName,
+		Name:      "svc",
 		Namespace: ns,
 		Labels: map[string]string{
 			lib.SvcApiGatewayNameLabelKey:      gateway2Name,
@@ -1219,14 +989,14 @@ func TestServicesAPIMultiGatewayServiceUpdate(t *testing.T) {
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName2); found && aviModel != nil {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-			if len(nodes) > 0 && nodes[0].Name == "cluster--default-"+gateway2Name {
+			if len(nodes) > 0 && nodes[0].Name == "cluster--default-my-gateway2" {
 				return true
 			}
 		}
 		return false
 	}, 40*time.Second).Should(gomega.Equal(true))
 
-	TeardownAdvLBService(t, svcName, ns)
+	TeardownAdvLBService(t, "svc", ns)
 	TeardownGateway(t, gateway1Name, ns)
 	TeardownGateway(t, gateway2Name, ns)
 	TeardownGatewayClass(t, gwClassName)
@@ -1238,18 +1008,15 @@ func TestServicesAPIEndpointDeleteCreate(t *testing.T) {
 	// delete/create endpoints
 	g := gomega.NewGomegaWithT(t)
 
-	gwClassName := objNameMap.GenerateName("avi-lb")
-	gatewayName := objNameMap.GenerateName("my-gateway")
-	svcName := objNameMap.GenerateName("svc")
-	ns := "default"
-	modelName := "admin/cluster--default-" + gatewayName
+	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
+	modelName := "admin/cluster--default-my-gateway"
 
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
 	SetupGateway(t, gatewayName, ns, gwClassName)
-	SetupSvcApiService(t, svcName, ns, gatewayName, ns, "TCP")
+	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
 
 	// delete endpoints
-	integrationtest.DelEPS(t, ns, svcName)
+	integrationtest.DelEP(t, ns, "svc")
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
@@ -1264,7 +1031,7 @@ func TestServicesAPIEndpointDeleteCreate(t *testing.T) {
 
 	// create new endpoints
 	newIP := "2.2.2"
-	integrationtest.CreateEPS(t, ns, svcName, false, true, newIP)
+	integrationtest.CreateEP(t, ns, "svc", false, true, newIP)
 	g.Eventually(func() bool {
 		if found, aviModel := objects.SharedAviGraphLister().Get(modelName); found && aviModel != nil {
 			nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
@@ -1281,7 +1048,7 @@ func TestServicesAPIEndpointDeleteCreate(t *testing.T) {
 	g.Expect(nodes[0].PoolRefs).Should(gomega.HaveLen(1))
 	g.Expect(*nodes[0].PoolRefs[0].Servers[0].Ip.Addr).Should(gomega.ContainSubstring(newIP))
 
-	TeardownAdvLBService(t, svcName, ns)
+	TeardownAdvLBService(t, "svc", ns)
 	TeardownGateway(t, gatewayName, ns)
 	TeardownGatewayClass(t, gwClassName)
 	VerifyGatewayVSNodeDeletion(g, modelName)
@@ -1294,12 +1061,9 @@ func TestServicesAPIMultiServiceMultiProtocol(t *testing.T) {
 
 	g := gomega.NewGomegaWithT(t)
 
-	gwClassName := objNameMap.GenerateName("avi-lb")
-	gatewayName := objNameMap.GenerateName("my-gateway")
-	svcName1 := objNameMap.GenerateName("svc")
-	svcName2 := objNameMap.GenerateName("svc")
-	ns := "default"
-	modelName := "admin/cluster--default-" + gatewayName
+	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
+	svcName1, svcName2 := "svc1", "svc2"
+	modelName := "admin/cluster--default-my-gateway"
 	labels := map[string]string{lib.SvcApiGatewayNameLabelKey: gatewayName, lib.SvcApiGatewayNamespaceLabelKey: ns}
 
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
@@ -1327,7 +1091,7 @@ func TestServicesAPIMultiServiceMultiProtocol(t *testing.T) {
 	if _, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svc1.Service(), metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding Service: %v", err)
 	}
-	integrationtest.CreateEPS(t, ns, svcName1, false, true, "1.1.1")
+	integrationtest.CreateEP(t, ns, svcName1, false, true, "1.1.1")
 
 	svc2 := integrationtest.FakeService{
 		Name:         svcName2,
@@ -1341,7 +1105,7 @@ func TestServicesAPIMultiServiceMultiProtocol(t *testing.T) {
 		t.Fatalf("error in adding Service: %v", err)
 	}
 
-	integrationtest.CreateEPS(t, ns, svcName2, false, true, "1.1.1")
+	integrationtest.CreateEP(t, ns, svcName2, false, true, "1.1.1")
 
 	g.Eventually(func() string {
 		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
@@ -1387,6 +1151,102 @@ func TestServicesAPIMultiServiceMultiProtocol(t *testing.T) {
 	VerifyGatewayVSNodeDeletion(g, modelName)
 }
 
+func TestServicesAPISvcHostnameStatusUpdate(t *testing.T) {
+	// create gw, svc1, svc2 on separate listeners
+	// assign hostname to svc1, autofqdn for svc2, check model, check status
+	// assign hostname to svc2 via listener, check model, check status
+
+	g := gomega.NewGomegaWithT(t)
+
+	gwClassName, gatewayName, ns := "avi-lb", "my-gateway", "default"
+	svcName1, svcName2 := "svc1", "svc2"
+	modelName := "admin/cluster--default-my-gateway"
+	labels := map[string]string{lib.SvcApiGatewayNameLabelKey: gatewayName, lib.SvcApiGatewayNamespaceLabelKey: ns}
+
+	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
+
+	gateway := FakeGateway{
+		Name:      gatewayName,
+		Namespace: ns,
+		GWClass:   gwClassName,
+		Listeners: []FakeGWListener{
+			{Port: 8081, Protocol: "TCP", Labels: labels, HostName: proto.String("foo.avi.internal")},
+			{Port: 8082, Protocol: "TCP", Labels: labels},
+		},
+	}
+	if _, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Create(context.TODO(), gateway.Gateway(), metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding Gateway: %v", err)
+	}
+
+	svc1 := integrationtest.FakeService{
+		Name:         svcName1,
+		Namespace:    ns,
+		Labels:       labels,
+		Type:         corev1.ServiceTypeClusterIP,
+		ServicePorts: []integrationtest.Serviceport{{PortName: "footcp", Protocol: "TCP", PortNumber: 8081, TargetPort: intstr.FromInt(80)}},
+	}
+	if _, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svc1.Service(), metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+
+	svc2 := integrationtest.FakeService{
+		Name:         svcName2,
+		Namespace:    ns,
+		Labels:       labels,
+		Type:         corev1.ServiceTypeClusterIP,
+		ServicePorts: []integrationtest.Serviceport{{PortName: "footcp", Protocol: "TCP", PortNumber: 8082, TargetPort: intstr.FromInt(80)}},
+	}
+	if _, err := KubeClient.CoreV1().Services(ns).Create(context.TODO(), svc2.Service(), metav1.CreateOptions{}); err != nil {
+		t.Fatalf("error in adding Service: %v", err)
+	}
+
+	integrationtest.CreateEP(t, ns, svcName1, false, true, "1.1.1")
+	integrationtest.CreateEP(t, ns, svcName2, false, true, "1.1.1")
+
+	g.Eventually(func() bool {
+		svc1, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcName1, metav1.GetOptions{})
+		svc2, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcName2, metav1.GetOptions{})
+		if len(svc1.Status.LoadBalancer.Ingress) > 0 &&
+			len(svc2.Status.LoadBalancer.Ingress) > 0 &&
+			svc1.Status.LoadBalancer.Ingress[0].Hostname == "foo.avi.internal" &&
+			svc2.Status.LoadBalancer.Ingress[0].Hostname == "svc2.default.com" {
+			return true
+		}
+		return false
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	gatewayUpdate := FakeGateway{
+		Name:      gatewayName,
+		Namespace: ns,
+		GWClass:   gwClassName,
+		Listeners: []FakeGWListener{
+			{Port: 8081, Protocol: "TCP", Labels: labels},
+			{Port: 8082, Protocol: "TCP", Labels: labels, HostName: proto.String("bar.avi.internal")},
+		},
+	}
+	if _, err := lib.AKOControlConfig().ServicesAPIClientset().NetworkingV1alpha1().Gateways(ns).Update(context.TODO(), gatewayUpdate.Gateway(), metav1.UpdateOptions{}); err != nil {
+		t.Fatalf("error in updating Gateway: %v", err)
+	}
+
+	g.Eventually(func() bool {
+		svc1, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcName1, metav1.GetOptions{})
+		svc2, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcName2, metav1.GetOptions{})
+		if len(svc1.Status.LoadBalancer.Ingress) > 0 &&
+			len(svc2.Status.LoadBalancer.Ingress) > 0 &&
+			svc1.Status.LoadBalancer.Ingress[0].Hostname == "svc1.default.com" &&
+			svc2.Status.LoadBalancer.Ingress[0].Hostname == "bar.avi.internal" {
+			return true
+		}
+		return false
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	TeardownAdvLBService(t, svcName1, ns)
+	TeardownAdvLBService(t, svcName2, ns)
+	TeardownGateway(t, gatewayName, ns)
+	TeardownGatewayClass(t, gwClassName)
+	VerifyGatewayVSNodeDeletion(g, modelName)
+}
+
 // AviInfraSetting tests
 
 func TestServicesAPIWithInfraSettingStatusUpdates(t *testing.T) {
@@ -1397,16 +1257,12 @@ func TestServicesAPIWithInfraSettingStatusUpdates(t *testing.T) {
 
 	g := gomega.NewGomegaWithT(t)
 
-	gwClassName := objNameMap.GenerateName("avi-lb")
-	gatewayName := objNameMap.GenerateName("my-gateway")
-	svcName := objNameMap.GenerateName("svc")
-	ns := "default"
-	settingName := objNameMap.GenerateName("infra-setting")
-	modelName := "admin/cluster--default-" + gatewayName
+	gwClassName, gatewayName, settingName, ns := "avi-lb", "my-gateway", "infra-setting", "default"
+	modelName := "admin/cluster--default-my-gateway"
 
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, settingName)
 	SetupGateway(t, gatewayName, ns, gwClassName)
-	SetupSvcApiService(t, svcName, ns, gatewayName, ns, "TCP")
+	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
 
 	// Create with bad seGroup ref.
 	settingCreate := (integrationtest.FakeAviInfraSetting{
@@ -1415,12 +1271,12 @@ func TestServicesAPIWithInfraSettingStatusUpdates(t *testing.T) {
 		Networks:    []string{"thisisaviref-networkName"},
 		EnableRhi:   true,
 	}).AviInfraSetting()
-	if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Create(context.TODO(), settingCreate, metav1.CreateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Create(context.TODO(), settingCreate, metav1.CreateOptions{}); err != nil {
 		t.Fatalf("error in adding AviInfraSetting: %v", err)
 	}
 
 	g.Eventually(func() string {
-		setting, _ := v1beta1CRDClient.AkoV1beta1().AviInfraSettings().Get(context.TODO(), settingName, metav1.GetOptions{})
+		setting, _ := CRDClient.AkoV1alpha1().AviInfraSettings().Get(context.TODO(), settingName, metav1.GetOptions{})
 		return setting.Status.Status
 	}, 10*time.Second).Should(gomega.Equal("Rejected"))
 
@@ -1445,12 +1301,12 @@ func TestServicesAPIWithInfraSettingStatusUpdates(t *testing.T) {
 		EnableRhi:   true,
 	}).AviInfraSetting()
 	settingUpdate.ResourceVersion = "2"
-	if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Update(context.TODO(), settingUpdate, metav1.UpdateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Update(context.TODO(), settingUpdate, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating AviInfraSetting: %v", err)
 	}
 
 	g.Eventually(func() string {
-		setting, _ := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), settingName, metav1.GetOptions{})
+		setting, _ := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Get(context.TODO(), settingName, metav1.GetOptions{})
 		return setting.Status.Status
 	}, 45*time.Second).Should(gomega.Equal("Accepted"))
 
@@ -1473,16 +1329,16 @@ func TestServicesAPIWithInfraSettingStatusUpdates(t *testing.T) {
 		EnableRhi:   true,
 	}).AviInfraSetting()
 	settingUpdate.ResourceVersion = "3"
-	if _, err := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Update(context.TODO(), settingUpdate, metav1.UpdateOptions{}); err != nil {
+	if _, err := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Update(context.TODO(), settingUpdate, metav1.UpdateOptions{}); err != nil {
 		t.Fatalf("error in updating AviInfraSetting: %v", err)
 	}
 
 	g.Eventually(func() string {
-		setting, _ := lib.AKOControlConfig().V1beta1CRDClientset().AkoV1beta1().AviInfraSettings().Get(context.TODO(), settingName, metav1.GetOptions{})
+		setting, _ := lib.AKOControlConfig().CRDClientset().AkoV1alpha1().AviInfraSettings().Get(context.TODO(), settingName, metav1.GetOptions{})
 		return setting.Status.Status
 	}, 15*time.Second).Should(gomega.Equal("Rejected"))
 
-	TeardownAdvLBService(t, svcName, ns)
+	TeardownAdvLBService(t, "svc", ns)
 	TeardownGateway(t, gatewayName, ns)
 	TeardownGatewayClass(t, gwClassName)
 	VerifyGatewayVSNodeDeletion(g, modelName)
@@ -1495,16 +1351,12 @@ func TestServicesAPInfraSettingDelete(t *testing.T) {
 
 	g := gomega.NewGomegaWithT(t)
 
-	gwClassName := objNameMap.GenerateName("avi-lb")
-	gatewayName := objNameMap.GenerateName("my-gateway")
-	svcName := objNameMap.GenerateName("svc")
-	ns := "default"
-	settingName := objNameMap.GenerateName("infra-setting")
-	modelName := "admin/cluster--default-" + gatewayName
+	gwClassName, gatewayName, settingName, ns := "avi-lb", "my-gateway", "infra-setting", "default"
+	modelName := "admin/cluster--default-my-gateway"
 
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, settingName)
 	SetupGateway(t, gatewayName, ns, gwClassName)
-	SetupSvcApiService(t, svcName, ns, gatewayName, ns, "TCP")
+	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
 	integrationtest.SetupAviInfraSetting(t, settingName, "")
 
 	g.Eventually(func() bool {
@@ -1535,7 +1387,7 @@ func TestServicesAPInfraSettingDelete(t *testing.T) {
 		return false
 	}, 40*time.Second).Should(gomega.Equal(true))
 
-	TeardownAdvLBService(t, svcName, ns)
+	TeardownAdvLBService(t, "svc", ns)
 	TeardownGateway(t, gatewayName, ns)
 	TeardownGatewayClass(t, gwClassName)
 	VerifyGatewayVSNodeDeletion(g, modelName)
@@ -1548,17 +1400,12 @@ func TestServicesAPIInfraSettingChangeMapping(t *testing.T) {
 
 	g := gomega.NewGomegaWithT(t)
 
-	gwClassName := objNameMap.GenerateName("avi-lb")
-	gatewayName := objNameMap.GenerateName("my-gateway")
-	svcName := objNameMap.GenerateName("svc")
-	ns := "default"
-	settingName1 := objNameMap.GenerateName("infra-setting")
-	settingName2 := objNameMap.GenerateName("infra-setting")
-	modelName := "admin/cluster--default-" + gatewayName
+	gwClassName, gatewayName, settingName1, settingName2, ns := "avi-lb", "my-gateway", "infra-setting1", "infra-setting2", "default"
+	modelName := "admin/cluster--default-my-gateway"
 
 	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, settingName1)
 	SetupGateway(t, gatewayName, ns, gwClassName)
-	SetupSvcApiService(t, svcName, ns, gatewayName, ns, "TCP")
+	SetupSvcApiService(t, "svc", ns, gatewayName, ns)
 	integrationtest.SetupAviInfraSetting(t, settingName1, "")
 	integrationtest.SetupAviInfraSetting(t, settingName2, "")
 
@@ -1595,514 +1442,10 @@ func TestServicesAPIInfraSettingChangeMapping(t *testing.T) {
 		return false
 	}, 45*time.Second).Should(gomega.Equal(true))
 
-	TeardownAdvLBService(t, svcName, ns)
+	TeardownAdvLBService(t, "svc", ns)
 	TeardownGateway(t, gatewayName, ns)
 	TeardownGatewayClass(t, gwClassName)
 	integrationtest.TeardownAviInfraSetting(t, settingName1)
 	integrationtest.TeardownAviInfraSetting(t, settingName2)
-	VerifyGatewayVSNodeDeletion(g, modelName)
-}
-
-func TestServicesAPINetworkProfileBasedOnLicense(t *testing.T) {
-	// create gwclass, create gw, create 1svc
-	// check graph VsNode vals, check IP status
-	// check whether the `NetworkProfile` is based on the license
-	// remove gwclasss, IP removed
-	g := gomega.NewGomegaWithT(t)
-
-	gwClassName := objNameMap.GenerateName("avi-lb")
-	gatewayName := objNameMap.GenerateName("my-gateway")
-	svcName := objNameMap.GenerateName("svc")
-	ns := "default"
-	modelName := "admin/cluster--default-" + gatewayName
-
-	SetupLicense := func(license string) {
-		integrationtest.AviFakeClientInstance = nil
-		integrationtest.AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
-			url := r.URL.EscapedPath()
-			if strings.Contains(url, "/api/systemconfiguration") {
-				w.WriteHeader(http.StatusOK)
-				w.Write([]byte(`{"default_license_tier": "` + license + `"}`))
-				return
-			}
-			integrationtest.NormalControllerServer(w, r)
-		})
-		integrationtest.NewAviFakeClientInstance(KubeClient)
-
-		// Set the license
-		aviRestClientPool := cache.SharedAVIClients(lib.GetTenant())
-		lib.AKOControlConfig().SetLicenseType(aviRestClientPool.AviClient[0])
-	}
-
-	SetupLicense(lib.LicenseTypeEnterprise)
-	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
-	SetupGateway(t, gatewayName, ns, gwClassName)
-
-	SetupSvcApiService(t, svcName, ns, gatewayName, ns, "TCP")
-
-	g.Eventually(func() string {
-		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
-		if len(gw.Status.Addresses) > 0 {
-			return gw.Status.Addresses[0].Value
-		}
-		return ""
-	}, 40*time.Second).Should(gomega.Equal("10.250.250.1"))
-
-	g.Eventually(func() string {
-		svc, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcName, metav1.GetOptions{})
-		if len(svc.Status.LoadBalancer.Ingress) > 0 {
-			return svc.Status.LoadBalancer.Ingress[0].IP
-		}
-		return ""
-	}, 30*time.Second).Should(gomega.Equal("10.250.250.1"))
-
-	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8081)))
-	g.Expect(nodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
-	g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
-	g.Expect(nodes[0].L4PolicyRefs[0].PortPool[0].Port).To(gomega.Equal(uint32(8081)))
-	g.Expect(nodes[0].L4PolicyRefs[0].PortPool[0].Protocol).To(gomega.Equal("TCP"))
-	g.Expect(nodes[0].PoolRefs[0].ServiceMetadata.NamespaceServiceName[0]).To(gomega.Equal("default/" + svcName))
-	g.Expect(nodes[0].ServiceMetadata.Gateway).To(gomega.Equal("default/" + gatewayName))
-	g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(3))
-	g.Expect(nodes[0].NetworkProfile).To(gomega.Equal(utils.DEFAULT_TCP_NW_PROFILE))
-
-	TeardownGatewayClass(t, gwClassName)
-	g.Eventually(func() int {
-		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
-		return len(gw.Status.Addresses)
-	}, 40*time.Second).Should(gomega.Equal(0))
-
-	TeardownAdvLBService(t, svcName, ns)
-	TeardownGateway(t, gatewayName, ns)
-	VerifyGatewayVSNodeDeletion(g, modelName)
-
-	// Set the license as BASIC and verify the network profile.
-	SetupLicense("BASIC")
-	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
-	SetupGateway(t, gatewayName, ns, gwClassName)
-
-	SetupSvcApiService(t, svcName, ns, gatewayName, ns, "TCP")
-
-	g.Eventually(func() string {
-		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
-		if len(gw.Status.Addresses) > 0 {
-			return gw.Status.Addresses[0].Value
-		}
-		return ""
-	}, 40*time.Second).Should(gomega.Equal("10.250.250.1"))
-
-	g.Eventually(func() string {
-		svc, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcName, metav1.GetOptions{})
-		if len(svc.Status.LoadBalancer.Ingress) > 0 {
-			return svc.Status.LoadBalancer.Ingress[0].IP
-		}
-		return ""
-	}, 30*time.Second).Should(gomega.Equal("10.250.250.1"))
-
-	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
-	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8081)))
-	g.Expect(nodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
-	g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
-	g.Expect(nodes[0].L4PolicyRefs[0].PortPool[0].Port).To(gomega.Equal(uint32(8081)))
-	g.Expect(nodes[0].L4PolicyRefs[0].PortPool[0].Protocol).To(gomega.Equal("TCP"))
-	g.Expect(nodes[0].PoolRefs[0].ServiceMetadata.NamespaceServiceName[0]).To(gomega.Equal("default/" + svcName))
-	g.Expect(nodes[0].ServiceMetadata.Gateway).To(gomega.Equal("default/" + gatewayName))
-	g.Expect(nodes[0].PoolRefs[0].Servers).To(gomega.HaveLen(3))
-	g.Expect(nodes[0].NetworkProfile).To(gomega.Equal(utils.TCP_NW_FAST_PATH))
-
-	TeardownGatewayClass(t, gwClassName)
-	g.Eventually(func() int {
-		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
-		return len(gw.Status.Addresses)
-	}, 40*time.Second).Should(gomega.Equal(0))
-
-	TeardownAdvLBService(t, svcName, ns)
-	TeardownGateway(t, gatewayName, ns)
-	VerifyGatewayVSNodeDeletion(g, modelName)
-
-	integrationtest.AviFakeClientInstance.Close()
-}
-
-func TestServicesAPIMutliProtocol(t *testing.T) {
-	// create gwclass, create gw, create 1svc
-	// check graph VsNode vals, check IP status
-	// remove gwclasss, IP removed
-	g := gomega.NewGomegaWithT(t)
-
-	gwClassName := objNameMap.GenerateName("avi-lb")
-	gatewayName := objNameMap.GenerateName("my-gateway")
-	svcName := objNameMap.GenerateName("svc")
-	ns := "default"
-	modelName := "admin/cluster--default-" + gatewayName
-	protocols := []string{"SCTP", "TCP", "UDP"}
-	var namespacedSvcList []string
-	for _, protocol := range protocols {
-		namespacedSvcList = append(namespacedSvcList, ns+"/"+svcName+"-"+protocol)
-	}
-
-	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
-	SetupGateway(t, gatewayName, ns, gwClassName, protocols...)
-
-	for _, protocol := range protocols {
-		svcname := svcName + "-" + protocol
-		SetupSvcApiService(t, svcname, ns, gatewayName, ns, protocol)
-	}
-
-	g.Eventually(func() string {
-		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
-		if len(gw.Status.Addresses) > 0 {
-			return gw.Status.Addresses[0].Value
-		}
-		return ""
-	}, 40*time.Second).Should(gomega.Equal("10.250.250.1"))
-
-	for _, protocol := range protocols {
-		svcname := svcName + "-" + protocol
-		g.Eventually(func() string {
-			svc, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcname, metav1.GetOptions{})
-			if len(svc.Status.LoadBalancer.Ingress) > 0 {
-				return svc.Status.LoadBalancer.Ingress[0].IP
-			}
-			return ""
-		}, 30*time.Second).Should(gomega.Equal("10.250.250.1"))
-	}
-
-	for i, protocol := range protocols {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		g.Expect(nodes[0].PortProto).To(gomega.HaveLen(len(protocols)))
-		g.Expect(nodes[0].PortProto[i].Port).To(gomega.Equal(int32(8081)))
-		g.Expect(nodes[0].PortProto[i].Protocol).To(gomega.Equal(protocol))
-		g.Expect(nodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
-		g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
-		g.Expect(nodes[0].L4PolicyRefs[0].PortPool).To(gomega.HaveLen(len(protocols)))
-		g.Expect(nodes[0].L4PolicyRefs[0].PortPool[i].Port).To(gomega.Equal(uint32(8081)))
-		g.Expect(nodes[0].L4PolicyRefs[0].PortPool[i].Protocol).To(gomega.BeElementOf(protocols))
-		g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(len(protocols)))
-		g.Expect(nodes[0].PoolRefs[i].ServiceMetadata.NamespaceServiceName[0]).To(gomega.BeElementOf(namespacedSvcList))
-		g.Expect(nodes[0].ServiceMetadata.Gateway).To(gomega.Equal("default/" + gatewayName))
-		g.Expect(nodes[0].PoolRefs[i].Servers).To(gomega.HaveLen(3))
-	}
-
-	TeardownGatewayClass(t, gwClassName)
-	g.Eventually(func() int {
-		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
-		return len(gw.Status.Addresses)
-	}, 40*time.Second).Should(gomega.Equal(0))
-
-	for _, protocol := range protocols {
-		svcname := svcName + "-" + protocol
-		TeardownAdvLBService(t, svcname, ns)
-	}
-	TeardownGateway(t, gatewayName, ns)
-	VerifyGatewayVSNodeDeletion(g, modelName)
-}
-
-func TestServicesAPIMutliProtocolSCTPTCP(t *testing.T) {
-	g := gomega.NewGomegaWithT(t)
-
-	// middleware verifies the application and network profiles attached to the VS
-	integrationtest.AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
-		var resp map[string]interface{}
-		var finalResponse []byte
-		url := r.URL.EscapedPath()
-
-		rModelName := ""
-		if r.Method == http.MethodPost &&
-			strings.Contains(url, "/api/virtualservice") {
-			data, _ := io.ReadAll(r.Body)
-			json.Unmarshal(data, &resp)
-
-			g.Expect(resp["application_profile_ref"]).Should(gomega.HaveSuffix("System-L4-Application"))
-			g.Expect(resp["network_profile_ref"]).Should(gomega.HaveSuffix("System-TCP-Fast-Path"))
-
-			rModelName = "virtualservice"
-			rName := resp["name"].(string)
-			objURL := fmt.Sprintf("https://localhost/api/%s/%s-%s#%s", rModelName, rModelName, RANDOMUUID, rName)
-
-			// adding additional 'uuid' and 'url' (read-only) fields in the response
-			resp["url"] = objURL
-			resp["uuid"] = fmt.Sprintf("%s-%s-%s", rModelName, rName, RANDOMUUID)
-			finalResponse, _ = json.Marshal(resp)
-			w.WriteHeader(http.StatusOK)
-			fmt.Fprintln(w, string(finalResponse))
-			return
-		}
-		integrationtest.NormalControllerServer(w, r)
-	})
-
-	gwClassName := objNameMap.GenerateName("avi-lb")
-	gatewayName := objNameMap.GenerateName("my-gateway")
-	svcName := objNameMap.GenerateName("svc")
-	ns := "default"
-	modelName := "admin/cluster--default-" + gatewayName
-	protocols := []string{"SCTP", "TCP"}
-	var namespacedSvcList []string
-	for _, protocol := range protocols {
-		namespacedSvcList = append(namespacedSvcList, ns+"/"+svcName+"-"+protocol)
-	}
-
-	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
-	SetupGateway(t, gatewayName, ns, gwClassName, protocols...)
-
-	for _, protocol := range protocols {
-		svcname := svcName + "-" + protocol
-		SetupSvcApiService(t, svcname, ns, gatewayName, ns, protocol)
-	}
-
-	g.Eventually(func() string {
-		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
-		if len(gw.Status.Addresses) > 0 {
-			return gw.Status.Addresses[0].Value
-		}
-		return ""
-	}, 40*time.Second).Should(gomega.Equal("10.250.250.1"))
-
-	for _, protocol := range protocols {
-		svcname := svcName + "-" + protocol
-		g.Eventually(func() string {
-			svc, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcname, metav1.GetOptions{})
-			if len(svc.Status.LoadBalancer.Ingress) > 0 {
-				return svc.Status.LoadBalancer.Ingress[0].IP
-			}
-			return ""
-		}, 30*time.Second).Should(gomega.Equal("10.250.250.1"))
-	}
-
-	for i, protocol := range protocols {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		g.Expect(nodes[0].PortProto).To(gomega.HaveLen(len(protocols)))
-		g.Expect(nodes[0].PortProto[i].Port).To(gomega.Equal(int32(8081)))
-		g.Expect(nodes[0].PortProto[i].Protocol).To(gomega.Equal(protocol))
-		g.Expect(nodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
-		g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
-		g.Expect(nodes[0].L4PolicyRefs[0].PortPool).To(gomega.HaveLen(len(protocols)))
-		g.Expect(nodes[0].L4PolicyRefs[0].PortPool[i].Port).To(gomega.Equal(uint32(8081)))
-		g.Expect(nodes[0].L4PolicyRefs[0].PortPool[i].Protocol).To(gomega.BeElementOf(protocols))
-		g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(len(protocols)))
-		g.Expect(nodes[0].PoolRefs[i].ServiceMetadata.NamespaceServiceName[0]).To(gomega.BeElementOf(namespacedSvcList))
-		g.Expect(nodes[0].ServiceMetadata.Gateway).To(gomega.Equal("default/" + gatewayName))
-		g.Expect(nodes[0].PoolRefs[i].Servers).To(gomega.HaveLen(3))
-	}
-
-	TeardownGatewayClass(t, gwClassName)
-	g.Eventually(func() int {
-		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
-		return len(gw.Status.Addresses)
-	}, 40*time.Second).Should(gomega.Equal(0))
-
-	for _, protocol := range protocols {
-		svcname := svcName + "-" + protocol
-		TeardownAdvLBService(t, svcname, ns)
-	}
-	TeardownGateway(t, gatewayName, ns)
-	VerifyGatewayVSNodeDeletion(g, modelName)
-}
-
-func TestServicesAPIMutliProtocolSCTPUDP(t *testing.T) {
-	g := gomega.NewGomegaWithT(t)
-
-	// middleware verifies the application and network profiles attached to the VS
-	integrationtest.AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
-		var resp map[string]interface{}
-		var finalResponse []byte
-		url := r.URL.EscapedPath()
-
-		rModelName := ""
-		if r.Method == http.MethodPost &&
-			strings.Contains(url, "/api/virtualservice") {
-			data, _ := io.ReadAll(r.Body)
-			json.Unmarshal(data, &resp)
-
-			g.Expect(resp["application_profile_ref"]).Should(gomega.HaveSuffix("System-L4-Application"))
-			g.Expect(resp["network_profile_ref"]).Should(gomega.HaveSuffix("System-UDP-Fast-Path"))
-
-			rModelName = "virtualservice"
-			rName := resp["name"].(string)
-			objURL := fmt.Sprintf("https://localhost/api/%s/%s-%s#%s", rModelName, rModelName, RANDOMUUID, rName)
-
-			// adding additional 'uuid' and 'url' (read-only) fields in the response
-			resp["url"] = objURL
-			resp["uuid"] = fmt.Sprintf("%s-%s-%s", rModelName, rName, RANDOMUUID)
-			finalResponse, _ = json.Marshal(resp)
-			w.WriteHeader(http.StatusOK)
-			fmt.Fprintln(w, string(finalResponse))
-			return
-		}
-		integrationtest.NormalControllerServer(w, r)
-	})
-
-	gwClassName := objNameMap.GenerateName("avi-lb")
-	gatewayName := objNameMap.GenerateName("my-gateway")
-	svcName := objNameMap.GenerateName("svc")
-	ns := "default"
-	modelName := "admin/cluster--default-" + gatewayName
-	protocols := []string{"SCTP", "UDP"}
-	var namespacedSvcList []string
-	for _, protocol := range protocols {
-		namespacedSvcList = append(namespacedSvcList, ns+"/"+svcName+"-"+protocol)
-	}
-
-	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
-	SetupGateway(t, gatewayName, ns, gwClassName, protocols...)
-
-	for _, protocol := range protocols {
-		svcname := svcName + "-" + protocol
-		SetupSvcApiService(t, svcname, ns, gatewayName, ns, protocol)
-	}
-
-	g.Eventually(func() string {
-		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
-		if len(gw.Status.Addresses) > 0 {
-			return gw.Status.Addresses[0].Value
-		}
-		return ""
-	}, 40*time.Second).Should(gomega.Equal("10.250.250.1"))
-
-	for _, protocol := range protocols {
-		svcname := svcName + "-" + protocol
-		g.Eventually(func() string {
-			svc, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcname, metav1.GetOptions{})
-			if len(svc.Status.LoadBalancer.Ingress) > 0 {
-				return svc.Status.LoadBalancer.Ingress[0].IP
-			}
-			return ""
-		}, 30*time.Second).Should(gomega.Equal("10.250.250.1"))
-	}
-
-	for i, protocol := range protocols {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		g.Expect(nodes[0].PortProto).To(gomega.HaveLen(len(protocols)))
-		g.Expect(nodes[0].PortProto[i].Port).To(gomega.Equal(int32(8081)))
-		g.Expect(nodes[0].PortProto[i].Protocol).To(gomega.Equal(protocol))
-		g.Expect(nodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
-		g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
-		g.Expect(nodes[0].L4PolicyRefs[0].PortPool).To(gomega.HaveLen(len(protocols)))
-		g.Expect(nodes[0].L4PolicyRefs[0].PortPool[i].Port).To(gomega.Equal(uint32(8081)))
-		g.Expect(nodes[0].L4PolicyRefs[0].PortPool[i].Protocol).To(gomega.BeElementOf(protocols))
-		g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(len(protocols)))
-		g.Expect(nodes[0].PoolRefs[i].ServiceMetadata.NamespaceServiceName[0]).To(gomega.BeElementOf(namespacedSvcList))
-		g.Expect(nodes[0].ServiceMetadata.Gateway).To(gomega.Equal("default/" + gatewayName))
-		g.Expect(nodes[0].PoolRefs[i].Servers).To(gomega.HaveLen(3))
-	}
-
-	TeardownGatewayClass(t, gwClassName)
-	g.Eventually(func() int {
-		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
-		return len(gw.Status.Addresses)
-	}, 40*time.Second).Should(gomega.Equal(0))
-
-	for _, protocol := range protocols {
-		svcname := svcName + "-" + protocol
-		TeardownAdvLBService(t, svcname, ns)
-	}
-	TeardownGateway(t, gatewayName, ns)
-	VerifyGatewayVSNodeDeletion(g, modelName)
-}
-
-func TestServicesAPIMutliProtocolTCPUDP(t *testing.T) {
-	g := gomega.NewGomegaWithT(t)
-
-	// middleware verifies the application and network profiles attached to the VS
-	integrationtest.AddMiddleware(func(w http.ResponseWriter, r *http.Request) {
-		var resp map[string]interface{}
-		var finalResponse []byte
-		url := r.URL.EscapedPath()
-
-		rModelName := ""
-		if r.Method == http.MethodPost &&
-			strings.Contains(url, "/api/virtualservice") {
-			data, _ := io.ReadAll(r.Body)
-			json.Unmarshal(data, &resp)
-
-			g.Expect(resp["application_profile_ref"]).Should(gomega.HaveSuffix("System-L4-Application"))
-			g.Expect(resp["network_profile_ref"]).Should(gomega.HaveSuffix("System-TCP-Fast-Path"))
-
-			rModelName = "virtualservice"
-			rName := resp["name"].(string)
-			objURL := fmt.Sprintf("https://localhost/api/%s/%s-%s#%s", rModelName, rModelName, RANDOMUUID, rName)
-
-			// adding additional 'uuid' and 'url' (read-only) fields in the response
-			resp["url"] = objURL
-			resp["uuid"] = fmt.Sprintf("%s-%s-%s", rModelName, rName, RANDOMUUID)
-			finalResponse, _ = json.Marshal(resp)
-			w.WriteHeader(http.StatusOK)
-			fmt.Fprintln(w, string(finalResponse))
-			return
-		}
-		integrationtest.NormalControllerServer(w, r)
-	})
-
-	gwClassName := objNameMap.GenerateName("avi-lb")
-	gatewayName := objNameMap.GenerateName("my-gateway")
-	svcName := objNameMap.GenerateName("svc")
-	ns := "default"
-	modelName := "admin/cluster--default-" + gatewayName
-	protocols := []string{"TCP", "UDP"}
-	var namespacedSvcList []string
-	for _, protocol := range protocols {
-		namespacedSvcList = append(namespacedSvcList, ns+"/"+svcName+"-"+protocol)
-	}
-
-	SetupGatewayClass(t, gwClassName, lib.SvcApiAviGatewayController, "")
-	SetupGateway(t, gatewayName, ns, gwClassName, protocols...)
-
-	for _, protocol := range protocols {
-		svcname := svcName + "-" + protocol
-		SetupSvcApiService(t, svcname, ns, gatewayName, ns, protocol)
-	}
-
-	g.Eventually(func() string {
-		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
-		if len(gw.Status.Addresses) > 0 {
-			return gw.Status.Addresses[0].Value
-		}
-		return ""
-	}, 40*time.Second).Should(gomega.Equal("10.250.250.1"))
-
-	for _, protocol := range protocols {
-		svcname := svcName + "-" + protocol
-		g.Eventually(func() string {
-			svc, _ := KubeClient.CoreV1().Services(ns).Get(context.TODO(), svcname, metav1.GetOptions{})
-			if len(svc.Status.LoadBalancer.Ingress) > 0 {
-				return svc.Status.LoadBalancer.Ingress[0].IP
-			}
-			return ""
-		}, 30*time.Second).Should(gomega.Equal("10.250.250.1"))
-	}
-
-	for i, protocol := range protocols {
-		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
-		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviVS()
-		g.Expect(nodes[0].PortProto).To(gomega.HaveLen(len(protocols)))
-		g.Expect(nodes[0].PortProto[i].Port).To(gomega.Equal(int32(8081)))
-		g.Expect(nodes[0].PortProto[i].Protocol).To(gomega.Equal(protocol))
-		g.Expect(nodes[0].HttpPolicySetRefs).To(gomega.HaveLen(0))
-		g.Expect(nodes[0].L4PolicyRefs).To(gomega.HaveLen(1))
-		g.Expect(nodes[0].L4PolicyRefs[0].PortPool).To(gomega.HaveLen(len(protocols)))
-		g.Expect(nodes[0].L4PolicyRefs[0].PortPool[i].Port).To(gomega.Equal(uint32(8081)))
-		g.Expect(nodes[0].L4PolicyRefs[0].PortPool[i].Protocol).To(gomega.BeElementOf(protocols))
-		g.Expect(nodes[0].PoolRefs).To(gomega.HaveLen(len(protocols)))
-		g.Expect(nodes[0].PoolRefs[i].ServiceMetadata.NamespaceServiceName[0]).To(gomega.BeElementOf(namespacedSvcList))
-		g.Expect(nodes[0].ServiceMetadata.Gateway).To(gomega.Equal("default/" + gatewayName))
-		g.Expect(nodes[0].PoolRefs[i].Servers).To(gomega.HaveLen(3))
-	}
-
-	TeardownGatewayClass(t, gwClassName)
-	g.Eventually(func() int {
-		gw, _ := SvcAPIClient.NetworkingV1alpha1().Gateways(ns).Get(context.TODO(), gatewayName, metav1.GetOptions{})
-		return len(gw.Status.Addresses)
-	}, 40*time.Second).Should(gomega.Equal(0))
-
-	for _, protocol := range protocols {
-		svcname := svcName + "-" + protocol
-		TeardownAdvLBService(t, svcname, ns)
-	}
-	TeardownGateway(t, gatewayName, ns)
 	VerifyGatewayVSNodeDeletion(g, modelName)
 }

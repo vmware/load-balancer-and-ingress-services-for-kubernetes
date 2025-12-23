@@ -19,18 +19,14 @@ limitations under the License.
 package v1
 
 import (
-	http "net/http"
-
-	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
-	scheme "k8s.io/client-go/kubernetes/scheme"
+	v1 "k8s.io/api/admissionregistration/v1"
+	"k8s.io/client-go/kubernetes/scheme"
 	rest "k8s.io/client-go/rest"
 )
 
 type AdmissionregistrationV1Interface interface {
 	RESTClient() rest.Interface
 	MutatingWebhookConfigurationsGetter
-	ValidatingAdmissionPoliciesGetter
-	ValidatingAdmissionPolicyBindingsGetter
 	ValidatingWebhookConfigurationsGetter
 }
 
@@ -43,37 +39,17 @@ func (c *AdmissionregistrationV1Client) MutatingWebhookConfigurations() Mutating
 	return newMutatingWebhookConfigurations(c)
 }
 
-func (c *AdmissionregistrationV1Client) ValidatingAdmissionPolicies() ValidatingAdmissionPolicyInterface {
-	return newValidatingAdmissionPolicies(c)
-}
-
-func (c *AdmissionregistrationV1Client) ValidatingAdmissionPolicyBindings() ValidatingAdmissionPolicyBindingInterface {
-	return newValidatingAdmissionPolicyBindings(c)
-}
-
 func (c *AdmissionregistrationV1Client) ValidatingWebhookConfigurations() ValidatingWebhookConfigurationInterface {
 	return newValidatingWebhookConfigurations(c)
 }
 
 // NewForConfig creates a new AdmissionregistrationV1Client for the given config.
-// NewForConfig is equivalent to NewForConfigAndClient(c, httpClient),
-// where httpClient was generated with rest.HTTPClientFor(c).
 func NewForConfig(c *rest.Config) (*AdmissionregistrationV1Client, error) {
 	config := *c
-	setConfigDefaults(&config)
-	httpClient, err := rest.HTTPClientFor(&config)
-	if err != nil {
+	if err := setConfigDefaults(&config); err != nil {
 		return nil, err
 	}
-	return NewForConfigAndClient(&config, httpClient)
-}
-
-// NewForConfigAndClient creates a new AdmissionregistrationV1Client for the given config and http client.
-// Note the http client provided takes precedence over the configured transport values.
-func NewForConfigAndClient(c *rest.Config, h *http.Client) (*AdmissionregistrationV1Client, error) {
-	config := *c
-	setConfigDefaults(&config)
-	client, err := rest.RESTClientForConfigAndClient(&config, h)
+	client, err := rest.RESTClientFor(&config)
 	if err != nil {
 		return nil, err
 	}
@@ -95,15 +71,17 @@ func New(c rest.Interface) *AdmissionregistrationV1Client {
 	return &AdmissionregistrationV1Client{c}
 }
 
-func setConfigDefaults(config *rest.Config) {
-	gv := admissionregistrationv1.SchemeGroupVersion
+func setConfigDefaults(config *rest.Config) error {
+	gv := v1.SchemeGroupVersion
 	config.GroupVersion = &gv
 	config.APIPath = "/apis"
-	config.NegotiatedSerializer = rest.CodecFactoryForGeneratedClient(scheme.Scheme, scheme.Codecs).WithoutConversion()
+	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 
 	if config.UserAgent == "" {
 		config.UserAgent = rest.DefaultKubernetesUserAgent()
 	}
+
+	return nil
 }
 
 // RESTClient returns a RESTClient that is used to communicate

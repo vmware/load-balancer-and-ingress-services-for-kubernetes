@@ -27,7 +27,7 @@ import (
 	v1 "k8s.io/client-go/applyconfigurations/meta/v1"
 )
 
-// DeploymentApplyConfiguration represents a declarative configuration of the Deployment type for use
+// DeploymentApplyConfiguration represents an declarative configuration of the Deployment type for use
 // with apply.
 type DeploymentApplyConfiguration struct {
 	v1.TypeMetaApplyConfiguration    `json:",inline"`
@@ -36,7 +36,7 @@ type DeploymentApplyConfiguration struct {
 	Status                           *DeploymentStatusApplyConfiguration `json:"status,omitempty"`
 }
 
-// Deployment constructs a declarative configuration of the Deployment type for use with
+// Deployment constructs an declarative configuration of the Deployment type for use with
 // apply.
 func Deployment(name, namespace string) *DeploymentApplyConfiguration {
 	b := &DeploymentApplyConfiguration{}
@@ -50,7 +50,7 @@ func Deployment(name, namespace string) *DeploymentApplyConfiguration {
 // ExtractDeployment extracts the applied configuration owned by fieldManager from
 // deployment. If no managedFields are found in deployment for fieldManager, a
 // DeploymentApplyConfiguration is returned with only the Name, Namespace (if applicable),
-// APIVersion and Kind populated. It is possible that no managed fields were found for because other
+// APIVersion and Kind populated. Is is possible that no managed fields were found for because other
 // field managers have taken ownership of all the fields previously owned by fieldManager, or because
 // the fieldManager never owned fields any fields.
 // deployment must be a unmodified Deployment API object that was retrieved from the Kubernetes API.
@@ -59,19 +59,8 @@ func Deployment(name, namespace string) *DeploymentApplyConfiguration {
 // applied if another fieldManager has updated or force applied any of the previously applied fields.
 // Experimental!
 func ExtractDeployment(deployment *extensionsv1beta1.Deployment, fieldManager string) (*DeploymentApplyConfiguration, error) {
-	return extractDeployment(deployment, fieldManager, "")
-}
-
-// ExtractDeploymentStatus is the same as ExtractDeployment except
-// that it extracts the status subresource applied configuration.
-// Experimental!
-func ExtractDeploymentStatus(deployment *extensionsv1beta1.Deployment, fieldManager string) (*DeploymentApplyConfiguration, error) {
-	return extractDeployment(deployment, fieldManager, "status")
-}
-
-func extractDeployment(deployment *extensionsv1beta1.Deployment, fieldManager string, subresource string) (*DeploymentApplyConfiguration, error) {
 	b := &DeploymentApplyConfiguration{}
-	err := managedfields.ExtractInto(deployment, internal.Parser().Type("io.k8s.api.extensions.v1beta1.Deployment"), fieldManager, b, subresource)
+	err := managedfields.ExtractInto(deployment, internal.Parser().Type("io.k8s.api.extensions.v1beta1.Deployment"), fieldManager, b)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +76,7 @@ func extractDeployment(deployment *extensionsv1beta1.Deployment, fieldManager st
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the Kind field is set to the value of the last call.
 func (b *DeploymentApplyConfiguration) WithKind(value string) *DeploymentApplyConfiguration {
-	b.TypeMetaApplyConfiguration.Kind = &value
+	b.Kind = &value
 	return b
 }
 
@@ -95,7 +84,7 @@ func (b *DeploymentApplyConfiguration) WithKind(value string) *DeploymentApplyCo
 // and returns the receiver, so that objects can be built by chaining "With" function invocations.
 // If called multiple times, the APIVersion field is set to the value of the last call.
 func (b *DeploymentApplyConfiguration) WithAPIVersion(value string) *DeploymentApplyConfiguration {
-	b.TypeMetaApplyConfiguration.APIVersion = &value
+	b.APIVersion = &value
 	return b
 }
 
@@ -104,7 +93,7 @@ func (b *DeploymentApplyConfiguration) WithAPIVersion(value string) *DeploymentA
 // If called multiple times, the Name field is set to the value of the last call.
 func (b *DeploymentApplyConfiguration) WithName(value string) *DeploymentApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.Name = &value
+	b.Name = &value
 	return b
 }
 
@@ -113,7 +102,7 @@ func (b *DeploymentApplyConfiguration) WithName(value string) *DeploymentApplyCo
 // If called multiple times, the GenerateName field is set to the value of the last call.
 func (b *DeploymentApplyConfiguration) WithGenerateName(value string) *DeploymentApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.GenerateName = &value
+	b.GenerateName = &value
 	return b
 }
 
@@ -122,7 +111,16 @@ func (b *DeploymentApplyConfiguration) WithGenerateName(value string) *Deploymen
 // If called multiple times, the Namespace field is set to the value of the last call.
 func (b *DeploymentApplyConfiguration) WithNamespace(value string) *DeploymentApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.Namespace = &value
+	b.Namespace = &value
+	return b
+}
+
+// WithSelfLink sets the SelfLink field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the SelfLink field is set to the value of the last call.
+func (b *DeploymentApplyConfiguration) WithSelfLink(value string) *DeploymentApplyConfiguration {
+	b.ensureObjectMetaApplyConfigurationExists()
+	b.SelfLink = &value
 	return b
 }
 
@@ -131,7 +129,7 @@ func (b *DeploymentApplyConfiguration) WithNamespace(value string) *DeploymentAp
 // If called multiple times, the UID field is set to the value of the last call.
 func (b *DeploymentApplyConfiguration) WithUID(value types.UID) *DeploymentApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.UID = &value
+	b.UID = &value
 	return b
 }
 
@@ -140,7 +138,7 @@ func (b *DeploymentApplyConfiguration) WithUID(value types.UID) *DeploymentApply
 // If called multiple times, the ResourceVersion field is set to the value of the last call.
 func (b *DeploymentApplyConfiguration) WithResourceVersion(value string) *DeploymentApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.ResourceVersion = &value
+	b.ResourceVersion = &value
 	return b
 }
 
@@ -149,7 +147,7 @@ func (b *DeploymentApplyConfiguration) WithResourceVersion(value string) *Deploy
 // If called multiple times, the Generation field is set to the value of the last call.
 func (b *DeploymentApplyConfiguration) WithGeneration(value int64) *DeploymentApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.Generation = &value
+	b.Generation = &value
 	return b
 }
 
@@ -158,7 +156,7 @@ func (b *DeploymentApplyConfiguration) WithGeneration(value int64) *DeploymentAp
 // If called multiple times, the CreationTimestamp field is set to the value of the last call.
 func (b *DeploymentApplyConfiguration) WithCreationTimestamp(value metav1.Time) *DeploymentApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.CreationTimestamp = &value
+	b.CreationTimestamp = &value
 	return b
 }
 
@@ -167,7 +165,7 @@ func (b *DeploymentApplyConfiguration) WithCreationTimestamp(value metav1.Time) 
 // If called multiple times, the DeletionTimestamp field is set to the value of the last call.
 func (b *DeploymentApplyConfiguration) WithDeletionTimestamp(value metav1.Time) *DeploymentApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.DeletionTimestamp = &value
+	b.DeletionTimestamp = &value
 	return b
 }
 
@@ -176,7 +174,7 @@ func (b *DeploymentApplyConfiguration) WithDeletionTimestamp(value metav1.Time) 
 // If called multiple times, the DeletionGracePeriodSeconds field is set to the value of the last call.
 func (b *DeploymentApplyConfiguration) WithDeletionGracePeriodSeconds(value int64) *DeploymentApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	b.ObjectMetaApplyConfiguration.DeletionGracePeriodSeconds = &value
+	b.DeletionGracePeriodSeconds = &value
 	return b
 }
 
@@ -186,11 +184,11 @@ func (b *DeploymentApplyConfiguration) WithDeletionGracePeriodSeconds(value int6
 // overwriting an existing map entries in Labels field with the same key.
 func (b *DeploymentApplyConfiguration) WithLabels(entries map[string]string) *DeploymentApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	if b.ObjectMetaApplyConfiguration.Labels == nil && len(entries) > 0 {
-		b.ObjectMetaApplyConfiguration.Labels = make(map[string]string, len(entries))
+	if b.Labels == nil && len(entries) > 0 {
+		b.Labels = make(map[string]string, len(entries))
 	}
 	for k, v := range entries {
-		b.ObjectMetaApplyConfiguration.Labels[k] = v
+		b.Labels[k] = v
 	}
 	return b
 }
@@ -201,11 +199,11 @@ func (b *DeploymentApplyConfiguration) WithLabels(entries map[string]string) *De
 // overwriting an existing map entries in Annotations field with the same key.
 func (b *DeploymentApplyConfiguration) WithAnnotations(entries map[string]string) *DeploymentApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
-	if b.ObjectMetaApplyConfiguration.Annotations == nil && len(entries) > 0 {
-		b.ObjectMetaApplyConfiguration.Annotations = make(map[string]string, len(entries))
+	if b.Annotations == nil && len(entries) > 0 {
+		b.Annotations = make(map[string]string, len(entries))
 	}
 	for k, v := range entries {
-		b.ObjectMetaApplyConfiguration.Annotations[k] = v
+		b.Annotations[k] = v
 	}
 	return b
 }
@@ -219,7 +217,7 @@ func (b *DeploymentApplyConfiguration) WithOwnerReferences(values ...*v1.OwnerRe
 		if values[i] == nil {
 			panic("nil value passed to WithOwnerReferences")
 		}
-		b.ObjectMetaApplyConfiguration.OwnerReferences = append(b.ObjectMetaApplyConfiguration.OwnerReferences, *values[i])
+		b.OwnerReferences = append(b.OwnerReferences, *values[i])
 	}
 	return b
 }
@@ -230,8 +228,17 @@ func (b *DeploymentApplyConfiguration) WithOwnerReferences(values ...*v1.OwnerRe
 func (b *DeploymentApplyConfiguration) WithFinalizers(values ...string) *DeploymentApplyConfiguration {
 	b.ensureObjectMetaApplyConfigurationExists()
 	for i := range values {
-		b.ObjectMetaApplyConfiguration.Finalizers = append(b.ObjectMetaApplyConfiguration.Finalizers, values[i])
+		b.Finalizers = append(b.Finalizers, values[i])
 	}
+	return b
+}
+
+// WithClusterName sets the ClusterName field in the declarative configuration to the given value
+// and returns the receiver, so that objects can be built by chaining "With" function invocations.
+// If called multiple times, the ClusterName field is set to the value of the last call.
+func (b *DeploymentApplyConfiguration) WithClusterName(value string) *DeploymentApplyConfiguration {
+	b.ensureObjectMetaApplyConfigurationExists()
+	b.ClusterName = &value
 	return b
 }
 
@@ -255,10 +262,4 @@ func (b *DeploymentApplyConfiguration) WithSpec(value *DeploymentSpecApplyConfig
 func (b *DeploymentApplyConfiguration) WithStatus(value *DeploymentStatusApplyConfiguration) *DeploymentApplyConfiguration {
 	b.Status = value
 	return b
-}
-
-// GetName retrieves the value of the Name field in the declarative configuration.
-func (b *DeploymentApplyConfiguration) GetName() *string {
-	b.ensureObjectMetaApplyConfigurationExists()
-	return b.ObjectMetaApplyConfiguration.Name
 }

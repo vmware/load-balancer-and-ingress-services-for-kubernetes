@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -19,13 +19,14 @@ import (
 	"strings"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
-	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	avimodels "github.com/vmware/alb-sdk/go/models"
 )
 
-func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, tenant, key string, infraSetting *akov1beta1.AviInfraSetting) *AviVsNode {
+func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, key string) *AviVsNode {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 	var avi_vs_meta *AviVsNode
@@ -33,7 +34,7 @@ func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, tena
 	// create the secured shared VS to listen on port 443
 	avi_vs_meta = &AviVsNode{
 		Name:               vsName,
-		Tenant:             tenant,
+		Tenant:             lib.GetTenant(),
 		SharedVS:           true,
 		ServiceEngineGroup: lib.GetSEGName(),
 	}
@@ -50,10 +51,7 @@ func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, tena
 	avi_vs_meta.NetworkProfile = utils.DEFAULT_TCP_NW_PROFILE
 
 	vrfcontext := ""
-	t1lr := lib.GetT1LRPath()
-	if infraSetting != nil && infraSetting.Spec.NSXSettings.T1LR != nil {
-		t1lr = *infraSetting.Spec.NSXSettings.T1LR
-	}
+	t1lr := objects.SharedWCPLister().GetT1LrForNamespace(namespace)
 	if t1lr == "" {
 		vrfcontext = lib.GetVrf()
 		avi_vs_meta.VrfContext = vrfcontext
@@ -67,10 +65,10 @@ func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, tena
 	// VSvip node to be shared by the secure and insecure VS
 	vsVipNode := &AviVSVIPNode{
 		Name:        lib.GetVsVipName(vsName),
-		Tenant:      tenant,
+		Tenant:      lib.GetTenant(),
 		FQDNs:       fqdns,
 		VrfContext:  vrfcontext,
-		VipNetworks: utils.GetVipNetworkList(),
+		VipNetworks: objects.SharedWCPLister().GetNetworkForNamespace(namespace),
 	}
 
 	if t1lr != "" {
@@ -85,7 +83,7 @@ func (o *AviObjectGraph) BuildVSForPassthrough(vsName, namespace, hostname, tena
 	return avi_vs_meta
 }
 
-func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, objName, hostname, namespace, tenant, key string, redirect bool, infraSetting *akov1beta1.AviInfraSetting) {
+func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, objName, hostname, namespace, key string, redirect bool, infraSetting *akov1alpha1.AviInfraSetting) {
 	o.Lock.Lock()
 	defer o.Lock.Unlock()
 	vsList := o.GetAviVS()
@@ -104,10 +102,8 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 	var infraSettingNameWithSuffix string
 	var pgName string
 	if infraSetting != nil {
-		if !lib.IsInfraSettingNSScoped(infraSetting.Name, namespace) {
-			infrasettingName = infraSetting.Name
-			infraSettingNameWithSuffix = infrasettingName + "-"
-		}
+		infrasettingName = infraSetting.Name
+		infraSettingNameWithSuffix = infrasettingName + "-"
 	}
 	//Replace AVIINFRA with infrasettingname if present
 	dsNode.Script = strings.Replace(dsNode.Script, "AVIINFRA", infraSettingNameWithSuffix, 1)
@@ -115,21 +111,18 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 	pgName = lib.GetPassthroughPGName(hostname, infrasettingName)
 	pgNode := o.GetPoolGroupByName(pgName)
 	if pgNode == nil {
-		pgNode = &AviPoolGroupNode{Name: pgName, Tenant: tenant}
+		pgNode = &AviPoolGroupNode{Name: pgName, Tenant: lib.GetTenant()}
 		o.AddModelNode(pgNode)
 		pgNode.AviMarkers = lib.PopulatePassthroughPGMarkers(hostname, infrasettingName)
 		utils.AviLog.Infof("key: %s, msg: adding PG %s for the passthrough VS: %s", key, pgName, secureSharedVS.Name)
 		utils.AviLog.Debugf("key: %s, Number of PGs %d, Added PG node %s", key, len(dsNode.PoolGroupRefs), utils.Stringify(pgNode.Members))
 	}
-	isPGNameExceedsAviLimit := false
-	if lib.CheckObjectNameLength(pgName, lib.PG) {
-		isPGNameExceedsAviLimit = true
-	}
+
 	// only add the pg node if not presesnt in the VS
-	if !utils.HasElem(secureSharedVS.PoolGroupRefs, pgNode) && !isPGNameExceedsAviLimit {
+	if !utils.HasElem(secureSharedVS.PoolGroupRefs, pgNode) {
 		secureSharedVS.PoolGroupRefs = append(secureSharedVS.PoolGroupRefs, pgNode)
 	}
-	if !utils.HasElem(dsNode.PoolGroupRefs, pgName) && !isPGNameExceedsAviLimit {
+	if !utils.HasElem(dsNode.PoolGroupRefs, pgName) {
 		dsNode.PoolGroupRefs = append(dsNode.PoolGroupRefs, pgName)
 	}
 
@@ -140,10 +133,7 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 	// store the Pools in the a temoprary list to be used for populating PG members
 	tmpPoolList := []*AviPoolNode{}
 	vrfContext := ""
-	t1lr := lib.GetT1LRPath()
-	if infraSetting != nil && infraSetting.Spec.NSXSettings.T1LR != nil {
-		t1lr = *infraSetting.Spec.NSXSettings.T1LR
-	}
+	t1lr := objects.SharedWCPLister().GetT1LrForNamespace(namespace)
 	if t1lr == "" {
 		vrfContext = lib.GetVrf()
 	}
@@ -153,10 +143,10 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 		if poolNode == nil {
 			poolNode = &AviPoolNode{
 				Name:       poolName,
-				Tenant:     tenant,
+				Tenant:     lib.GetTenant(),
 				VrfContext: vrfContext,
 			}
-			poolNode.NetworkPlacementSettings = lib.GetNodeNetworkMap()
+			poolNode.NetworkPlacementSettings, _ = lib.GetNodeNetworkMap()
 			if t1lr != "" {
 				poolNode.T1Lr = t1lr
 			}
@@ -201,10 +191,6 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 	pgNode.Members = nil
 	// add the pool in the vs and pg members
 	for _, poolNode := range tmpPoolList {
-		if lib.CheckObjectNameLength(poolNode.Name, lib.PG) {
-			// Do not add if length is > limit
-			continue
-		}
 		secureSharedVS.PoolRefs = append(secureSharedVS.PoolRefs, poolNode)
 		ratio := poolNode.ServiceMetadata.PoolRatio
 		poolRef := fmt.Sprintf("/api/pool?name=%s", poolNode.Name)
@@ -228,7 +214,7 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 	if passChildVS == nil {
 		passChildVS = &AviVsNode{
 			Name:               secureSharedVS.Name + lib.PassthroughInsecure,
-			Tenant:             tenant,
+			Tenant:             lib.GetTenant(),
 			VrfContext:         vrfContext,
 			ServiceEngineGroup: lib.GetSEGName(),
 			ApplicationProfile: utils.DEFAULT_L7_APP_PROFILE,
@@ -252,7 +238,7 @@ func (o *AviObjectGraph) BuildGraphForPassthrough(svclist []IngressHostPathSvc, 
 func (o *AviObjectGraph) ConstructL4DataScript(vsName string, key string, vsNode *AviVsNode) *AviHTTPDataScriptNode {
 	dsScriptNode := &AviHTTPDataScriptNode{
 		Name:   lib.GetL7InsecureDSName(vsName),
-		Tenant: vsNode.GetTenant(),
+		Tenant: lib.GetTenant(),
 		DataScript: &DataScript{
 			Script: lib.PassthroughDatascript,
 			Evt:    "VS_DATASCRIPT_EVT_L4_REQUEST",

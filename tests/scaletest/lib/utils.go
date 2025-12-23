@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -23,11 +23,11 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
-	"github.com/vmware/alb-sdk/go/clients"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/clients"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
+
 	"github.com/vmware/alb-sdk/go/models"
-	"github.com/vmware/alb-sdk/go/session"
 )
 
 const (
@@ -84,7 +84,7 @@ func NewAviRestClientPool(num uint32, api_ep string, username string,
 	var p AviRestClientPool
 	for i := uint32(0); i < num; i++ {
 		aviClient, err := clients.NewAviClient(api_ep, username,
-			session.SetPassword(password), session.SetControllerStatusCheckLimits(25, 15), session.SetInsecure, session.SetTimeout(120*time.Second))
+			session.SetPassword(password), session.SetControllerStatusCheckLimits(25, 15), session.SetInsecure)
 		if err != nil {
 			return &p, err
 		}

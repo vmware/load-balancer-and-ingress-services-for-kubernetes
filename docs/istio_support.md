@@ -1,6 +1,6 @@
-# AKO on Istio
+# AKO on Istio (Tech Preview)
 
-This feature allows AKO to be deployed on an Istio environment. Strict mTLS is supported in both ClusterIP and NodePort modes.
+This feature allows AKO to be deployed on an Istio environment. Currently strict mTLS is supported in ClusterIP mode.
 
 ## Steps to deploy and verfify AKO deployment
 
@@ -33,41 +33,6 @@ AKO prioritizes istio pkiprofile over any other pkiprofile reference added using
 ### Sidecar injection for AKO is not working
 
 Try enabling injection for the ako namespace eg. `kubectl label namespace avi-system istio-injection=enabled --overwrite`
-
-### Helm installation fails with "Not found: istio-certs" volume error
-
-When installing AKO with `istioEnabled: true` in values.yaml, you may encounter this error:
-```
-Error: INSTALLATION FAILED: 1 error occurred:
-	* StatefulSet.apps "ako" is invalid: spec.template.spec.containers[0].volumeMounts[1].name: Not found: "istio-certs"
-```
-
-**Workaround:** Manually add the `istio-certs` volume to the StatefulSet YAML:
-
-Edit `helm/ako/templates/statefulset.yaml` and add the `istio-certs` volume to the `spec.template.spec.volumes` section. The complete block should look like:
-```yaml
-spec:
-  template:
-    spec:
-      {{ if or .Values.persistentVolumeClaim .Values.AKOSettings.istioEnabled }}
-      volumes:
-      {{ if .Values.persistentVolumeClaim }}
-      - name: ako-pv-storage
-        persistentVolumeClaim:
-          claimName: {{ .Values.persistentVolumeClaim }}
-      {{ end }}
-      {{ if .Values.AKOSettings.istioEnabled }}
-      - name: istio-certs
-        emptyDir:
-          medium: Memory
-      {{ end }}
-      {{ end }}
-```
-
-Then install with the modified Helm chart:
-```bash
-helm install ako ./helm/ako -f values.yaml
-```
 
 ### `istio-secret` is not created
 

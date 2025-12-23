@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@ package api
 
 import (
 	"github.com/gorilla/mux"
-	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api/models"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -47,7 +46,7 @@ func (a *FakeApiServer) InitApi() {
 	return
 }
 
-func (a *FakeApiServer) SetRouter(prometheusEnavbled bool, reg *prometheus.Registry) *mux.Router {
+func (a *FakeApiServer) SetRouter() *mux.Router {
 	return nil
 }
 

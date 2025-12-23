@@ -17,9 +17,6 @@ type EventDetails struct {
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	AlbservicesCaseDetails *ALBServicesCase `json:"albservices_case_details,omitempty"`
 
-	// ALBservices file download event details. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	AlbservicesFileDownloadDetails *ALBServicesFileDownload `json:"albservices_file_download_details,omitempty"`
-
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	AlbservicesFileUploadDetails *ALBServicesFileUpload `json:"albservices_file_upload_details,omitempty"`
 
@@ -37,9 +34,6 @@ type EventDetails struct {
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	AppSignatureEventData *AppSignatureEventData `json:"app_signature_event_data,omitempty"`
-
-	//  Field introduced in 22.1.6,30.1.2. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	AsyncPatchState *AsyncPatchState `json:"async_patch_state,omitempty"`
 
 	// Details for Attach IP status. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	AttachIPStatusDetails *AttachIPStatusEventDetails `json:"attach_ip_status_details,omitempty"`
@@ -156,9 +150,6 @@ type EventDetails struct {
 	ClusterServiceRestoredDetails *ClusterServiceRestoredEvent `json:"cluster_service_restored_details,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	ClustifyCheckDetails *ClustifyCheckEvent `json:"clustify_check_details,omitempty"`
-
-	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	CntlrHostListDetails *VinfraCntlrHostUnreachableList `json:"cntlr_host_list_details,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
@@ -239,9 +230,6 @@ type EventDetails struct {
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DiscSummary *VinfraDiscSummaryDetails `json:"disc_summary,omitempty"`
 
-	// Log files exsiting on controller need to be cleanup. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	DiskCleanupEventDetails *LogMgrCleanupEventDetails `json:"disk_cleanup_event_details,omitempty"`
-
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	DNSQueryError *DNSQueryError `json:"dns_query_error,omitempty"`
 
@@ -256,9 +244,6 @@ type EventDetails struct {
 
 	// False positive details. Field introduced in 21.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	FalsePositiveDetails *FalsePositiveDetails `json:"false_positive_details,omitempty"`
-
-	// File object event. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	FileobjectDetails *FileObjectDetails `json:"fileobject_details,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	GcpCloudRouterInfo *GCPCloudRouterUpdate `json:"gcp_cloud_router_info,omitempty"`
@@ -356,9 +341,6 @@ type EventDetails struct {
 	// NSX-T ServiceInsertion Service event. Field introduced in 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	NsxtServiceDetails *NsxtSIServiceDetails `json:"nsxt_service_details,omitempty"`
 
-	// NSX-T Tier1(s) Segment(s) event details. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	NsxtT1SegDetails *NsxtT1SegDetails `json:"nsxt_t1_seg_details,omitempty"`
-
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	NwSubnetClashDetails *NetworkSubnetClash `json:"nw_subnet_clash_details,omitempty"`
 
@@ -392,9 +374,6 @@ type EventDetails struct {
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	OsVnicDetails *OpenStackVnicChange `json:"os_vnic_details,omitempty"`
 
-	// PKIProfile event. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	PkiprofileDetails *PKIprofileDetails `json:"pkiprofile_details,omitempty"`
-
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	PoolDeploymentFailureInfo *PoolDeploymentFailureInfo `json:"pool_deployment_failure_info,omitempty"`
 
@@ -426,9 +405,6 @@ type EventDetails struct {
 	RebootSeDetails *RmRebootSeEventDetails `json:"reboot_se_details,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	SamlMetadataFailedEvents *SamlMetadataUpdateFailedDetails `json:"saml_metadata_failed_events,omitempty"`
-
-	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SchedulerActionInfo *SchedulerActionDetails `json:"scheduler_action_info,omitempty"`
 
 	//  Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
@@ -436,9 +412,6 @@ type EventDetails struct {
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeBgpPeerStateChangeDetails *SeBgpPeerStateChangeDetails `json:"se_bgp_peer_state_change_details,omitempty"`
-
-	//  Field introduced in 22.1.6. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	SeDebugModeEventDetail *SeDebugModeEventDetail `json:"se_debug_mode_event_detail,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SeDetails *SeMgrEventDetails `json:"se_details,omitempty"`
@@ -502,9 +475,6 @@ type EventDetails struct {
 
 	// SE NTP synchronization failed. Field introduced in 22.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	SeNtpSynchronizationFailed *SeNtpSynchronizationFailed `json:"se_ntp_synchronization_failed,omitempty"`
-
-	//  Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	SeObjsyncPeerDownDetails *SeObjsyncPeerDownDetails `json:"se_objsync_peer_down_details,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SePersistenceDetails *SePersistenceEventDetails `json:"se_persistence_details,omitempty"`
@@ -608,14 +578,8 @@ type EventDetails struct {
 	// Azure cloud sync services event details. Field introduced in 18.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	SyncServicesInfo *CloudSyncServices `json:"sync_services_info,omitempty"`
 
-	// System Report event details. Field introduced in 22.1.6, 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	SystemReportEventDetails *SystemReport `json:"system_report_event_details,omitempty"`
-
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	TencentInfo *TencentSetup `json:"tencent_info,omitempty"`
-
-	// Uber event details, for testing only. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	UberEventDetails *LogMgrUberEventDetails `json:"uber_event_details,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	UnbindVsSeDetails *RmUnbindVsSeEventDetails `json:"unbind_vs_se_details,omitempty"`
@@ -628,9 +592,6 @@ type EventDetails struct {
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VcaInfraDetails *VCASetup `json:"vca_infra_details,omitempty"`
-
-	// Details of objects still referred to cloud. Field introduced in 30.2.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	VcenterCloudDeleteDetails *VcenterCloudDeleteDetails `json:"vcenter_cloud_delete_details,omitempty"`
 
 	// VCenter Cluster event. Field introduced in 20.1.7, 21.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	VcenterClusterDetails *VcenterClusterDetails `json:"vcenter_cluster_details,omitempty"`
@@ -652,9 +613,6 @@ type EventDetails struct {
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VcenterObjDeleteDetails *VinfraVcenterObjDeleteDetails `json:"vcenter_obj_delete_details,omitempty"`
-
-	// Failed to tag SEs with custom tags. Field introduced in 22.1.3. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	VcenterTagEventDetails *VcenterTagEventDetails `json:"vcenter_tag_event_details,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	VipAutoscale *VipScaleDetails `json:"vip_autoscale,omitempty"`

@@ -33,7 +33,7 @@ type PoolGroup struct {
 	// Description of Pool Group. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	Description *string `json:"description,omitempty"`
 
-	// Enable HTTP/2 for traffic from VirtualService to all the backend servers in all the pools configured under this PoolGroup. Field deprecated in 30.2.1. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
+	// Enable HTTP/2 for traffic from VirtualService to all the backend servers in all the pools configured under this PoolGroup. Field introduced in 20.1.1. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- false), Basic edition(Allowed values- false), Enterprise with Cloud Services edition.
 	EnableHttp2 *bool `json:"enable_http2,omitempty"`
 
 	// Enable an action - Close Connection, HTTP Redirect, or Local HTTP Response - when a pool group failure happens. By default, a connection will be closed, in case the pool group experiences a failure. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
@@ -49,7 +49,7 @@ type PoolGroup struct {
 	Members []*PoolGroupMember `json:"members,omitempty"`
 
 	// The minimum number of servers to distribute traffic to. Allowed values are 1-65535. Special values are 0 - Disable. Allowed in Enterprise edition with any value, Essentials edition(Allowed values- 0), Basic edition(Allowed values- 0), Enterprise with Cloud Services edition.
-	MinServers *uint32 `json:"min_servers,omitempty"`
+	MinServers *int32 `json:"min_servers,omitempty"`
 
 	// The name of the pool group. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -22,13 +22,11 @@ import (
 	"strings"
 	"sync"
 
-	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	avimodels "github.com/vmware/alb-sdk/go/models"
-	"google.golang.org/protobuf/proto"
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -168,7 +166,7 @@ func (v *AviVsNode) CalculateForGraphChecksum() uint32 {
 	for _, sslkey := range v.SSLKeyCertRefs {
 		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(sslkey.GetCheckSum()))
 	}
-	for _, sslkey := range v.SslKeyAndCertificateRefs {
+	for _, sslkey := range v.SSLKeyCertAviRef {
 		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(utils.Hash(sslkey)))
 	}
 	for _, httppol := range v.HttpPolicyRefs {
@@ -179,9 +177,6 @@ func (v *AviVsNode) CalculateForGraphChecksum() uint32 {
 	}
 	for _, l4pol := range v.L4PolicyRefs {
 		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(l4pol.GetCheckSum()))
-	}
-	for _, stringGroup := range v.StringGroupRefs {
-		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(stringGroup.GetCheckSum()))
 	}
 
 	return utils.Hash(strings.Join(checksumStringSlice, ":"))
@@ -213,9 +208,7 @@ func (v *AviEvhVsNode) CalculateForGraphChecksum() uint32 {
 	for _, vsvip := range v.VSVIPRefs {
 		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(vsvip.GetCheckSum()))
 	}
-	for _, stringGroup := range v.StringGroupRefs {
-		checksumStringSlice = append(checksumStringSlice, fmt.Sprint(stringGroup.GetCheckSum()))
-	}
+
 	return utils.Hash(strings.Join(checksumStringSlice, ":"))
 }
 
@@ -258,16 +251,12 @@ func (o *AviObjectGraph) RemovePGNodeRefs(pgName string, vsNode *AviVsNode) {
 
 }
 
-func (o *AviObjectGraph) RemoveHTTPRefsStringGroupsFromSni(httpPol, hppMap string, sniNode *AviVsNode) {
-	var stringGroupToRemove []string
+func (o *AviObjectGraph) RemoveHTTPRefsFromSni(httpPol, hppMap string, sniNode *AviVsNode) {
+
 	for i, pol := range sniNode.HttpPolicyRefs {
 		if pol.Name == httpPol {
 			for j, hppmap := range sniNode.HttpPolicyRefs[i].HppMap {
 				if hppmap.Name == hppMap {
-					if len(sniNode.HttpPolicyRefs[i].HppMap[j].StringGroupRefs) > 0 {
-						sgName := strings.Split(sniNode.HttpPolicyRefs[i].HppMap[j].StringGroupRefs[0], "=")[1]
-						stringGroupToRemove = append(stringGroupToRemove, sgName)
-					}
 					sniNode.HttpPolicyRefs[i].HppMap = append(sniNode.HttpPolicyRefs[i].HppMap[:j], sniNode.HttpPolicyRefs[i].HppMap[j+1:]...)
 					break
 				}
@@ -275,14 +264,6 @@ func (o *AviObjectGraph) RemoveHTTPRefsStringGroupsFromSni(httpPol, hppMap strin
 			if len(pol.HppMap) == 0 {
 				utils.AviLog.Debugf("Removing http pol ref: %s", httpPol)
 				sniNode.HttpPolicyRefs = append(sniNode.HttpPolicyRefs[:i], sniNode.HttpPolicyRefs[i+1:]...)
-				break
-			}
-		}
-	}
-	for index, sgNode := range sniNode.StringGroupRefs {
-		for _, sgName := range stringGroupToRemove {
-			if *sgNode.Name == sgName {
-				sniNode.StringGroupRefs = append(sniNode.StringGroupRefs[:index], sniNode.StringGroupRefs[index+1:]...)
 				break
 			}
 		}
@@ -323,8 +304,8 @@ func (o *AviObjectGraph) GetOrderedNodes() []AviModelNode {
 }
 
 type StaticRouteDetails struct {
-	Count         int
-	RouteIDPrefix string
+	StartIndex int
+	Count      int
 }
 type AviVrfNode struct {
 	Name             string
@@ -419,38 +400,20 @@ type AviVsNode struct {
 	IsSNIChild            bool
 	ServiceMetadata       lib.ServiceMetadataObj
 	VrfContext            string
-	ICAPProfileRefs       []string
+	WafPolicyRef          string
+	AppProfileRef         string
+	AnalyticsProfileRef   string
 	ErrorPageProfileRef   string
 	HttpPolicySetRefs     []string
+	SSLProfileRef         string
+	VsDatascriptRefs      []string
+	SSLKeyCertAviRef      []string
 	AviMarkers            utils.AviObjectMarkers
 	Paths                 []string
 	IngressNames          []string
+	AnalyticsPolicy       *avimodels.AnalyticsPolicy
 	Dedicated             bool
 	IsL4VS                bool
-	Secure                bool
-	StringGroupRefs       []*AviStringGroupNode
-	TrafficEnabled        *bool
-
-	AviVsNodeCommonFields
-
-	AviVsNodeGeneratedFields
-}
-
-// AviVsNodeCommonFields struct contains the fields that are:
-//  1. expected to be part of the generated code.
-//  2. already in use in the code and is part of the generated code.
-//
-// This struct is added to avoid any collision between the generated and
-// existing struct fields.
-type AviVsNodeCommonFields struct {
-	AnalyticsPolicy          *avimodels.AnalyticsPolicy
-	AnalyticsProfileRef      *string
-	ApplicationProfileRef    *string
-	SslProfileRef            *string
-	VsDatascriptRefs         []string
-	WafPolicyRef             *string
-	SslKeyAndCertificateRefs []string // refs to avi sslkeyandcertificate objs
-	RevokeVipRoute           *bool
 }
 
 // Implementing AviVsEvhSniModel
@@ -469,10 +432,6 @@ func (v *AviVsNode) IsSharedVS() bool {
 
 func (v *AviVsNode) IsDedicatedVS() bool {
 	return v.Dedicated
-}
-
-func (v *AviVsNode) IsSecure() bool {
-	return v.Secure
 }
 
 func (v *AviVsNode) GetPortProtocols() []AviPortHostProtocol {
@@ -523,19 +482,19 @@ func (v *AviVsNode) SetServiceMetadata(serviceMetadata lib.ServiceMetadataObj) {
 	v.ServiceMetadata = serviceMetadata
 }
 
-func (v *AviVsNode) GetSslKeyAndCertificateRefs() []string {
-	return v.SslKeyAndCertificateRefs
+func (v *AviVsNode) GetSSLKeyCertAviRef() []string {
+	return v.SSLKeyCertAviRef
 }
 
-func (v *AviVsNode) SetSslKeyAndCertificateRefs(sslKeyAndCertificateRefs []string) {
-	v.SslKeyAndCertificateRefs = sslKeyAndCertificateRefs
+func (v *AviVsNode) SetSSLKeyCertAviRef(sslKeyCertAviRef []string) {
+	v.SSLKeyCertAviRef = sslKeyCertAviRef
 }
 
-func (v *AviVsNode) GetWafPolicyRef() *string {
+func (v *AviVsNode) GetWafPolicyRef() string {
 	return v.WafPolicyRef
 }
 
-func (v *AviVsNode) SetWafPolicyRef(wafPolicyRef *string) {
+func (v *AviVsNode) SetWafPolicyRef(wafPolicyRef string) {
 	v.WafPolicyRef = wafPolicyRef
 }
 
@@ -547,44 +506,36 @@ func (v *AviVsNode) SetHttpPolicySetRefs(httpPolicySetRefs []string) {
 	v.HttpPolicySetRefs = httpPolicySetRefs
 }
 
-func (v *AviVsNode) GetAppProfileRef() *string {
-	return v.ApplicationProfileRef
+func (v *AviVsNode) GetAppProfileRef() string {
+	return v.AppProfileRef
 }
 
-func (v *AviVsNode) SetAppProfileRef(applicationProfileRef *string) {
-	v.ApplicationProfileRef = applicationProfileRef
+func (v *AviVsNode) SetAppProfileRef(appProfileRef string) {
+	v.AppProfileRef = appProfileRef
 }
 
-func (v *AviVsNode) GetICAPProfileRefs() []string {
-	return v.ICAPProfileRefs
-}
-
-func (v *AviVsNode) SetICAPProfileRefs(ICAPProfileRef []string) {
-	v.ICAPProfileRefs = ICAPProfileRef
-}
-
-func (v *AviVsNode) GetAnalyticsProfileRef() *string {
+func (v *AviVsNode) GetAnalyticsProfileRef() string {
 	return v.AnalyticsProfileRef
 }
 
-func (v *AviVsNode) SetAnalyticsProfileRef(analyticsProfileRef *string) {
-	v.AnalyticsProfileRef = analyticsProfileRef
+func (v *AviVsNode) SetAnalyticsProfileRef(AnalyticsProfileRef string) {
+	v.AnalyticsProfileRef = AnalyticsProfileRef
 }
 
 func (v *AviVsNode) GetErrorPageProfileRef() string {
 	return v.ErrorPageProfileRef
 }
 
-func (v *AviVsNode) SetErrorPageProfileRef(errorPageProfileRef string) {
-	v.ErrorPageProfileRef = errorPageProfileRef
+func (v *AviVsNode) SetErrorPageProfileRef(ErrorPageProfileRef string) {
+	v.ErrorPageProfileRef = ErrorPageProfileRef
 }
 
-func (v *AviVsNode) GetSSLProfileRef() *string {
-	return v.SslProfileRef
+func (v *AviVsNode) GetSSLProfileRef() string {
+	return v.SSLProfileRef
 }
 
-func (v *AviVsNode) SetSSLProfileRef(SSLProfileRef *string) {
-	v.SslProfileRef = SSLProfileRef
+func (v *AviVsNode) SetSSLProfileRef(SSLProfileRef string) {
+	v.SSLProfileRef = SSLProfileRef
 }
 
 func (v *AviVsNode) GetVsDatascriptRefs() []string {
@@ -630,38 +581,6 @@ func (v *AviVsNode) GetVHDomainNames() []string {
 
 func (v *AviVsNode) SetVHDomainNames(domainNames []string) {
 	v.VHDomainNames = domainNames
-}
-
-func (v *AviVsNode) GetGeneratedFields() *AviVsNodeGeneratedFields {
-	return &v.AviVsNodeGeneratedFields
-}
-
-func (v *AviVsNode) GetCommonFields() *AviVsNodeCommonFields {
-	return &v.AviVsNodeCommonFields
-}
-
-func (v *AviVsNode) GetNetworkSecurityPolicyRef() *string {
-	return v.NetworkSecurityPolicyRef
-}
-
-func (v *AviVsNode) SetNetworkSecurityPolicyRef(networkSecurityPolicyRef *string) {
-	v.NetworkSecurityPolicyRef = networkSecurityPolicyRef
-}
-
-func (v *AviVsNode) GetTenant() string {
-	return v.Tenant
-}
-
-func (v *AviVsNode) GetStringGroupRefs() []*AviStringGroupNode {
-	return v.StringGroupRefs
-}
-
-func (v *AviVsNode) SetStringGroupRefs(stringGroupRefs []*AviStringGroupNode) {
-	v.StringGroupRefs = stringGroupRefs
-}
-
-func (v *AviVsNode) GetPaths() []string {
-	return v.Paths
 }
 
 func (o *AviObjectGraph) GetAviVS() []*AviVsNode {
@@ -749,62 +668,46 @@ func (o *AviVsNode) GetPGForVSByName(pgName string) *AviPoolGroupNode {
 	return nil
 }
 
-func (o *AviVsNode) ReplaceSniPoolInSNINode(newPoolNode *AviPoolNode, key string, isPoolNameLenExceedAviLimit bool) {
+func (o *AviVsNode) ReplaceSniPoolInSNINode(newPoolNode *AviPoolNode, key string) {
 	for i, pool := range o.PoolRefs {
-		if pool.Name == newPoolNode.Name || pool.Name == lib.GetEncodedSniPGPoolNameforRegex(newPoolNode.Name) {
+		if pool.Name == newPoolNode.Name {
 			o.PoolRefs = append(o.PoolRefs[:i], o.PoolRefs[i+1:]...)
-			if !isPoolNameLenExceedAviLimit {
-				// Do not append if length exceeds
-				o.PoolRefs = append(o.PoolRefs, newPoolNode)
-			}
+			o.PoolRefs = append(o.PoolRefs, newPoolNode)
 			utils.AviLog.Infof("key: %s, msg: replaced sni pool in model: %s Pool name: %s", key, o.Name, pool.Name)
 			return
 		}
 	}
 	// If we have reached here it means we haven't found a match. Just append the pool.
-	if !isPoolNameLenExceedAviLimit {
-		o.PoolRefs = append(o.PoolRefs, newPoolNode)
-	}
+	o.PoolRefs = append(o.PoolRefs, newPoolNode)
 }
 
-func (o *AviVsNode) ReplaceSniPGInSNINode(newPGNode *AviPoolGroupNode, key string, isPGNameLenExceedAviLimit bool) {
+func (o *AviVsNode) ReplaceSniPGInSNINode(newPGNode *AviPoolGroupNode, key string) {
 	for i, pg := range o.PoolGroupRefs {
-		if pg.Name == newPGNode.Name || pg.Name == lib.GetEncodedSniPGPoolNameforRegex(newPGNode.Name) {
+		if pg.Name == newPGNode.Name {
 			o.PoolGroupRefs = append(o.PoolGroupRefs[:i], o.PoolGroupRefs[i+1:]...)
-			if !isPGNameLenExceedAviLimit {
-				// add only when length is not exceed
-				o.PoolGroupRefs = append(o.PoolGroupRefs, newPGNode)
-			}
-			utils.AviLog.Infof("key: %s, msg: replaced sni pg in model: %s PG name: %s", key, o.Name, pg.Name)
+			o.PoolGroupRefs = append(o.PoolGroupRefs, newPGNode)
+			utils.AviLog.Infof("key: %s, msg: replaced sni pg in model: %s Pool name: %s", key, o.Name, pg.Name)
 			return
 		}
 	}
 	// If we have reached here it means we haven't found a match. Just append.
-	if !isPGNameLenExceedAviLimit {
-		//append if len < limit
-		o.PoolGroupRefs = append(o.PoolGroupRefs, newPGNode)
-	}
+	o.PoolGroupRefs = append(o.PoolGroupRefs, newPGNode)
 }
 
-func (o *AviVsNode) ReplaceSniHTTPRefInSNINode(httpPGPath AviHostPathPortPoolPG, httpPolName, key string, isHPPNameLengthExceedAviLimit bool) {
+func (o *AviVsNode) ReplaceSniHTTPRefInSNINode(httpPGPath AviHostPathPortPoolPG, httpPolName, key string) {
 	for i, http := range o.HttpPolicyRefs {
 		if http.Name == httpPolName {
 			for j, hppMap := range o.HttpPolicyRefs[i].HppMap {
 				if hppMap.Name == httpPGPath.Name {
 					o.HttpPolicyRefs[i].HppMap = append(o.HttpPolicyRefs[i].HppMap[:j], o.HttpPolicyRefs[i].HppMap[j+1:]...)
-					if !isHPPNameLengthExceedAviLimit {
-						// Do not append if length exceed
-						o.HttpPolicyRefs[i].HppMap = append(o.HttpPolicyRefs[i].HppMap, httpPGPath)
-					}
+					o.HttpPolicyRefs[i].HppMap = append(o.HttpPolicyRefs[i].HppMap, httpPGPath)
+
 					utils.AviLog.Infof("key: %s, msg: replaced SNI httpmap in model: %s Pool name: %s", key, o.Name, hppMap.Name)
 					return
 				}
 			}
 			// If we have reached here it means we haven't found a match. Just append.
-			if !isHPPNameLengthExceedAviLimit {
-				// Do not add if length exceeds
-				o.HttpPolicyRefs[i].HppMap = append(o.HttpPolicyRefs[i].HppMap, httpPGPath)
-			}
+			o.HttpPolicyRefs[i].HppMap = append(o.HttpPolicyRefs[i].HppMap, httpPGPath)
 		}
 	}
 }
@@ -866,10 +769,6 @@ func (o *AviVsNode) AddFQDNAliasesToHTTPPolicy(hosts []string, key string) {
 	// Update the hosts in the redirect policy of parent VS
 	for _, policy := range o.HttpPolicyRefs {
 		for j := range policy.RedirectPorts {
-			// do not add host to the redirect rule for app-root which has RedirectPath populated
-			if policy.RedirectPorts[j].RedirectPath != "" {
-				continue
-			}
 			uniqueHosts := sets.NewString(policy.RedirectPorts[j].Hosts...)
 			uniqueHosts.Insert(hosts...)
 			policy.RedirectPorts[j].Hosts = make([]string, uniqueHosts.Len())
@@ -984,8 +883,8 @@ func (v *AviVsNode) CalculateCheckSum() {
 	for _, sslkeycert := range v.SSLKeyCertRefs {
 		checksumStringSlice = append(checksumStringSlice, "SSLKeyCert"+sslkeycert.Name)
 	}
-	for _, sslkeycert := range v.SslKeyAndCertificateRefs {
-		checksumStringSlice = append(checksumStringSlice, "SslKeyAndCertificate"+sslkeycert)
+	for _, sslkeycert := range v.SSLKeyCertAviRef {
+		checksumStringSlice = append(checksumStringSlice, "SSLKeyCertAvi"+sslkeycert)
 	}
 	for _, vsvipref := range v.VSVIPRefs {
 		checksumStringSlice = append(checksumStringSlice, "VSVIP"+vsvipref.Name)
@@ -1011,27 +910,12 @@ func (v *AviVsNode) CalculateCheckSum() {
 	// keep the order of these policies
 	policies := v.HttpPolicySetRefs
 	scripts := v.VsDatascriptRefs
-	icaprefs := v.ICAPProfileRefs
 
-	var vsRefs string
-
-	if v.WafPolicyRef != nil {
-		vsRefs += *v.WafPolicyRef
-	}
-
-	if v.ApplicationProfileRef != nil {
-		vsRefs += *v.ApplicationProfileRef
-	}
-
-	if v.AnalyticsProfileRef != nil {
-		vsRefs += *v.AnalyticsProfileRef
-	}
-
-	vsRefs += v.ErrorPageProfileRef
-
-	if v.SslProfileRef != nil {
-		vsRefs += *v.SslProfileRef
-	}
+	vsRefs := v.WafPolicyRef +
+		v.AppProfileRef +
+		v.AnalyticsProfileRef +
+		v.ErrorPageProfileRef +
+		v.SSLProfileRef
 
 	if len(scripts) > 0 {
 		vsRefs += utils.Stringify(scripts)
@@ -1039,10 +923,6 @@ func (v *AviVsNode) CalculateCheckSum() {
 
 	if len(policies) > 0 {
 		vsRefs += utils.Stringify(policies)
-	}
-
-	if len(icaprefs) > 0 {
-		vsRefs += utils.Stringify(icaprefs)
 	}
 
 	if len(v.ServiceMetadata.HostNames) > 0 {
@@ -1072,10 +952,7 @@ func (v *AviVsNode) CalculateCheckSum() {
 	if v.Enabled != nil {
 		checksum += utils.Hash(utils.Stringify(v.Enabled))
 	}
-	// TrafficEnabled: This will cause PUT request on all L4 VS
-	if v.TrafficEnabled != nil {
-		checksum += utils.Hash(utils.Stringify(v.TrafficEnabled))
-	}
+
 	checksum += lib.GetMarkersChecksum(v.AviMarkers)
 
 	if v.EnableRhi != nil {
@@ -1085,8 +962,6 @@ func (v *AviVsNode) CalculateCheckSum() {
 	if v.AnalyticsPolicy != nil {
 		checksum += lib.GetAnalyticsPolicyChecksum(v.AnalyticsPolicy)
 	}
-
-	checksum += v.AviVsNodeGeneratedFields.CalculateCheckSumOfGeneratedCode()
 
 	v.CloudConfigCksum = checksum
 }
@@ -1123,22 +998,13 @@ func (v *AviL4PolicyNode) CalculateCheckSum() {
 	var checksum uint32
 	var ports []int64
 	var protocols []string
-	var pools []string
-	if len(v.PortPool) > 0 {
-		sort.Slice(v.PortPool, func(i, j int) bool {
-			return v.PortPool[i].Name < v.PortPool[j].Name
-		})
-	}
+
 	for _, hpp := range v.PortPool {
 		ports = append(ports, int64(hpp.Port))
 		protocols = append(protocols, hpp.Protocol)
-		// Include Pool name in checksum logic
-		pool := strings.TrimPrefix(hpp.Pool, "/api/pool?name=")
-		pools = append(pools, pool)
-
 	}
 	if len(v.PortPool) > 0 {
-		checksum = lib.L4PolicyChecksum(ports, protocols, pools, v.AviMarkers, nil, false)
+		checksum = lib.L4PolicyChecksum(ports, protocols, v.AviMarkers, nil, false)
 	}
 	v.CloudConfigCksum = checksum
 }
@@ -1171,8 +1037,6 @@ type AviHttpPolicySetNode struct {
 	SecurityRules      []AviHTTPSecurity
 	AviMarkers         utils.AviObjectMarkers
 	AttachedToSharedVS bool
-	RequestRules       []*avimodels.HTTPRequestRule
-	ResponseRules      []*avimodels.HTTPResponseRule
 }
 
 func (v *AviHttpPolicySetNode) GetCheckSum() uint32 {
@@ -1201,14 +1065,6 @@ func (v *AviHttpPolicySetNode) CalculateCheckSum() {
 
 	checksum += lib.GetMarkersChecksum(v.AviMarkers)
 
-	if v.RequestRules != nil {
-		checksum += utils.Hash(utils.Stringify(v.RequestRules))
-	}
-
-	if v.ResponseRules != nil {
-		checksum += utils.Hash(utils.Stringify(v.ResponseRules))
-	}
-
 	v.CloudConfigCksum = checksum
 }
 
@@ -1231,19 +1087,16 @@ func (v *AviHttpPolicySetNode) CopyNode() AviModelNode {
 }
 
 type AviHostPathPortPoolPG struct {
-	Name            string
-	Checksum        uint32
-	Host            []string
-	Path            []string
-	Port            uint32
-	Pool            string
-	PoolGroup       string
-	MatchCriteria   string
-	Protocol        string
-	IngName         string
-	MatchCase       string
-	StringGroupRefs []string
-	SvcPort         int
+	Name          string
+	Checksum      uint32
+	Host          []string
+	Path          []string
+	Port          uint32
+	Pool          string
+	PoolGroup     string
+	MatchCriteria string
+	Protocol      string
+	IngName       string
 }
 
 func (v *AviHostPathPortPoolPG) GetCheckSum() uint32 {
@@ -1254,25 +1107,18 @@ func (v *AviHostPathPortPoolPG) GetCheckSum() uint32 {
 
 func (v *AviHostPathPortPoolPG) CalculateCheckSum() {
 	var checksum uint32
-	if v.Path != nil {
-		sort.Strings(v.Path)
-	}
+	sort.Strings(v.Path)
 	v.Host = nil // Host in http policy is no longer required. TODO: complete removal of its reference from everywhere.
 	checksum = checksum + utils.Hash(utils.Stringify(v))
 	v.Checksum = checksum
 }
 
 type AviRedirectPort struct {
-	Name              string
-	Hosts             []string
-	RedirectPort      int32
-	StatusCode        string
-	VsPort            int32
-	Protocol          string
-	Path              string
-	RedirectPath      string
-	MatchCriteriaPath string
-	MatchCriteriaPort string
+	Name         string
+	Hosts        []string
+	RedirectPort int32
+	StatusCode   string
+	VsPort       int32
 }
 type AviHTTPSecurity struct {
 	Name          string
@@ -1338,7 +1184,6 @@ type AviPortHostProtocol struct {
 	Passthrough bool
 	Redirect    bool
 	EnableSSL   bool
-	EnableHTTP2 bool
 	Name        string
 }
 
@@ -1349,13 +1194,12 @@ type AviVSVIPNode struct {
 	FQDNs                   []string
 	VrfContext              string
 	IPAddress               string
-	VipNetworks             []akov1beta1.AviInfraSettingVipNetwork
+	VipNetworks             []akov1alpha1.AviInfraSettingVipNetwork
 	EnablePublicIP          *bool
 	BGPPeerLabels           []string
 	SecurePassthroughNode   *AviVsNode
 	InsecurePassthroughNode *AviVsNode
 	T1Lr                    string
-	LBVipType               string
 }
 
 func (v *AviVSVIPNode) GetCheckSum() uint32 {
@@ -1381,11 +1225,6 @@ func (v *AviVSVIPNode) CalculateCheckSum() {
 			chksumstr := vipNetwork.NetworkName + ":" + vipNetwork.Cidr
 			if vipNetwork.V6Cidr != "" {
 				chksumstr += ":" + vipNetwork.V6Cidr
-			}
-			// Network UUID will be published for networks with duplicate nw only.
-			// For existing vip(with no dup nw) cksum should be same
-			if vipNetwork.NetworkUUID != "" {
-				chksumstr += ":" + vipNetwork.NetworkUUID
 			}
 			vipNetworkStringList = append(vipNetworkStringList, chksumstr)
 
@@ -1492,7 +1331,6 @@ type AviHTTPDataScriptNode struct {
 	CloudConfigCksum uint32
 	PoolGroupRefs    []string
 	ProtocolParsers  []string
-	StringGroups     []string
 	*DataScript
 }
 
@@ -1539,16 +1377,6 @@ func (o *AviObjectGraph) GetAviHTTPDSNode() []*AviHTTPDataScriptNode {
 	return aviDS
 }
 
-func (o *AviObjectGraph) GetAviHTTPDSNodeByName(dataScriptName string) *AviHTTPDataScriptNode {
-	for _, model := range o.modelNodes {
-		ds, ok := model.(*AviHTTPDataScriptNode)
-		if ok && ds.Name == dataScriptName {
-			return ds
-		}
-	}
-	return nil
-}
-
 type DataScript struct {
 	Evt    string
 	Script string
@@ -1589,96 +1417,33 @@ func (v *AviPkiProfileNode) CalculateCheckSum() {
 	v.CloudConfigCksum = checksum
 }
 
-type AviApplicationPersistenceProfileNode struct {
-	Name                         string
-	Tenant                       string
-	CloudConfigCksum             uint32
-	AviMarkers                   utils.AviObjectMarkers
-	PersistenceType              string
-	HTTPCookiePersistenceProfile *HTTPCookiePersistenceProfileNode
-}
-
-type HTTPCookiePersistenceProfileNode struct {
-	CookieName         string
-	Timeout            *int32
-	IsPersistentCookie *bool
-}
-
-func (v *AviApplicationPersistenceProfileNode) GetNodeType() string {
-	return lib.ApplicationPersistenceProfileNode
-}
-
-func (v *AviApplicationPersistenceProfileNode) CopyNode() AviModelNode {
-	newNode := AviApplicationPersistenceProfileNode{}
-	bytes, err := json.Marshal(v)
-	if err != nil {
-		utils.AviLog.Warnf("Unable to marshal AviApplicationPersistenceProfileNode: %s", err)
-	}
-	err = json.Unmarshal(bytes, &newNode)
-	if err != nil {
-		utils.AviLog.Warnf("Unable to unmarshal AviApplicationPersistenceProfileNode: %s", err)
-	}
-	return &newNode
-}
-func (v *AviApplicationPersistenceProfileNode) GetCheckSum() uint32 {
-	v.CalculateCheckSum()
-	return v.CloudConfigCksum
-}
-
-func (v *AviApplicationPersistenceProfileNode) CalculateCheckSum() {
-	var checksum uint32 = 0
-	checksum += lib.PersistenceProfileChecksum(v.Name, v.PersistenceType, v.AviMarkers, nil, false)
-	if v.HTTPCookiePersistenceProfile != nil {
-		cookieProfile := v.HTTPCookiePersistenceProfile
-		checksum += lib.HTTPCookiePersistenceProfileChecksum(cookieProfile.CookieName, cookieProfile.Timeout, cookieProfile.IsPersistentCookie)
-	}
-	v.CloudConfigCksum = checksum
-}
-
 type AviPoolNode struct {
-	Name                          string
-	Tenant                        string
-	CloudConfigCksum              uint32
-	Port                          int32
-	TargetPort                    intstr.IntOrString
-	PortName                      string
-	Servers                       []AviPoolMetaServer
-	Protocol                      string
-	IngressName                   string
-	PriorityLabel                 string
-	ServiceMetadata               lib.ServiceMetadataObj
-	SniEnabled                    bool
-	PkiProfile                    *AviPkiProfileNode
-	ApplicationPersistenceProfile *AviApplicationPersistenceProfileNode
-	NetworkPlacementSettings      map[string]lib.NodeNetworkMap
-	VrfContext                    string
-	T1Lr                          string // Only applicable to NSX-T cloud, if this value is set, we automatically should unset the VRF context value.
-	AviMarkers                    utils.AviObjectMarkers
-	AttachedWithSharedVS          bool
-
-	AviPoolCommonFields
-
-	AviPoolGeneratedFields
-}
-
-// AviPoolCommonFields struct contains the fields that are:
-//  1. expected to be part of the generated code.
-//  2. already in use in the code and is part of the generated code.
-//
-// This struct is added to avoid any collision between the generated and
-// existing struct fields.
-type AviPoolCommonFields struct {
-	ApplicationPersistenceProfileRef *string
-	HealthMonitorRefs                []string
-	LbAlgorithm                      *string
-	LbAlgorithmHash                  *string
-	LbAlgorithmConsistentHashHdr     *string
-	PkiProfileRef                    *string
-	SslProfileRef                    *string
-	SslKeyAndCertificateRef          *string
-	EnableHttp2                      *bool
-	HostCheckEnabled                 *bool
-	DomainName                       []string
+	Name                     string
+	Tenant                   string
+	CloudConfigCksum         uint32
+	Port                     int32
+	TargetPort               intstr.IntOrString
+	PortName                 string
+	Servers                  []AviPoolMetaServer
+	Protocol                 string
+	LbAlgorithm              string
+	LbAlgorithmHash          string
+	LbAlgoHostHeader         string
+	IngressName              string
+	PriorityLabel            string
+	ServiceMetadata          lib.ServiceMetadataObj
+	SniEnabled               bool
+	SslProfileRef            string
+	SslKeyAndCertificateRef  string
+	PkiProfileRef            string
+	PkiProfile               *AviPkiProfileNode
+	NetworkPlacementSettings map[string][]string
+	HealthMonitors           []string
+	ApplicationPersistence   string
+	VrfContext               string
+	T1Lr                     string // Only applicable to NSX-T cloud, if this value is set, we automatically should unset the VRF context value.
+	AviMarkers               utils.AviObjectMarkers
+	AttachedWithSharedVS     bool
 }
 
 func (v *AviPoolNode) GetCheckSum() uint32 {
@@ -1699,42 +1464,20 @@ func (v *AviPoolNode) CalculateCheckSum() {
 		strconv.Itoa(int(v.Port)),
 		v.PortName,
 		utils.Stringify(servers),
-	}
-
-	if v.LbAlgorithm != nil {
-		checksumStringSlice = append(checksumStringSlice, *v.LbAlgorithm)
-	}
-
-	if v.LbAlgorithmHash != nil {
-		checksumStringSlice = append(checksumStringSlice, *v.LbAlgorithmHash)
-	}
-
-	if v.LbAlgorithmConsistentHashHdr != nil {
-		checksumStringSlice = append(checksumStringSlice, *v.LbAlgorithmConsistentHashHdr)
-	}
-
-	checksumStringSlice = append(checksumStringSlice, utils.Stringify(v.SniEnabled))
-
-	if v.SslProfileRef != nil {
-		checksumStringSlice = append(checksumStringSlice, *v.SslProfileRef)
-	}
-
-	checksumStringSlice = append(checksumStringSlice, []string{
+		v.LbAlgorithm,
+		v.LbAlgorithmHash,
+		v.LbAlgoHostHeader,
+		utils.Stringify(v.SniEnabled),
+		v.SslProfileRef,
 		v.PriorityLabel,
 		utils.Stringify(v.NetworkPlacementSettings),
-	}...)
+	}
 
-	if v.PkiProfileRef != nil {
-		checksumStringSlice = append(checksumStringSlice, *v.PkiProfileRef)
+	if v.PkiProfileRef != "" {
+		checksumStringSlice = append(checksumStringSlice, v.PkiProfileRef)
 	}
-	if v.SslKeyAndCertificateRef != nil {
-		checksumStringSlice = append(checksumStringSlice, *v.SslKeyAndCertificateRef)
-	}
-	if v.HostCheckEnabled != nil {
-		checksumStringSlice = append(checksumStringSlice, utils.Stringify(*v.HostCheckEnabled))
-	}
-	if v.DomainName != nil {
-		checksumStringSlice = append(checksumStringSlice, utils.Stringify(v.DomainName))
+	if v.SslKeyAndCertificateRef != "" {
+		checksumStringSlice = append(checksumStringSlice, v.SslKeyAndCertificateRef)
 	}
 
 	if len(v.ServiceMetadata.NamespaceServiceName) > 0 {
@@ -1747,27 +1490,20 @@ func (v *AviPoolNode) CalculateCheckSum() {
 		checksumStringSlice = append(checksumStringSlice, utils.Stringify(v.ServiceMetadata.HostNames))
 	}
 
-	if v.EnableHttp2 != nil {
-		checksumStringSlice = append(checksumStringSlice, utils.Stringify(*v.EnableHttp2))
-	}
 	chksumStr := fmt.Sprint(strings.Join(checksumStringSlice, delim))
 
 	checksum := utils.Hash(chksumStr)
 
-	if len(v.HealthMonitorRefs) > 0 {
-		checksum += utils.Hash(utils.Stringify(v.HealthMonitorRefs))
+	if len(v.HealthMonitors) > 0 {
+		checksum += utils.Hash(utils.Stringify(v.HealthMonitors))
 	}
 
 	if v.PkiProfile != nil {
 		checksum += v.PkiProfile.GetCheckSum()
 	}
 
-	if v.ApplicationPersistenceProfile != nil {
-		checksum += v.ApplicationPersistenceProfile.GetCheckSum()
-	}
-
-	if v.ApplicationPersistenceProfileRef != nil {
-		checksum += utils.Hash(*v.ApplicationPersistenceProfileRef)
+	if v.ApplicationPersistence != "" {
+		checksum += utils.Hash(v.ApplicationPersistence)
 	}
 
 	checksum += lib.GetMarkersChecksum(v.AviMarkers)
@@ -1775,8 +1511,6 @@ func (v *AviPoolNode) CalculateCheckSum() {
 	if v.T1Lr != "" {
 		checksum += utils.Hash(v.T1Lr)
 	}
-
-	checksum += v.AviPoolGeneratedFields.CalculateCheckSumOfGeneratedCode()
 
 	v.CloudConfigCksum = checksum
 }
@@ -1798,9 +1532,9 @@ func (v *AviPoolNode) CopyNode() AviModelNode {
 	return &newNode
 }
 func (v *AviPoolNode) UpdatePoolNodeForIstio() {
-	v.PkiProfileRef = proto.String(fmt.Sprintf("/api/pkiprofile?name=%s", lib.GetIstioPKIProfileName()))
-	v.SslKeyAndCertificateRef = proto.String(fmt.Sprintf("/api/sslkeyandcertificate?name=%s", lib.GetIstioWorkloadCertificateName()))
-	v.SslProfileRef = proto.String(fmt.Sprintf("/api/sslprofile?name=%s", lib.DefaultPoolSSLProfile))
+	v.PkiProfileRef = fmt.Sprintf("/api/pkiprofile?name=%s", lib.GetIstioPKIProfileName())
+	v.SslKeyAndCertificateRef = fmt.Sprintf("/api/sslkeyandcertificate?name=%s", lib.GetIstioWorkloadCertificateName())
+	v.SslProfileRef = fmt.Sprintf("/api/sslprofile?name=%s", lib.DefaultPoolSSLProfile)
 }
 func (o *AviObjectGraph) GetAviPoolNodesByIngress(tenant string, ingName string) []*AviPoolNode {
 	var aviPool []*AviPoolNode
@@ -1835,7 +1569,6 @@ type AviPoolMetaServer struct {
 	Ip         avimodels.IPAddr
 	ServerNode string
 	Port       int32
-	Enabled    *bool
 }
 
 type IngressHostPathSvc struct {
@@ -1843,7 +1576,7 @@ type IngressHostPathSvc struct {
 	Path           string
 	PathType       networkingv1.PathType
 	Port           int32
-	weight         uint32 //required for alternate backends in openshift route
+	weight         int32 //required for alternate backends in openshift route
 	PortName       string
 	TargetPort     intstr.IntOrString
 	clusterContext string // required for Multi-cluster ingress
@@ -1899,7 +1632,7 @@ func NewSecureHostNameMapProp() SecureHostNameMapProp {
 	return hostNameMap
 }
 
-func (h *SecureHostNameMapProp) GetPathsForHostName() []string {
+func (h *SecureHostNameMapProp) GetPathsForHostName(hostname string) []string {
 	var paths []string
 	for _, v := range h.HostNameMap {
 		paths = append(paths, v.paths...)
@@ -1907,7 +1640,7 @@ func (h *SecureHostNameMapProp) GetPathsForHostName() []string {
 	return paths
 }
 
-func (h *SecureHostNameMapProp) GetIngressesForHostName() []string {
+func (h *SecureHostNameMapProp) GetIngressesForHostName(hostname string) []string {
 	var ingresses []string
 	for k := range h.HostNameMap {
 		ingresses = append(ingresses, k)
@@ -1915,7 +1648,7 @@ func (h *SecureHostNameMapProp) GetIngressesForHostName() []string {
 	return ingresses
 }
 
-func (h *SecureHostNameMapProp) GetSecretsForHostName() []string {
+func (h *SecureHostNameMapProp) GetSecretsForHostName(hostname string) []string {
 	var secrets []string
 	for _, v := range h.HostNameMap {
 		secrets = append(secrets, v.secretName)
@@ -1926,59 +1659,4 @@ func (h *SecureHostNameMapProp) GetSecretsForHostName() []string {
 type HostNamePathSecrets struct {
 	secretName string
 	paths      []string
-}
-
-type AviStringGroupNode struct {
-	CloudConfigCksum uint32
-	*avimodels.StringGroup
-}
-
-func (v *AviStringGroupNode) GetCheckSum() uint32 {
-	// Calculate checksum and return
-	v.CalculateCheckSum()
-	return v.CloudConfigCksum
-}
-
-func (v *AviStringGroupNode) CalculateCheckSum() {
-	// A sum of fields for this StringGroup.
-	checksum := lib.StringGroupChecksum(v.Kv, nil, v.LongestMatch, false)
-	v.CloudConfigCksum = checksum
-}
-
-func (v *AviStringGroupNode) GetNodeType() string {
-	return lib.StringGroupNode
-}
-
-func (v *AviStringGroupNode) CopyNode() AviModelNode {
-	newNode := AviStringGroupNode{}
-	bytes, err := json.Marshal(v)
-	if err != nil {
-		utils.AviLog.Warnf("Unable to marshal AviStringGroupNode: %s", err)
-	}
-	err = json.Unmarshal(bytes, &newNode)
-	if err != nil {
-		utils.AviLog.Warnf("Unable to unmarshal AviStringGroupNode: %s", err)
-	}
-	return &newNode
-}
-
-func (o *AviObjectGraph) GetAviStringGroupNode() []*AviStringGroupNode {
-	var aviSG []*AviStringGroupNode
-	for _, model := range o.modelNodes {
-		sg, ok := model.(*AviStringGroupNode)
-		if ok {
-			aviSG = append(aviSG, sg)
-		}
-	}
-	return aviSG
-}
-
-func (o *AviObjectGraph) GetAviStringGroupNodeByName(stringGroupName string) *AviStringGroupNode {
-	for _, model := range o.modelNodes {
-		sg, ok := model.(*AviStringGroupNode)
-		if ok && *sg.StringGroup.Name == stringGroupName {
-			return sg
-		}
-	}
-	return nil
 }

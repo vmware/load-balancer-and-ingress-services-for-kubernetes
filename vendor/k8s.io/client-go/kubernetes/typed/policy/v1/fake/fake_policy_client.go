@@ -28,12 +28,8 @@ type FakePolicyV1 struct {
 	*testing.Fake
 }
 
-func (c *FakePolicyV1) Evictions(namespace string) v1.EvictionInterface {
-	return newFakeEvictions(c, namespace)
-}
-
 func (c *FakePolicyV1) PodDisruptionBudgets(namespace string) v1.PodDisruptionBudgetInterface {
-	return newFakePodDisruptionBudgets(c, namespace)
+	return &FakePodDisruptionBudgets{c, namespace}
 }
 
 // RESTClient returns a RESTClient that is used to communicate

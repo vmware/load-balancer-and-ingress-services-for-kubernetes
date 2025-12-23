@@ -1,4 +1,5 @@
 {{- if .Values.AKOSettings.primaryInstance }}
+{{ if .Capabilities.APIVersions.Has "networking.k8s.io/v1/IngressClass" }}
 apiVersion: networking.k8s.io/v1
 kind: IngressClass
 metadata:
@@ -9,4 +10,5 @@ metadata:
   {{ end }}
 spec:
   controller: ako.vmware.com/avi-lb
+{{ end }}
 {{- end }}

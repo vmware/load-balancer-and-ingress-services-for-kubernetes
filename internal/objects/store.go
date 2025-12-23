@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@
 package objects
 
 import (
-	"reflect"
 	"sync"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
@@ -102,6 +101,7 @@ func (o *ObjectMapStore) Delete(objName string) bool {
 		return true
 	}
 	return false
+
 }
 
 func (o *ObjectMapStore) Get(objName string) (bool, interface{}) {
@@ -109,15 +109,6 @@ func (o *ObjectMapStore) Get(objName string) (bool, interface{}) {
 	defer o.ObjLock.RUnlock()
 	val, ok := o.ObjectMap[objName]
 	if ok {
-		// if its a slice, make a copy since slice header contains address to underlying array
-		// any changes in a function is observed by the caller
-		if val != nil && reflect.TypeOf(val).Kind() == reflect.Slice {
-			value := reflect.ValueOf(val)
-			typeOfVal := reflect.TypeOf(val).Elem()
-			newSlice := reflect.MakeSlice(reflect.SliceOf(typeOfVal), value.Len(), value.Cap())
-			reflect.Copy(newSlice, value)
-			return true, newSlice.Interface()
-		}
 		return true, val
 	}
 	return false, nil
@@ -127,11 +118,8 @@ func (o *ObjectMapStore) Get(objName string) (bool, interface{}) {
 func (o *ObjectMapStore) GetAllObjectNames() map[string]interface{} {
 	o.ObjLock.RLock()
 	defer o.ObjLock.RUnlock()
-	CopiedObjMap := make(map[string]interface{})
-	for k, v := range o.ObjectMap {
-		CopiedObjMap[k] = v
-	}
-	return CopiedObjMap
+	// TODO (sudswas): Pass a copy instead of the reference
+	return o.ObjectMap
 
 }
 
@@ -153,16 +141,4 @@ func (o *ObjectMapStore) CopyAllObjects() map[string]interface{} {
 		CopiedObjMap[k] = v
 	}
 	return CopiedObjMap
-}
-
-func (o *ObjectMapStore) IsInfraSettingMapped(infrasetting string) bool {
-	o.ObjLock.RLock()
-	defer o.ObjLock.RUnlock()
-	for _, v := range o.ObjectMap {
-		vString := v.(string)
-		if infrasetting == vString {
-			return true
-		}
-	}
-	return false
 }

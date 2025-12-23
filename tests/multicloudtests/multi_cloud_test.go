@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -26,8 +26,6 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/k8s"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1alpha1/clientset/versioned/fake"
-	v1beta1crdfake "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/client/v1beta1/clientset/versioned/fake"
-
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/tests/integrationtest"
 
 	corev1 "k8s.io/api/core/v1"
@@ -48,13 +46,12 @@ const invalidFilePath = "invalidmock"
 
 var kubeClient *k8sfake.Clientset
 var crdClient *crdfake.Clientset
-var v1beta1CRDClient *v1beta1crdfake.Clientset
 var dynamicClient *dynamicfake.FakeDynamicClient
 var keyChan chan string
 var ctrl *k8s.AviController
 var RegisteredInformers = []string{
 	utils.ServiceInformer,
-	utils.EndpointSlicesInformer,
+	utils.EndpointInformer,
 	utils.IngressInformer,
 	utils.IngressClassInformer,
 	utils.SecretInformer,
@@ -247,13 +244,11 @@ func TestMain(m *testing.M) {
 	os.Setenv("SERVICE_TYPE", "NodePort")
 	os.Setenv("POD_NAMESPACE", utils.AKO_DEFAULT_NS)
 	os.Setenv("SHARD_VS_SIZE", "LARGE")
-	os.Setenv("POD_NAME", "ako-0")
 
 	akoControlConfig := lib.AKOControlConfig()
 	kubeClient = k8sfake.NewSimpleClientset()
 	dynamicClient = dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
 	crdClient = crdfake.NewSimpleClientset()
-	v1beta1CRDClient = v1beta1crdfake.NewSimpleClientset()
 	data := map[string][]byte{
 		"username": []byte("admin"),
 		"password": []byte("admin"),
@@ -262,12 +257,10 @@ func TestMain(m *testing.M) {
 	secret := &corev1.Secret{Data: data, ObjectMeta: object}
 	kubeClient.CoreV1().Secrets(utils.GetAKONamespace()).Create(context.TODO(), secret, metav1.CreateOptions{})
 	akoControlConfig.SetCRDClientset(crdClient)
-	akoControlConfig.Setv1beta1CRDClientset(v1beta1CRDClient)
 	akoControlConfig.SetAKOInstanceFlag(true)
 	akoControlConfig.SetEventRecorder(lib.AKOEventComponent, kubeClient, true)
-	akoControlConfig.SetDefaultLBController(true)
 	utils.NewInformers(utils.KubeClientIntf{ClientSet: kubeClient}, RegisteredInformers)
-	k8s.NewCRDInformers()
+	k8s.NewCRDInformers(crdClient)
 
 	integrationtest.InitializeFakeAKOAPIServer()
 	integrationtest.NewAviFakeClientInstance(kubeClient)

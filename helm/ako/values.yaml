@@ -2,24 +2,11 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-### FeatureGates is to enable or disable experimental features.
-featureGates:
-  GatewayAPI: false # Enables/disables processing of Kubernetes Gateway API CRDs.
-  EnablePrometheus: false # Enable/Disable prometheus scraping for AKO container
-
 replicaCount: 1
 
 image:
   repository: 10.79.172.11:5000/avi-buildops/ako
   pullPolicy: IfNotPresent
-  pullSecrets: [] # Setting this will add pull secrets to the statefulset for AKO. Required if using secure private container image registry for AKO image.
-  #pullSecrets:
-  # - name: regcred
-
-GatewayAPI:
-  image:
-    repository: 10.79.172.11:5000/avi-buildops/ako/ako-gateway-api
-    pullPolicy: IfNotPresent
 
 ### This section outlines the generic AKO settings
 AKOSettings:
@@ -31,7 +18,7 @@ AKOSettings:
   deleteConfig: "false" # Has to be set to true in configmap if user wants to delete AKO created objects from AVI 
   disableStaticRouteSync: "false" # If the POD networks are reachable from the Avi SE, set this knob to true.
   clusterName: "my-cluster" # A unique identifier for the kubernetes cluster, that helps distinguish the objects for this cluster in the avi controller. // MUST-EDIT
-  cniPlugin: "" # Set the string if your CNI is calico or openshift or ovn-kubernetes. For Cilium CNI, set the string as cilium only when using Cluster Scope mode for IPAM and leave it empty if using Kubernetes Host Scope mode for IPAM. enum: calico|canal|flannel|openshift|antrea|ncp|ovn-kubernetes|cilium
+  cniPlugin: "" # Set the string if your CNI is calico or openshift. enum: calico|canal|flannel|openshift|antrea|ncp
   enableEVH: false # This enables the Enhanced Virtual Hosting Model in Avi Controller for the Virtual Services
   layer7Only: false # If this flag is switched on, then AKO will only do layer 7 loadbalancing.
   # NamespaceSelector contains label key and value used for namespacemigration
@@ -51,46 +38,28 @@ AKOSettings:
   ipFamily: "" # This flag can take values V4 or V6 (default V4). This is for the backend pools to use ipv6 or ipv4. For frontside VS, use v6cidr
   useDefaultSecretsOnly: "false" # If this flag is set to true, AKO will only handle default secrets from the namespace where AKO is installed.
                                  # This flag is applicable only to Openshift clusters.
-  vpcMode: false # VPCMode enables AKO to operate in VPC mode. This flag is only applicable to NSX-T.
 
 ### This section outlines the network settings for virtualservices. 
 NetworkSettings:
   ## This list of network and cidrs are used in pool placement network for vcenter cloud.
-  ## Node Network details are not needed when static routes are disabled / for non vcenter clouds.
-  ## Either networkName or networkUUID should be specified.
-  ## If duplicate networks are present for the network name, networkUUID should be used for appropriate network.
+  ## Node Network details are not needed when in nodeport mode / static routes are disabled / non vcenter clouds.
   nodeNetworkList: []
   # nodeNetworkList:
   #   - networkName: "network-name"
-  #     networkUUID: "net-4567"
   #     cidrs:
   #       - 10.0.0.1/24
   #       - 11.0.0.1/24
   enableRHI: false # This is a cluster wide setting for BGP peering.
-  nsxtT1LR: "" # Unique ID (note: not display name) of the T1 Logical Router for Service Engine connectivity. Only applies to NSX-T cloud.
-  # nsxtT1LR: "/infra/tier-1s/avi-t1"
+  nsxtT1LR: "" # T1 Logical Segment mapping for backend network. Only applies to NSX-T cloud.
   bgpPeerLabels: [] # Select BGP peers using bgpPeerLabels, for selective VsVip advertisement.
   # bgpPeerLabels:
   #   - peer1
   #   - peer2
-
-  # Network information of the VIP network. Multiple networks allowed only for AWS Cloud.
-  # Either networkName or networkUUID should be specified.
-  # If duplicate networks are present for the network name, networkUUID should be used for appropriate network.
-  vipNetworkList: []
+  vipNetworkList: [] # Network information of the VIP network. Multiple networks allowed only for AWS Cloud.
   # vipNetworkList:
   #  - networkName: net1
-  #    networkUUID: net-1234
   #    cidr: 100.1.1.0/24
-  #    v6cidr: 2002::1234:abcd:ffff:c0a8:101/64 # Setting this will enable the VS networks to use ipv6
-
-  # The defaultDomain flag has two use cases.
-  # For L4 VSes, if multiple sub-domains are configured in the cloud, this flag can be used to set the default sub-domain to use for the VS. This flag should be used instead of L4Settings.defaultDomain, as it will be deprecated in a future release.
-  # If both NetworkSettings.defaultDomain and L4Settings.defaultDomain are set, then NetworkSettings.defaultDomain will be used.
-  # For L7 VSes(created from OpenShift Routes), if spec.subdomain field is specified instead of spec.host field for an OpenShift route, then the default domain specified is appended to the spec.subdomain to form the FQDN for the VS.
-  # The defaultDomain should be configured as a sub-domain in Avi cloud.
-  defaultDomain: ""
-  # defaultDomain: "avi.internal"
+  #    v6cidr: 2002::1234:abcd:ffff:c0a8:101/64 # Setting this will enable the VS networks to use ipv6 
 
 ### This section outlines all the knobs  used to control Layer 7 loadbalancing settings in AKO.
 L7Settings:
@@ -100,13 +69,10 @@ L7Settings:
   shardVSSize: "LARGE" # Use this to control the layer 7 VS numbers. This applies to both secure/insecure VSes but does not apply for passthrough. ENUMs: LARGE, MEDIUM, SMALL, DEDICATED
   passthroughShardSize: "SMALL" # Control the passthrough virtualservice numbers using this ENUM. ENUMs: LARGE, MEDIUM, SMALL
   enableMCI: "false" # Enabling this flag would tell AKO to start processing multi-cluster ingress objects.
-  fqdnReusePolicy: "InterNamespaceAllowed" # Use this to control whether AKO allows cross-namespace usage of FQDNs. enum Strict|InterNamespaceAllowed
 
 ### This section outlines all the knobs  used to control Layer 4 loadbalancing settings in AKO.
 L4Settings:
-  defaultLBController: "true"
-  defaultDomain: "" # If multiple sub-domains are configured in the cloud, use this knob to set the default sub-domain to use for L4 VSes. This flag will be deprecated in a future release; use NetworkSettings.defaultDomain instead.
-  # If both NetworkSettings.defaultDomain and L4Settings.defaultDomain are set, then NetworkSettings.defaultDomain will be used.
+  defaultDomain: "" # If multiple sub-domains are configured in the cloud, use this knob to set the default sub-domain to use for L4 VSes.
   autoFQDN: "default" # ENUM: default(<svc>.<ns>.<subdomain>), flat (<svc>-<ns>.<subdomain>), "disabled" If the value is disabled then the FQDN generation is disabled.
 
 ### This section outlines settings on the Avi controller that affects AKO's functionality.
@@ -116,8 +82,6 @@ ControllerSettings:
   cloudName: "Default-Cloud" # The configured cloud name on the Avi controller.
   controllerHost: "" # IP address or Hostname of Avi Controller
   tenantName: "admin" # Name of the tenant where all the AKO objects will be created in AVI.
-  vrfName: "" # Name of the VRFContext. All Avi objects will be under this VRF. Applicable only in Vcenter Cloud.
-  dedicatedTenantMode: false # If true, AKO will only query objects from its specific tenant instead of all tenants.
 
 nodePortSelector: # Only applicable if serviceType is NodePort
   key: ""
@@ -139,7 +103,7 @@ rbac:
   # Creates the pod security policy if set to true
   pspEnable: false
 
-# If username and either password or authtoken are not specified, avi-secret will not be created. AKO will assume that the avi-secret already exists and will reference it. The Avi Controller credentials, including certificateAuthorityData, will be read from the existing avi-secret.
+
 avicredentials:
   username:
   password:
@@ -150,26 +114,3 @@ avicredentials:
 persistentVolumeClaim: ""
 mountPath: "/log"
 logFile: "avi.log"
-akoGatewayLogFile: "avi-gw.log"
-
-# values for dependency chart ako-crd-operator
-ako-crd-operator:
- # enabled by default
-  enabled: true
-
-  controllerManager:
-    container:
-      image:
-        repository: packages.broadcom.com/ako/ako-crd-operator        
-        imagePullPolicy: IfNotPresent
-        pullSecrets: []
-      resources:
-        limits:
-          cpu: 256m
-          memory: 128Mi
-        requests:
-          cpu: 128m
-          memory: 64Mi
-      mountPath: "/log"
-      logFile: "ako-crd-operator.log"
-    persistentVolumeClaim: "" # this persistentVolumeClaim should be different from one in AKO. It can be same based on ReadMode of PVC only.

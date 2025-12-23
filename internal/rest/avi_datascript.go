@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -43,7 +43,7 @@ func (rest *RestOperations) AviDSBuild(ds_meta *nodes.AviHTTPDataScriptNode, cac
 	}
 	datascript := avimodels.VSDataScript{Evt: &ds_meta.Evt, Script: &ds_meta.Script}
 	datascriptlist = append(datascriptlist, &datascript)
-	tenant_ref := "/api/tenant/?name=" + lib.GetEscapedValue(ds_meta.Tenant)
+	tenant_ref := "/api/tenant/?name=" + ds_meta.Tenant
 	cr := lib.AKOUser
 	vsdatascriptset := avimodels.VSDataScriptSet{
 		CreatedBy:     &cr,
@@ -112,7 +112,7 @@ func (rest *RestOperations) AviDSDel(uuid string, tenant string, key string) *ut
 		Tenant: tenant,
 		Model:  "VSDataScriptSet",
 	}
-	utils.AviLog.Infof(spew.Sprintf("key: %s, msg: DS DELETE Restop %v ", key,
+	utils.AviLog.Info(spew.Sprintf("key: %s, msg: DS DELETE Restop %v ", key,
 		utils.Stringify(rest_op)))
 	return &rest_op
 }
@@ -147,7 +147,7 @@ func (rest *RestOperations) AviDSCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 		if resp["pool_group_refs"] != nil {
 			pgs, _ := resp["pool_group_refs"].([]interface{})
 			for _, pg := range pgs {
-				pgUuid := avicache.ExtractUUID(pg.(string), "poolgroup-.*.#")
+				pgUuid := avicache.ExtractUuid(pg.(string), "poolgroup-.*.#")
 				pgName, found := rest.cache.PgCache.AviCacheGetNameByUuid(pgUuid)
 				if found {
 					poolgroups = append(poolgroups, pgName.(string))
@@ -177,10 +177,10 @@ func (rest *RestOperations) AviDSCacheAdd(rest_op *utils.RestOp, vsKey avicache.
 		} else {
 			vs_cache_obj := rest.cache.VsCacheMeta.AviCacheAddVS(vsKey)
 			vs_cache_obj.AddToDSKeyCollection(k)
-			utils.AviLog.Infof(spew.Sprintf("key: %s, msg: added VS cache key during datascriptset update %v val %v", key, vsKey,
+			utils.AviLog.Info(spew.Sprintf("key: %s, msg: added VS cache key during datascriptset update %v val %v", key, vsKey,
 				vs_cache_obj))
 		}
-		utils.AviLog.Infof(spew.Sprintf("key: %s, msg: added Datascriptset cache k %v val %v", key, k,
+		utils.AviLog.Info(spew.Sprintf("key: %s, msg: added Datascriptset cache k %v val %v", key, k,
 			ds_cache_obj))
 	}
 

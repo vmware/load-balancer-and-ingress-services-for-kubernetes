@@ -39,11 +39,11 @@ type LeaseLock struct {
 
 // Get returns the election record from a Lease spec
 func (ll *LeaseLock) Get(ctx context.Context) (*LeaderElectionRecord, []byte, error) {
-	lease, err := ll.Client.Leases(ll.LeaseMeta.Namespace).Get(ctx, ll.LeaseMeta.Name, metav1.GetOptions{})
+	var err error
+	ll.lease, err = ll.Client.Leases(ll.LeaseMeta.Namespace).Get(ctx, ll.LeaseMeta.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, nil, err
 	}
-	ll.lease = lease
 	record := LeaseSpecToLeaderElectionRecord(&ll.lease.Spec)
 	recordByte, err := json.Marshal(*record)
 	if err != nil {
@@ -87,11 +87,7 @@ func (ll *LeaseLock) RecordEvent(s string) {
 		return
 	}
 	events := fmt.Sprintf("%v %v", ll.LockConfig.Identity, s)
-	subject := &coordinationv1.Lease{ObjectMeta: ll.lease.ObjectMeta}
-	// Populate the type meta, so we don't have to get it from the schema
-	subject.Kind = "Lease"
-	subject.APIVersion = coordinationv1.SchemeGroupVersion.String()
-	ll.LockConfig.EventRecorder.Eventf(subject, corev1.EventTypeNormal, "LeaderElection", events)
+	ll.LockConfig.EventRecorder.Eventf(&coordinationv1.Lease{ObjectMeta: ll.lease.ObjectMeta}, corev1.EventTypeNormal, "LeaderElection", events)
 }
 
 // Describe is used to convert details on current resource lock
@@ -117,16 +113,10 @@ func LeaseSpecToLeaderElectionRecord(spec *coordinationv1.LeaseSpec) *LeaderElec
 		r.LeaderTransitions = int(*spec.LeaseTransitions)
 	}
 	if spec.AcquireTime != nil {
-		r.AcquireTime = metav1.Time{Time: spec.AcquireTime.Time}
+		r.AcquireTime = metav1.Time{spec.AcquireTime.Time}
 	}
 	if spec.RenewTime != nil {
-		r.RenewTime = metav1.Time{Time: spec.RenewTime.Time}
-	}
-	if spec.PreferredHolder != nil {
-		r.PreferredHolder = *spec.PreferredHolder
-	}
-	if spec.Strategy != nil {
-		r.Strategy = *spec.Strategy
+		r.RenewTime = metav1.Time{spec.RenewTime.Time}
 	}
 	return &r
 
@@ -135,18 +125,11 @@ func LeaseSpecToLeaderElectionRecord(spec *coordinationv1.LeaseSpec) *LeaderElec
 func LeaderElectionRecordToLeaseSpec(ler *LeaderElectionRecord) coordinationv1.LeaseSpec {
 	leaseDurationSeconds := int32(ler.LeaseDurationSeconds)
 	leaseTransitions := int32(ler.LeaderTransitions)
-	spec := coordinationv1.LeaseSpec{
+	return coordinationv1.LeaseSpec{
 		HolderIdentity:       &ler.HolderIdentity,
 		LeaseDurationSeconds: &leaseDurationSeconds,
-		AcquireTime:          &metav1.MicroTime{Time: ler.AcquireTime.Time},
-		RenewTime:            &metav1.MicroTime{Time: ler.RenewTime.Time},
+		AcquireTime:          &metav1.MicroTime{ler.AcquireTime.Time},
+		RenewTime:            &metav1.MicroTime{ler.RenewTime.Time},
 		LeaseTransitions:     &leaseTransitions,
 	}
-	if ler.PreferredHolder != "" {
-		spec.PreferredHolder = &ler.PreferredHolder
-	}
-	if ler.Strategy != "" {
-		spec.Strategy = &ler.Strategy
-	}
-	return spec
 }

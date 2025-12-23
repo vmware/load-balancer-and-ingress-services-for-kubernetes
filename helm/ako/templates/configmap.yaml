@@ -18,16 +18,9 @@ data:
   layer7Only: {{ .Values.AKOSettings.layer7Only | quote }}
   vipPerNamespace: {{ .Values.AKOSettings.vipPerNamespace | quote }}
   tenantName: {{ .Values.ControllerSettings.tenantName | quote }}
-  vrfName: {{ .Values.ControllerSettings.vrfName | quote }}
-  dedicatedTenantMode: {{ .Values.ControllerSettings.dedicatedTenantMode | quote }}
-  {{ if .Values.NetworkSettings.defaultDomain }}
-  defaultDomain: {{ .Values.NetworkSettings.defaultDomain | quote }}
-  {{ else }}
   defaultDomain: {{ .Values.L4Settings.defaultDomain | quote }}
-  {{ end }}
   disableStaticRouteSync: {{ .Values.AKOSettings.disableStaticRouteSync | quote }}
   defaultIngController: {{ .Values.L7Settings.defaultIngController | quote }}
-  defaultLBController: {{ .Values.L4Settings.defaultLBController | quote }}
   noPGForSNI: {{ .Values.L7Settings.noPGForSNI | quote }}
   enableRHI: {{ .Values.NetworkSettings.enableRHI | quote }}
   nsxtT1LR: {{ .Values.NetworkSettings.nsxtT1LR | quote }}
@@ -56,7 +49,3 @@ data:
   ipFamily: {{ .Values.AKOSettings.ipFamily | quote }}
   istioEnabled: {{ .Values.AKOSettings.istioEnabled | quote }}
   useDefaultSecretsOnly: {{ .Values.AKOSettings.useDefaultSecretsOnly | quote }}
-  vpcMode: {{ .Values.AKOSettings.vpcMode | quote }}
-  enablePrometheus: {{ default "false" .Values.featureGates.EnablePrometheus | quote }}
-  fqdnReusePolicy: {{ default "InterNamespaceAllowed" .Values.L7Settings.fqdnReusePolicy | quote}}
-  akoCRDOperatorEnabled: {{ index .Values "ako-crd-operator" "enabled" | quote }}

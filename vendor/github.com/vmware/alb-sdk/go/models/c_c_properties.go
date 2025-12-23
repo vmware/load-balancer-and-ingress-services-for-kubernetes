@@ -9,8 +9,8 @@ package models
 type CCProperties struct {
 
 	//  Unit is SEC. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	RPCPollInterval *uint32 `json:"rpc_poll_interval,omitempty"`
+	RPCPollInterval *int32 `json:"rpc_poll_interval,omitempty"`
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	RPCQueueSize *uint32 `json:"rpc_queue_size,omitempty"`
+	RPCQueueSize *int32 `json:"rpc_queue_size,omitempty"`
 }

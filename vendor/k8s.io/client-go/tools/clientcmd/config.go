@@ -19,6 +19,7 @@ package clientcmd
 import (
 	"errors"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"sort"
@@ -134,7 +135,11 @@ func (o *PathOptions) GetDefaultFilename() string {
 }
 
 func (o *PathOptions) IsExplicitFile() bool {
-	return len(o.LoadingRules.ExplicitPath) > 0
+	if len(o.LoadingRules.ExplicitPath) > 0 {
+		return true
+	}
+
+	return false
 }
 
 func (o *PathOptions) GetExplicitFile() string {
@@ -147,7 +152,7 @@ func NewDefaultPathOptions() *PathOptions {
 		EnvVar:           RecommendedConfigPathEnvVar,
 		ExplicitFileFlag: RecommendedConfigPathFlag,
 
-		GlobalFileSubpath: filepath.Join(RecommendedHomeDir, RecommendedFileName),
+		GlobalFileSubpath: path.Join(RecommendedHomeDir, RecommendedFileName),
 
 		LoadingRules: NewDefaultClientConfigLoadingRules(),
 	}

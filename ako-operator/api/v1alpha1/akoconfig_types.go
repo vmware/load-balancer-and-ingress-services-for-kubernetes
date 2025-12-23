@@ -1,5 +1,5 @@
 /*
-Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -74,43 +74,35 @@ type AKOSettings struct {
 	BlockedNamespaceList []string `json:"blockedNamespaceList,omitempty"`
 	// IPFamily specifies IP family to be used. This flag can take values V4 or V6 (default V4). This is for the backend pools to use ipv6 or ipv4. For frontside VS, use v6cidr.
 	IPFamily string `json:"ipFamily,omitempty"`
-	// UseDefaultSecretsOnly flag if set to true, AKO will only handle default secrets from the namespace where AKO is installed. This flag is applicable only to Openshift clusters.
-	UseDefaultSecretsOnly bool `json:"useDefaultSecretsOnly,omitempty"`
 }
 
 type NodeNetwork struct {
 	NetworkName string   `json:"networkName,omitempty"`
 	Cidrs       []string `json:"cidrs,omitempty"`
-	NetworkUUID string   `json:"networkUUID,omitempty"`
 }
 
 type VipNetwork struct {
 	NetworkName string `json:"networkName,omitempty"`
 	Cidr        string `json:"cidr,omitempty"`
 	//V6Cidr will enable the VS networks to use ipv6
-	V6Cidr      string `json:"v6cidr,omitempty"`
-	NetworkUUID string `json:"networkUUID,omitempty"`
+	V6Cidr string `json:"v6cidr,omitempty"`
 }
 
 // NetworkSettings defines the network details required for the AKO controller
 type NetworkSettings struct {
 	// NodeNetworkList is the list of networks and their cidrs used in pool placement network for vcenter
-	// cloud. Either networkName or networkUUID should be specified. If duplicate networks are present for
-	// the network name, networkUUID should be used for appropriate network. This is not required for either of these cases:
+	// cloud. This is not required for either of these cases:
 	// 1. nodeport is enabled
 	// 2. static routes are disabled
 	// 3. non vcenter clouds
 	NodeNetworkList []NodeNetwork `json:"nodeNetworkList,omitempty"`
 	// EnableRHI is a cluster wide setting for BGP peering
 	EnableRHI bool `json:"enableRHI,omitempty"`
-	// NsxtT1LR is the unique ID (not display name) of the T1 Logical Router for Service Engine connectivity. Only applies to NSX-T cloud.
-	// For eg : nsxtT1LR: "/infra/tier-1s/avi-t1".
+	// T1 Logical Segment mapping for backend network. Only applies to NSX-T cloud.
 	NsxtT1LR string `json:"nsxtT1LR,omitempty"`
 	// BGPPeerLabels enable selection of BGP peers, for selective VsVip advertisement.
 	BGPPeerLabels []string `json:"bgpPeerLabels,omitempty"`
-	// VipNetworkList holds the names and subnet information of networks as specified in Avi.
-	// Either networkName or networkUUID should be specified. If duplicate networks are present
-	// for the network name, networkUUID should be used for appropriate network.
+	// VipNetworkList holds the names and subnet information of networks as specified in Avi
 	VipNetworkList []VipNetwork `json:"vipNetworkList,omitempty"`
 }
 
@@ -138,8 +130,6 @@ type L4Settings struct {
 	DefaultDomain string `json:"defaultDomain,omitempty"`
 	//Specifies the FQDN pattern - default, flat or disabled
 	AutoFQDN string `json:"autoFQDN,omitempty"`
-	// DefaultLBController enables ako to check if it is the default LoadBalancer controller.
-	DefaultLBController bool `json:"defaultLBController,omitempty"`
 }
 
 // ControllerSettings defines the Avi Controller parameters
@@ -157,8 +147,6 @@ type ControllerSettings struct {
 	TenantsPerCluster bool `json:"tenantsPerCluster,omitempty"`
 	// TenantName is the name of the tenant where all AKO objects will be created in Avi.
 	TenantName string `json:"tenantName,omitempty"`
-	// VRFName is the name of the VRFContext. All Avi objects will be under this VRF. Applicable only in Vcenter Cloud.
-	VRFName string `json:"vrfName,omitempty"`
 }
 
 // NodePortSelector defines the node port settings, to be used only if the serviceTYpe is selected
@@ -190,103 +178,32 @@ type Rbac struct {
 	PSPEnable bool `json:"pspEnable,omitempty"`
 }
 
-type ImagePullSecret struct {
-	Name string `json:"name,omitempty"`
-}
-
-// FeatureGates is to enable or disable experimental features
-type FeatureGates struct {
-	// GatewayAPI enables/disables processing of Kubernetes Gateway API CRDs
-	GatewayAPI bool `json:"gatewayAPI,omitempty"`
-	// EnablePrometheus enables/disables prometheus scraping for AKO container
-	EnablePrometheus bool `json:"enablePrometheus,omitempty"`
-}
-
-// GatewayAPI defines settings for AKO Gateway API container
-type GatewayAPI struct {
-	// Image defines image related settings for AKO Gateway API container
-	Image Image `json:"image,omitempty"`
-}
-
-type Image struct {
-	Repository string `json:"repository,omitempty"`
-	PullPolicy string `json:"pullPolicy,omitempty"`
-}
-
 // AKOConfigSpec defines the desired state of AKOConfig
 type AKOConfigSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
-	// ImageRepository is where the AKO controller resides
+	// ImageRepository is where the AKO controller resides.
 	ImageRepository string `json:"imageRepository,omitempty"`
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
-	// ImagePullPolicy defines when the AKO controller image gets pulled
-	ImagePullPolicy string `json:"imagePullPolicy,omitempty"`
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
-	// ImagePullSecrets will add pull secrets to the statefulset for AKO. Required if using secure private container image registry for AKO image
-	ImagePullSecrets []ImagePullSecret `json:"imagePullSecrets,omitempty"`
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
-	// ReplicaCount defines the number of replicas for AKO Statefulset
-	ReplicaCount int `json:"replicaCount,omitempty"`
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="AKO Settings"
-	// AKOSettings defines the settings required for the AKO controller
-	AKOSettings AKOSettings `json:"akoSettings,omitempty"`
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
-	// NetworkSettings defines the network details required for the AKO controller
-	NetworkSettings NetworkSettings `json:"networkSettings,omitempty"`
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Layer 7 Settings"
-	// L7Settings defines the L7 configuration for the AKO controller
-	L7Settings L7Settings `json:"l7Settings,omitempty"`
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="Layer 4 Settings"
-	// L4Settings defines the L4 configuration for the AKO controller
-	L4Settings L4Settings `json:"l4Settings,omitempty"`
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
-	// ControllerSettings defines the Avi Controller parameters
-	ControllerSettings ControllerSettings `json:"controllerSettings,omitempty"`
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="NodePort Selector"
-	// NodePortSelector defines the node port settings, to be used only if the serviceTYpe is selected NodePort
-	NodePortSelector NodePortSelector `json:"nodePortSelector,omitempty"`
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
-	// Resources defines the limits and requests for cpu and memory to be used by the AKO controller
-	Resources Resources `json:"resources,omitempty"`
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
-	// Rbac enables the pod security policy for AKO
-	Rbac Rbac `json:"rbac,omitempty"`
-	//+operator-sdk:csv:customresourcedefinitions:type=spec,displayName="PVC"
-	// PersistentVolumeClaim where the logs need to be stored
+	// ImagePullPolicy defines when the AKO controller image gets pulled.
+	ImagePullPolicy       string `json:"imagePullPolicy,omitempty"`
+	AKOSettings           `json:"akoSettings,omitempty"`
+	NetworkSettings       `json:"networkSettings,omitempty"`
+	L7Settings            `json:"l7Settings,omitempty"`
+	L4Settings            `json:"l4Settings,omitempty"`
+	ControllerSettings    `json:"controllerSettings,omitempty"`
+	NodePortSelector      `json:"nodePortSelector,omitempty"`
+	Resources             `json:"resources,omitempty"`
+	Rbac                  `json:"rbac,omitempty"`
 	PersistentVolumeClaim string `json:"pvc,omitempty"`
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
-	// MountPath is where the logFile will be mounted on
-	MountPath string `json:"mountPath,omitempty"`
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
-	// LogFile is the name of the file where AKO will dump its logs
-	LogFile string `json:"logFile,omitempty"`
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
-	// AKOGatewayLogFile is the name of the file where ako-gateway-api container will dump its logs
-	AKOGatewayLogFile string `json:"akoGatewayLogFile,omitempty"`
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
-	// FeatureGates is to enable or disable experimental features
-	FeatureGates FeatureGates `json:"featureGates,omitempty"`
-	//+operator-sdk:csv:customresourcedefinitions:type=spec
-	// GatewayAPI defines settings for AKO Gateway API container
-	GatewayAPI GatewayAPI `json:"gatewayAPI,omitempty"`
+	MountPath             string `json:"mountPath,omitempty"`
+	LogFile               string `json:"logFile,omitempty"`
 }
 
 // AKOConfigStatus defines the observed state of AKOConfig
 type AKOConfigStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// +operator-sdk:csv:customresourcedefinitions:type=status,displayName="State",xDescriptors="urn:alm:descriptor:urn:alm:descriptor:io.kubernetes.phase"
-	// State defines the current Kubernetes phase of AKOConfig object
 	State string `json:"state,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-// +kubebuilder:deprecatedversion:warning="The v1alpha1 version is deprecated for AKOConfig CRD, please use v1beta1 version"
 
 // AKOConfig is the Schema for the akoconfigs API
 type AKOConfig struct {

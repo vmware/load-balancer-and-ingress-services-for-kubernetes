@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -38,14 +38,6 @@ func (o *CtrlPropCache) PopulateCtrlProp(cp map[string]string) {
 	}
 }
 
-func (o *CtrlPropCache) PopulateCtrlAPIUserHeaders(userHeader map[string]string) {
-	o.AviCacheAdd(ControllerAPIHeader, userHeader)
-}
-
-func (o *CtrlPropCache) PopulateCtrlAPIScheme(scheme string) {
-	o.AviCacheAdd(ControllerAPIScheme, scheme)
-}
-
 func (o *CtrlPropCache) GetAllCtrlProp() map[string]string {
 	ctrlProps := make(map[string]string)
 	ctrlUsername, ok := o.AviCacheGet(ENV_CTRL_USERNAME)
@@ -73,28 +65,4 @@ func (o *CtrlPropCache) GetAllCtrlProp() map[string]string {
 		ctrlProps[ENV_CTRL_CADATA] = ctrlCAData.(string)
 	}
 	return ctrlProps
-}
-
-func (o *CtrlPropCache) GetCtrlUserHeader() map[string]string {
-	headerData, ok := o.AviCacheGet(ControllerAPIHeader)
-	if !ok || headerData == nil {
-		return map[string]string{}
-	}
-	header, ok := headerData.(map[string]string)
-	if !ok {
-		return map[string]string{}
-	}
-	return header
-}
-
-func (o *CtrlPropCache) GetCtrlAPIScheme() string {
-	apiScheme, ok := o.AviCacheGet(ControllerAPIScheme)
-	if !ok || apiScheme == nil {
-		return ""
-	}
-	scheme, ok := apiScheme.(string)
-	if !ok {
-		return ""
-	}
-	return scheme
 }

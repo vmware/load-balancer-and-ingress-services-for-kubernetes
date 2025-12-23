@@ -13,5 +13,5 @@ type SEFaultInjectExhaustParam struct {
 
 	//  Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true
-	Num *uint64 `json:"num"`
+	Num *int64 `json:"num"`
 }

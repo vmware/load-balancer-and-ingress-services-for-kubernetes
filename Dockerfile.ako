@@ -11,13 +11,13 @@ WORKDIR $GOPATH/src/$BUILD_PATH
 RUN GOARCH=amd64 \
     CGO_ENABLED=0 \
     GOOS=linux \
-    go build -buildvcs=false -o $GOPATH/bin/akc \
+    go build -o $GOPATH/bin/akc \
     -ldflags "$AKO_LDFLAGS" \
     -mod=vendor \
     $BUILD_PATH/cmd/ako-main
 
 FROM ${photon_src_repo}
-RUN yum install -y tar.x86_64 && yum clean all
+RUN yum install -y tar.x86_64
 COPY --from=build /go/bin/akc /usr/bin/
 COPY ./scripts/pre_stop_hook.sh /var/pre_stop_hook.sh
 EXPOSE 8080

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -38,7 +38,6 @@ type AviPoolCache struct {
 	CloudConfigCksum     string
 	ServiceMetadataObj   lib.ServiceMetadataObj
 	PkiProfileCollection NamespaceName
-	PersistenceProfile   NamespaceName
 	LastModified         string
 	InvalidData          bool
 	HasReference         bool
@@ -68,27 +67,26 @@ type AviClusterRuntimeCache struct {
 }
 
 type AviVsCache struct {
-	Name                     string
-	Tenant                   string
-	Uuid                     string
-	CloudConfigCksum         string
-	PGKeyCollection          []NamespaceName
-	VSVipKeyCollection       []NamespaceName
-	PoolKeyCollection        []NamespaceName
-	DSKeyCollection          []NamespaceName
-	HTTPKeyCollection        []NamespaceName
-	SSLKeyCertCollection     []NamespaceName
-	L4PolicyCollection       []NamespaceName
-	SNIChildCollection       []string
-	ParentVSRef              NamespaceName
-	PassthroughParentRef     NamespaceName
-	PassthroughChildRef      NamespaceName
-	ServiceMetadataObj       lib.ServiceMetadataObj
-	LastModified             string
-	EnableRhi                bool
-	InvalidData              bool
-	VSCacheLock              sync.RWMutex
-	StringGroupKeyCollection []NamespaceName
+	Name                 string
+	Tenant               string
+	Uuid                 string
+	CloudConfigCksum     string
+	PGKeyCollection      []NamespaceName
+	VSVipKeyCollection   []NamespaceName
+	PoolKeyCollection    []NamespaceName
+	DSKeyCollection      []NamespaceName
+	HTTPKeyCollection    []NamespaceName
+	SSLKeyCertCollection []NamespaceName
+	L4PolicyCollection   []NamespaceName
+	SNIChildCollection   []string
+	ParentVSRef          NamespaceName
+	PassthroughParentRef NamespaceName
+	PassthroughChildRef  NamespaceName
+	ServiceMetadataObj   lib.ServiceMetadataObj
+	LastModified         string
+	EnableRhi            bool
+	InvalidData          bool
+	VSCacheLock          sync.RWMutex
 }
 
 func (c *AviCache) AviCacheAddVS(k NamespaceName) *AviVsCache {
@@ -128,14 +126,12 @@ func (v *AviVsCache) SetPGKeyCollection(keyCollection []NamespaceName) {
 }
 
 func RemoveNamespaceName(s []NamespaceName, r NamespaceName) []NamespaceName {
-	n := 0
-	for _, v := range s {
-		if v != r {
-			s[n] = v
-			n++
+	for i, v := range s {
+		if v == r {
+			return append(s[:i], s[i+1:]...)
 		}
 	}
-	return s[:n]
+	return s
 }
 
 func (v *AviVsCache) AddToPGKeyCollection(k NamespaceName) {
@@ -219,22 +215,6 @@ func (v *AviVsCache) RemoveFromHTTPKeyCollection(k NamespaceName) {
 	v.HTTPKeyCollection = RemoveNamespaceName(v.HTTPKeyCollection, k)
 }
 
-func (v *AviVsCache) AddToStringGroupKeyCollection(k NamespaceName) {
-	if v.StringGroupKeyCollection == nil {
-		v.StringGroupKeyCollection = []NamespaceName{k}
-	}
-	if !utils.HasElem(v.StringGroupKeyCollection, k) {
-		v.StringGroupKeyCollection = append(v.StringGroupKeyCollection, k)
-	}
-}
-
-func (v *AviVsCache) RemoveFromStringGroupKeyCollection(k NamespaceName) {
-	if v.StringGroupKeyCollection == nil {
-		return
-	}
-	v.StringGroupKeyCollection = RemoveNamespaceName(v.StringGroupKeyCollection, k)
-}
-
 func (v *AviVsCache) AddToSSLKeyCertCollection(k NamespaceName) {
 	if v.SSLKeyCertCollection == nil {
 		v.SSLKeyCertCollection = []NamespaceName{k}
@@ -310,16 +290,6 @@ type AviPkiProfileCache struct {
 	HasReference     bool
 }
 
-type AviPersistenceProfileCache struct {
-	Name             string
-	Tenant           string
-	Uuid             string
-	CloudConfigCksum uint32
-	LastModified     string
-	Type             string
-	InvalidData      bool
-}
-
 type NextPage struct {
 	NextURI    string
 	Collection interface{}
@@ -361,7 +331,6 @@ type AviHTTPPolicyCache struct {
 	LastModified     string
 	InvalidData      bool
 	HasReference     bool
-	StringGroupRefs  []string
 }
 
 type AviL4PolicyCache struct {
@@ -378,18 +347,6 @@ type AviVrfCache struct {
 	Name             string
 	Uuid             string
 	CloudConfigCksum uint32
-}
-
-type AviStringGroupCache struct {
-	Name             string
-	Tenant           string
-	Uuid             string
-	LastModified     string
-	InvalidData      bool
-	CloudConfigCksum uint32
-	HasReference     bool
-	Description      string
-	LongestMatch     bool
 }
 
 func (v *AviVsCache) GetVSCopy() (*AviVsCache, bool) {
@@ -542,18 +499,6 @@ func (c *AviCache) AviCacheGetNameByUuid(uuid string) (interface{}, bool) {
 				utils.AviLog.Warnf("Got nil value in cache for pki profile key %v", reflect.ValueOf(key))
 			} else if value.(*AviPkiProfileCache).Uuid == uuid {
 				return value.(*AviPkiProfileCache).Name, true
-			}
-		case *AviStringGroupCache:
-			if value.(*AviStringGroupCache) == nil {
-				utils.AviLog.Warnf("Got nil value in cache for stringgroup key %v", reflect.ValueOf(key))
-			} else if value.(*AviStringGroupCache).Uuid == uuid {
-				return value.(*AviStringGroupCache).Name, true
-			}
-		case *AviPersistenceProfileCache:
-			if value.(*AviPersistenceProfileCache) == nil {
-				utils.AviLog.Warnf("Got nil value in cache for persistence profile key %v", reflect.ValueOf(key))
-			} else if value.(*AviPersistenceProfileCache).Uuid == uuid {
-				return value.(*AviPersistenceProfileCache).Name, true
 			}
 		}
 	}

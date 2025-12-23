@@ -89,24 +89,6 @@ Check connectivity between AKO Pod and Avi controller.
 
   Refer the [document](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.25/#securitycontext-v1-core) to select the best suitable configuration.
 
-#### Static routes not getting populated in vrfcontext
-
-#### Possible Reasons/Solutions
-
-  Reboot all ako pods by setting replica count to 0 and then reverting replica count back in ako statefuleset using following steps:
-
-    1. Edit `ako` sts in `avi-system` namespace using following command and set `replicas: 0` :
-    
-        kubectl edit sts ako -n avi-system
-  
-        Save and exit.
-
-    2. Edit `ako` sts in `avi-system` namespace using following command and set `replicas: replica-count-before-edit` :
-    
-        kubectl edit sts ako -n avi-system
-  
-        Save and exit.
-
 ## Log Collection
 
 For every log collection, also collect the following information:
@@ -326,36 +308,3 @@ spec:
 ```
 
 This restriction is removed in Antrea v1.2.0.
-
-## Troubleshooting for GatewayAPI
-
-#### Gateway is created but Parent VS is not created on AVI
-
-Make sure featuregate for Gateway is enabled in values.yaml and that ako-gateway container is running in the AKO pod
-
-Check the status of Gateway if Gateway has any invalid spec. Refer to AKO GatewayAPI doc for details on required fields for gateway objects.
-
-Check if Gateway class is attached to Gateway and controller on Gateway class is set to AKO `ako.vmware.com/avi-lb`. By default, a Gateway class named avi-lb should already be created.
-
-Parent VS name is of the form ako-gw-(clustername)--(namespace)-(gatewayName)-EVH
-
-#### Gateway class was created after Gateway creation.
-
-AKO does not check for gateways if gateway class was created after gateway creation. User needs to Update/Re-create gateway object.
-Restarting AKO will also work.
-
-#### Gateway class is deleted but VS objects are not deleted.
-
-Deleting gateway class does not delete VS objects. This is to mitigate deletion of multiple objects due to accidental deletion of 
-gateway class. To delete Parent VS, delete corresponding gateway object.
-
-To trigger delete with gateway class deletion, user can restart AKO after gateway deletion.
-
-#### HTTPRoute is created but child VS is not created on AVI
-
-Check pod event if HTTPRoute was found to be invalid. Matches and BackendRefs required fields for Child VS creation.
-
-Refer to AKO GatewayAPI doc for details on required fields for gateway objects.
-
-Check Parent VS is created and status of corresponding gateway for any possible errors.
-

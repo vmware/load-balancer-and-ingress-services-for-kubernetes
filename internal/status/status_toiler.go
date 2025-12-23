@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2020-2021 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -32,13 +32,11 @@ type StatusOptions struct {
 func PublishToStatusQueue(key string, statusOption StatusOptions) {
 	statusQueue := utils.SharedWorkQueue().GetQueueByName(utils.StatusQueue)
 	bkt := utils.Bkt(key, statusQueue.NumWorkers)
-	lib.IncrementQueueCounter(utils.StatusQueue)
 	statusQueue.Workqueue[bkt].AddRateLimited(statusOption)
 }
 
 func (l *leader) DequeueStatus(objIntf interface{}) error {
 	obj, ok := objIntf.(StatusOptions)
-	lib.DecrementQueueCounter(utils.StatusQueue)
 	if !ok {
 		utils.AviLog.Warnf("Object is not of type StatusOptions, %T", objIntf)
 		return nil

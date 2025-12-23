@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -15,21 +15,18 @@
 package cache
 
 import (
-	"sync"
-
 	corev1 "k8s.io/api/core/v1"
-
-	"github.com/vmware/alb-sdk/go/session"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/api/models"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
+	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/github.com/vmware/alb-sdk/go/session"
 )
 
-var AviClientInstanceMap sync.Map
+var AviClientInstance *utils.AviRestClientPool
 
 // This class is in control of AKC. It uses utils from the common project.
-func SharedAVIClients(tenant string) *utils.AviRestClientPool {
+func SharedAVIClients() *utils.AviRestClientPool {
 	var err error
 	var connectionStatus string
 
@@ -52,56 +49,44 @@ func SharedAVIClients(tenant string) *utils.AviRestClientPool {
 			lib.AKOShutdown, "Avi Controller information missing (username: %s, password: %s, authToken: %s, controller: %s)",
 			ctrlUsername, passwordLog, authTokenLog, ctrlIpAddress,
 		)
-		if ctrlIpAddress == "" {
-			utils.AviLog.Fatalf("Avi Controller information missing (username: %s, password: %s, authToken: %s, controller: %s). Update the controller IP in ConfigMap : avi-k8s-config", ctrlUsername, passwordLog, authTokenLog, ctrlIpAddress)
-		}
 		utils.AviLog.Fatalf("Avi Controller information missing (username: %s, password: %s, authToken: %s, controller: %s). Update them in avi-secret.", ctrlUsername, passwordLog, authTokenLog, ctrlIpAddress)
 	}
 
-	aviClientInstance, ok := AviClientInstanceMap.Load(tenant)
-	if ok {
-		models.RestStatus.UpdateAviApiRestStatus(connectionStatus, err)
-		return aviClientInstance.(*utils.AviRestClientPool)
+	if AviClientInstance == nil || len(AviClientInstance.AviClient) == 0 {
+		// Always create 9 clients irrespective of shard size
+		var currentControllerVersion string
+		ctrlVersion := lib.AKOControlConfig().ControllerVersion()
+		AviClientInstance, currentControllerVersion, err = utils.NewAviRestClientPool(
+			9,
+			ctrlIpAddress,
+			ctrlUsername,
+			ctrlPassword,
+			ctrlAuthToken,
+			ctrlVersion,
+			ctrlCAData,
+		)
+
+		connectionStatus = utils.AVIAPI_CONNECTED
+		if err != nil {
+			connectionStatus = utils.AVIAPI_DISCONNECTED
+			utils.AviLog.Errorf("AVI controller initialization failed")
+			return nil
+		}
+
+		if ctrlVersion == "" {
+			lib.AKOControlConfig().SetControllerVersion(currentControllerVersion)
+			ctrlVersion = currentControllerVersion
+		}
+		// set the tenant and controller version in avisession obj
+		for _, client := range AviClientInstance.AviClient {
+			SetTenant := session.SetTenant(lib.GetTenant())
+			SetTenant(client.AviSession)
+
+			SetVersion := session.SetVersion(ctrlVersion)
+			SetVersion(client.AviSession)
+		}
 	}
 
-	userHeaders := utils.SharedCtrlProp().GetCtrlUserHeader()
-	userHeaders[utils.XAviUserAgentHeader] = "AKO"
-	apiScheme := utils.SharedCtrlProp().GetCtrlAPIScheme()
-
-	// Always create 9 clients irrespective of shard size
-	var currentControllerVersion string
-	var aviRestClientPool *utils.AviRestClientPool
-	ctrlVersion := lib.AKOControlConfig().ControllerVersion()
-	aviRestClientPool, currentControllerVersion, err = utils.NewAviRestClientPool(
-		9,
-		ctrlIpAddress,
-		ctrlUsername,
-		ctrlPassword,
-		ctrlAuthToken,
-		ctrlVersion,
-		ctrlCAData,
-		tenant,
-		apiScheme,
-		userHeaders,
-	)
-
-	connectionStatus = utils.AVIAPI_CONNECTED
-	if err != nil {
-		connectionStatus = utils.AVIAPI_DISCONNECTED
-		utils.AviLog.Errorf("AVI controller initialization failed")
-		return nil
-	}
-
-	if ctrlVersion == "" {
-		lib.AKOControlConfig().SetControllerVersion(currentControllerVersion)
-		ctrlVersion = currentControllerVersion
-	}
-	// set the tenant and controller version in avisession obj
-	for _, client := range aviRestClientPool.AviClient {
-		SetVersion := session.SetVersion(ctrlVersion)
-		SetVersion(client.AviSession)
-	}
-	AviClientInstanceMap.Store(tenant, aviRestClientPool)
 	models.RestStatus.UpdateAviApiRestStatus(connectionStatus, err)
-	return aviRestClientPool
+	return AviClientInstance
 }

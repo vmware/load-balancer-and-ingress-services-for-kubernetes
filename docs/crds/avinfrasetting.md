@@ -3,13 +3,10 @@
 AviInfraSetting provides a way to segregate Layer-4/Layer-7 VirtualServices to have properties based on different underlying infrastructure components,
 like ServiceEngineGroup, intended VIP Network etc.
 
-***Note***
-With AKO 1.11.1, AviInfrasetting is transitioned to v1beta1 version. There are no schema changes between version v1alpha1 and v1beta1. AKO 1.11.1 supports both v1alpha1 and v1beta1 but recommendation is to create new CRD objects in v1beta1 version and transition existing objects to v1beta1 version. AKO will deprecate v1alpha1 version in future releases.
-
 A sample AviInfraSetting CRD looks like this:
 
 ```
-apiVersion: ako.vmware.com/v1beta1
+apiVersion: ako.vmware.com/v1alpha1
 kind: AviInfraSetting
 metadata:
   name: my-infra-setting
@@ -18,7 +15,7 @@ spec:
     name: compact-se-group
   network:
     vipNetworks:
-      - networkUUID: dvportgroup-2167-cloud-d4b24fc7-a435-408d-af9f-150229a6fea6f
+      - networkName: vip-network-10-10-10-0-24
         cidr: 10.10.10.0/24
         v6cidr: 2002::1234:abcd:ffff:c0a8:101/64
     nodeNetworks:
@@ -26,19 +23,11 @@ spec:
         cidrs:
         - 10.10.20.0/24
     enableRhi: true
-    listeners:
-      - port: 8081
-        enableHTTP2: false
-        enableSSL: false
-      - port: 6443
-        enableSSL: true
     bgpPeerLabels:
       - peer1
       - peer2
   l7Settings:
     shardSize: MEDIUM
-  nsxSettings:
-    t1lr: /infra/tier1/tier1_974b13d5-9f68-4be8-8149-a48a5686a3ef
 ```
 
 ### AviInfraSetting with Services/Ingress/Routes
@@ -104,13 +93,6 @@ AviInrfaSetting integrates with Openshift Routes, via the annotation
     aviinfrasetting.ako.vmware.com/name: "my-infrasetting"
 ```
 
-### Using Namespace Annotation
-AviInfraSetting also integrates with all the above objects - Services/Ingresses/Routes, via the Namespace annotation. By annotating a namespace with an AviInfraSetting CR, it can be applied on all the services, ingresses and routes in that namespace. AviInfraSetting CR specified via Ingress/Gateway class or direct annotation on Services and Routes will take priority over the AviInfraSetting CR specified at the namespace level via the namespace annotation.
-
-```
-  annotations:
-    aviinfrasetting.ako.vmware.com/name: "my-infrasetting"
-```
 
 ### AviInfraSetting CRD Usage
 
@@ -131,23 +113,10 @@ Please make sure that the SEGs have no member Service Engines deployed, before s
 
 AviInfraSetting CRD can be used to configure VIP networks for virtualservices created corresponding to Services/Ingresses/Openshift Routes. The Networks must be present in the Avi Controller prior to this CRD creation.
 
-Wth AKO 1.10.3, `networkUUID` field has been introduced as part of `vipNetworks` setting to choose appropriate network. User can specify either `networkName` or `networkUUID` while specifying the network.
         network:
           vipNetworks:
             - networkName: vip-network-10-10-10-0-24
               cidr: 10.10.10.0/24
-
-or
-
-        network:
-          vipNetworks:
-            - networkUUID: dvportgroup-2167-cloud-d4b24fc7-a435-408d-af9f-150229a6fea6f
-              cidr: 10.10.10.0/24
-
-As shown in the examples, each unique network can be specified using either `networkName` or `networkUUID` with appropriate `cidr`.
-
-***Note***
-If there are duplicate network entries at Avi-Controller side, AKO recommends to use `networkUUID` while choosing `vipNetwork` for new aviinfrasetting object creation.
 
 Note that multiple networks names can be added to the CRD (only in case of AWS cloud). The Avi virtualservices will acquire a VIP from each of these specified networks. Failure in allocating even a single vip (for example, in case of IP exhaustion) **will** result in complete failure of entire request. *This is same as vip allocation failures in single vip.*
 
@@ -155,25 +124,11 @@ Note that multiple networks names can be added to the CRD (only in case of AWS c
 
 AviInfraSetting CRD can be used to configure Pool Placement Settings on the AKO created Pools in order for the Service Engines to place the Pools on appropriate interfaces.
 
-Wth AKO 1.10.3, `networkUUID` field has been introduced as part of `nodeNetworks` setting to choose appropriate network. User can specify either `networkName` or `networkUUID` while specifying the network.
-
         network:
           nodeNetworks:
             - networkName: node-network-10-10-20-0-24
               cidrs:
               - 10.10.20.0/24
-or
-
-        network:
-          nodeNetworks:
-            - networUUID: dvportgroup-4167-cloud-d4b24fc7-a435-408d-af9f-150229a6fea6f
-              cidrs:
-              - 10.10.20.0/24
-
-As shown in the examples, each unique network can be specified using either `networkName` or `networkUUID` with appropriate `cidrs`.
-
-***Note***
-If there are duplicate network entries at Avi-Controller side, AKO recommends to use `networkUUID` while choosing `nodeNetworks` for new aviinfrasetting object creation.
 
 If two Kubernetes clusters have overlapping Pod CIDRs, the service engine needs to identify the right gateway for each of the overlapping CIDR groups. This is achieved by specifying the right placement network for the pools that helps the Service Engine place the pools appropriately.
 
@@ -192,20 +147,6 @@ AviInfraSetting CRD can be used to enable/disable Public IP on the virtualservic
 
         network:
           enablePublicIP: true
-
-##### Custom Ports
-
-In order to customize the ports opened for L7 Shared or Dedicated virtual services created by AKO, users can provide the port details under the `listeners` setting. The ports mentioned under this section will be added to VS along with the default open ports, 80 and 443 along with the ports mentioned in [hostrule](../crds/hostrule.md#custom-ports). The settings mentioned in aviinfrasetting will always take precedence over default and hostrule properties.
-
-          listeners:
-          - port: 80
-            enableHTTP2: false
-            enableSSL: false
-          - port: 6443
-            enableSSL: true
-
-
-**Note**: It is required that one of the ports that are mentioned in the setting has `enableSSL` field set to `true`. If `enableHTTP2` is true then HTTP2 traffic will be supported from client to Service Engine.
 
 #### Configure BGP Peer Labels for BGP VSes 
 
@@ -236,12 +177,3 @@ AviInfraSetting CRD can be used to enable IPv6, IPv4 or both IPv4 and IPv6 vips 
             - networkName: vip-network-10-10-10-0-24
               cidr: 10.10.10.0/24
               v6cidr: 2002::1234:abcd:ffff:c0a8:101/64
-
-#### Configure T1LR for NSX-T Cloud
-
-AviInfraSetting CRD can be used to configure T1LR. For all the Services and Ingresses that refer to an AviInfraSetting CR with T1LR configured, AKO will use the T1LR defined in the AviInfraSetting while creating objects in Avi. For the rest of the resources, AKO will use the gloabl T1LR configured in the ako config map. In case of an update in nsxSettings.t1lr, the existing Virtual Services will continue to use the old t1lr value. The updated t1lr value will only be applicable for the newly created Virtual Services.
-
-        nsxSettings:
-          t1lr: /infra/tier1/tier1_974b13d5-9f68-4be8-8149-a48a5686a3ef
-
-**Note**: AKO sets up routes in Avi VRF corresponding to the global T1lr defined in the config map. However, for the T1lr defined in the AviInfraSetting CR, AKO will not setup any routes in AviController. This will create connectivity issue between Service Engine and Pool servers when AKO is deployed in ClusterIP mode. To resolve this connectivity issue, user can manually add routes in VRF, associated with the given T1LR. Connectivity issue will not be there when AKO is deployed in NodePort or NPL mode or using NCP as CNI.

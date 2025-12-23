@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2022-2023 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -45,8 +45,8 @@ type StatusPublisher interface {
 	UpdateMultiClusterIngressStatusAndAnnotation(key string, option *UpdateOptions)
 	DeleteMultiClusterIngressStatusAndAnnotation(key string, option *UpdateOptions)
 
-	AddStatefulSetAnnotation(statusName string, reason string)
-	ResetStatefulSetAnnotation(statusName string)
+	AddStatefulSetAnnotation(reason string)
+	ResetStatefulSetAnnotation()
 }
 
 type (

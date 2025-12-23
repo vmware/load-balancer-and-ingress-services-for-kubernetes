@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -20,8 +20,7 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
-	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
-	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
@@ -37,7 +36,7 @@ type Validator struct {
 
 func NewNodesValidator() *Validator {
 	validator := &Validator{}
-	if !utils.IsWCP() {
+	if !lib.IsWCP() {
 		validator.subDomains = GetDefaultSubDomain()
 	}
 	return validator
@@ -96,7 +95,7 @@ func validateRouteSpecFromHostnameCache(key, ns, routeName string, routeSpec rou
 	}
 }
 
-func findHostRuleMappingForFqdn(key, host string) (bool, *v1beta1.HostRule) {
+func findHostRuleMappingForFqdn(key, host string) (bool, *v1alpha1.HostRule) {
 	// from host check if hostrule is present
 	found, hrNSNameStr := objects.SharedCRDLister().GetFQDNToHostruleMappingWithType(host)
 	if !found {
@@ -118,23 +117,23 @@ func findHostRuleMappingForFqdn(key, host string) (bool, *v1beta1.HostRule) {
 	}
 }
 
-func sslKeyCertHostRulePresent(hostRuleObj *v1beta1.HostRule, key string) (bool, []string) {
+func sslKeyCertHostRulePresent(hostRuleObj *v1alpha1.HostRule, key string) (bool, []string) {
 	var sslKeyCerts []string
 	if hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.Name != "" {
 		utils.AviLog.Infof("key: %s, msg: secret %s found for host %s in hostrule.ako.vmware.com %s",
 			key, hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.Name, hostRuleObj.Spec.VirtualHost.Fqdn, hostRuleObj.Name)
-		if hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.Type == akov1beta1.HostRuleSecretTypeSecretReference {
+		if hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.Type == akov1alpha1.HostRuleSecretTypeSecretReference {
 			sslKeyCerts = append(sslKeyCerts, lib.DummySecretK8s+"/"+hostRuleObj.Namespace+"/"+hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.Name)
-		} else if hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.Type == akov1beta1.HostRuleSecretTypeAviReference {
+		} else if hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.Type == akov1alpha1.HostRuleSecretTypeAviReference {
 			sslKeyCerts = append(sslKeyCerts, lib.DummySecret+"/"+hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.Name)
 		}
 	}
 	if hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Name != "" {
 		utils.AviLog.Infof("key: %s, msg: alternate secret %s found for host %s in hostrule.ako.vmware.com %s",
 			key, hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Name, hostRuleObj.Spec.VirtualHost.Fqdn, hostRuleObj.Name)
-		if hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Type == akov1beta1.HostRuleSecretTypeSecretReference {
+		if hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Type == akov1alpha1.HostRuleSecretTypeSecretReference {
 			sslKeyCerts = append(sslKeyCerts, lib.DummySecretK8s+"/"+hostRuleObj.Namespace+"/"+hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Name)
-		} else if hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Type == akov1beta1.HostRuleSecretTypeAviReference {
+		} else if hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Type == akov1alpha1.HostRuleSecretTypeAviReference {
 			sslKeyCerts = append(sslKeyCerts, lib.DummySecret+"/"+hostRuleObj.Spec.VirtualHost.TLS.SSLKeyCertificate.AlternateCertificate.Name)
 		}
 	}
@@ -144,7 +143,7 @@ func sslKeyCertHostRulePresent(hostRuleObj *v1beta1.HostRule, key string) (bool,
 	return false, sslKeyCerts
 }
 
-func getGslbFqdnFromHostRule(hostRuleObj *v1beta1.HostRule) (bool, string) {
+func getGslbFqdnFromHostRule(hostRuleObj *v1alpha1.HostRule) (bool, string) {
 	if hostRuleObj.Spec.VirtualHost.Gslb.Fqdn != "" {
 		return true, hostRuleObj.Spec.VirtualHost.Gslb.Fqdn
 	}
@@ -445,16 +444,10 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 	ingressConfig := IngressConfig{}
 	hostMap := make(IngressHostMap)
 	hostName := routeSpec.Host
-
-	if hostName == "" {
-		hostName = lib.GetHostnameforSubdomain(routeSpec.Subdomain)
-	}
-
 	if !v.IsValidHostName(hostName) {
 		return ingressConfig
 	}
-
-	defaultWeight := uint32(100)
+	defaultWeight := int32(100)
 	var hostPathMapSvcList HostMetadata
 
 	hostPathMapSvc := IngressHostPathSvc{}
@@ -462,7 +455,7 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 	hostPathMapSvc.ServiceName = routeSpec.To.Name
 	hostPathMapSvc.weight = defaultWeight
 	if routeSpec.To.Weight != nil {
-		hostPathMapSvc.weight = uint32(*routeSpec.To.Weight)
+		hostPathMapSvc.weight = *routeSpec.To.Weight
 	}
 
 	if routeSpec.Port != nil {
@@ -483,7 +476,7 @@ func (v *Validator) ParseHostPathForRoute(ns string, routeName string, routeSpec
 		hostPathMapSvc.ServiceName = backend.Name
 		hostPathMapSvc.weight = defaultWeight
 		if backend.Weight != nil {
-			hostPathMapSvc.weight = uint32(*backend.Weight)
+			hostPathMapSvc.weight = *backend.Weight
 		}
 		hostPathMapSvcList.ingressHPSvc = append(hostPathMapSvcList.ingressHPSvc, hostPathMapSvc)
 	}
@@ -628,7 +621,7 @@ func (v *Validator) ParseHostPathForMultiClusterIngress(ns string, ingName strin
 			Path:           config.Path,
 			PathType:       networkingv1.PathTypeImplementationSpecific,
 			Port:           int32(config.Service.Port),
-			weight:         uint32(config.Weight),
+			weight:         int32(config.Weight),
 			clusterContext: config.ClusterContext,
 			svcNamespace:   config.Service.Namespace,
 		}

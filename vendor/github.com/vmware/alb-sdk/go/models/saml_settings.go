@@ -9,8 +9,7 @@ package models
 type SamlSettings struct {
 
 	// Configure remote Identity provider settings. Field introduced in 17.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
-	// Required: true
-	Idp *SamlIdentityProviderSettings `json:"idp"`
+	Idp *SamlIdentityProviderSettings `json:"idp,omitempty"`
 
 	// Configure service provider settings for the Controller. Field introduced in 17.2.3. Allowed in Enterprise edition with any value, Essentials, Basic, Enterprise with Cloud Services edition.
 	// Required: true

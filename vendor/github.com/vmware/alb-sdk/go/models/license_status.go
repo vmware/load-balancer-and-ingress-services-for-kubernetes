@@ -21,9 +21,6 @@ type LicenseStatus struct {
 	// Pulse license service update. Field introduced in 21.1.4. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
 	ServiceUpdate *LicenseServiceUpdate `json:"service_update,omitempty"`
 
-	// Tenant uuid. Field introduced in 30.1.1. Allowed in Enterprise edition with any value, Enterprise with Cloud Services edition.
-	TenantUUID *string `json:"tenant_uuid,omitempty"`
-
 	// url
 	// Read Only: true
 	URL *string `json:"url,omitempty"`

@@ -19,16 +19,16 @@ limitations under the License.
 package v1
 
 import (
-	context "context"
+	"context"
 	time "time"
 
-	apicorev1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"
 	internalinterfaces "k8s.io/client-go/informers/internalinterfaces"
 	kubernetes "k8s.io/client-go/kubernetes"
-	corev1 "k8s.io/client-go/listers/core/v1"
+	v1 "k8s.io/client-go/listers/core/v1"
 	cache "k8s.io/client-go/tools/cache"
 )
 
@@ -36,7 +36,7 @@ import (
 // Secrets.
 type SecretInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() corev1.SecretLister
+	Lister() v1.SecretLister
 }
 
 type secretInformer struct {
@@ -62,28 +62,16 @@ func NewFilteredSecretInformer(client kubernetes.Interface, namespace string, re
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CoreV1().Secrets(namespace).List(context.Background(), options)
+				return client.CoreV1().Secrets(namespace).List(context.TODO(), options)
 			},
 			WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.CoreV1().Secrets(namespace).Watch(context.Background(), options)
-			},
-			ListWithContextFunc: func(ctx context.Context, options metav1.ListOptions) (runtime.Object, error) {
-				if tweakListOptions != nil {
-					tweakListOptions(&options)
-				}
-				return client.CoreV1().Secrets(namespace).List(ctx, options)
-			},
-			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
-				if tweakListOptions != nil {
-					tweakListOptions(&options)
-				}
-				return client.CoreV1().Secrets(namespace).Watch(ctx, options)
+				return client.CoreV1().Secrets(namespace).Watch(context.TODO(), options)
 			},
 		},
-		&apicorev1.Secret{},
+		&corev1.Secret{},
 		resyncPeriod,
 		indexers,
 	)
@@ -94,9 +82,9 @@ func (f *secretInformer) defaultInformer(client kubernetes.Interface, resyncPeri
 }
 
 func (f *secretInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apicorev1.Secret{}, f.defaultInformer)
+	return f.factory.InformerFor(&corev1.Secret{}, f.defaultInformer)
 }
 
-func (f *secretInformer) Lister() corev1.SecretLister {
-	return corev1.NewSecretLister(f.Informer().GetIndexer())
+func (f *secretInformer) Lister() v1.SecretLister {
+	return v1.NewSecretLister(f.Informer().GetIndexer())
 }

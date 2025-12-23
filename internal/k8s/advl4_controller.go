@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@ import (
 
 	advl4v1alpha1pre1 "github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/tools/cache"
 
 	advl4crd "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/third_party/service-apis/client/clientset/versioned"
@@ -80,10 +80,8 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 			}
 			oldObj := old.(*advl4v1alpha1pre1.Gateway)
 			gw := new.(*advl4v1alpha1pre1.Gateway)
-			oldAnnotVal := oldObj.Annotations[lib.GwProxyProtocolEnableAnnotation]
-			newAnnotVal := gw.Annotations[lib.GwProxyProtocolEnableAnnotation]
 
-			if !reflect.DeepEqual(oldObj.Spec, gw.Spec) || gw.GetDeletionTimestamp() != nil || oldAnnotVal != newAnnotVal {
+			if !reflect.DeepEqual(oldObj.Spec, gw.Spec) || gw.GetDeletionTimestamp() != nil {
 				namespace, _, _ := cache.SplitMetaNamespaceKey(utils.ObjKey(gw))
 				key := lib.Gateway + "/" + utils.ObjKey(gw)
 				utils.AviLog.Infof("key: %s, msg: UPDATE", key)
@@ -182,46 +180,8 @@ func (c *AviController) SetupAdvL4EventHandlers(numWorkers uint32) {
 	informer.GatewayClassInformer.Informer().AddEventHandler(gatewayClassEventHandler)
 }
 
-func (c *AviController) SetupNamespaceEventHandler(numWorkers uint32) {
+func (c *AviController) SetupNamespaceDeletionEventHandler(numWorkers uint32) {
 	nsHandler := cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(old, cur interface{}) {
-			nsOld := old.(*corev1.Namespace)
-			nsCur := cur.(*corev1.Namespace)
-			oldTenant := nsOld.Annotations[lib.TenantAnnotation]
-			newTenant := nsCur.Annotations[lib.TenantAnnotation]
-			oldInfraSetting := nsOld.Annotations[lib.InfraSettingNameAnnotation]
-			newInfraSetting := nsCur.Annotations[lib.InfraSettingNameAnnotation]
-			if oldTenant != newTenant || oldInfraSetting != newInfraSetting {
-				if utils.GetInformers().IngressInformer != nil {
-					utils.AviLog.Debugf("Adding ingresses for namespaces: %s", nsCur.GetName())
-					AddIngressFromNSToIngestionQueue(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
-				}
-				if lib.AKOControlConfig().CRDInformers().L4RuleInformer != nil {
-					l4RuleObjs, err := lib.AKOControlConfig().CRDInformers().L4RuleInformer.Lister().L4Rules(nsCur.GetName()).List(labels.Set(nil).AsSelector())
-					if err != nil {
-						utils.AviLog.Errorf("Unable to retrieve the l4rules : %s", err)
-					} else {
-						for _, l4RuleObj := range l4RuleObjs {
-							key := lib.L4Rule + "/" + utils.ObjKey(l4RuleObj)
-							if err := c.GetValidator().ValidateL4RuleObj(key, l4RuleObj); err != nil {
-								utils.AviLog.Warnf("key: %s, Error retrieved during validation of L4Rule: %v", key, err)
-							}
-							AddKeyFromNSToIngstionQueue(numWorkers, c, nsCur.GetName(), key, lib.NsFilterAdd)
-						}
-					}
-				}
-				utils.AviLog.Debugf("Adding Gateways for namespaces: %s", nsCur.GetName())
-				AddGatewaysFromNSToIngestionQueueWCP(numWorkers, c, nsCur.GetName(), lib.NsFilterAdd)
-			}
-			objKey := utils.ObjKey(nsCur)
-			if objKey == "" {
-				return
-			}
-			key := lib.Namespace + "/" + objKey
-			utils.AviLog.Infof("key: %s, msg: UPDATE", key)
-			bkt := utils.Bkt(nsCur.GetName(), numWorkers)
-			c.workqueue[bkt].AddRateLimited(key)
-		},
 		DeleteFunc: func(obj interface{}) {
 			ns, ok := obj.(*corev1.Namespace)
 			if !ok {
@@ -236,17 +196,80 @@ func (c *AviController) SetupNamespaceEventHandler(numWorkers uint32) {
 					return
 				}
 			}
-			objKey := utils.ObjKey(ns)
-			if objKey == "" {
-				return
-			}
-			key := lib.Namespace + "/" + objKey
+			key := lib.Namespace + "/" + utils.ObjKey(ns)
 			utils.AviLog.Infof("key: %s, msg: DELETE", key)
 			bkt := utils.Bkt(ns.Name, numWorkers)
 			c.workqueue[bkt].AddRateLimited(key)
 		},
 	}
 	c.informers.NSInformer.Informer().AddEventHandler(nsHandler)
+}
+
+func (c *AviController) AddNetworkInfoEventHandlers() {
+	fetchNST1LR := func(obj interface{}) (string, string, bool, error) {
+		var ns, t1lr string
+		ingCIDRFound := false
+		resourceObj := obj.(*unstructured.Unstructured)
+		ns = resourceObj.GetNamespace()
+		topology, ok := resourceObj.Object["topology"]
+		if !ok {
+			err := fmt.Errorf("topology key not found in namespace network info object.")
+			return "", "", false, err
+		}
+		t1lr, ok = topology.(map[string]interface{})["gatewayPath"].(string)
+		if !ok || t1lr == "" {
+			err := fmt.Errorf("invalid gatewayPath found in namespace network info object.")
+			return "", "", false, err
+		}
+		ingCIDRs, ok := topology.(map[string]interface{})["ingressCIDRs"].([]interface{})
+		if ok && len(ingCIDRs) > 0 {
+			ingCIDRFound = true
+		}
+		return ns, t1lr, ingCIDRFound, nil
+	}
+
+	queue := utils.SharedWorkQueue().GetQueueByName(utils.ObjectIngestionLayer)
+	numWorkers := queue.NumWorkers
+
+	namespaceNetworkInfoHandler := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			utils.AviLog.Debugf("Namespace NetworkInfo Add")
+			ns, t1lr, ingCIDRPresent, err := fetchNST1LR(obj)
+			if err != nil {
+				utils.AviLog.Errorf(err.Error())
+			}
+			objects.SharedWCPLister().UpdateNamespaceTier1LrCache(ns, t1lr)
+			if ingCIDRPresent {
+				objects.SharedWCPLister().UpdateNamespaceNetworkCache(ns, lib.GetVCFNetworkNameWithNS(ns))
+			}
+			key := utils.NamespaceNetworkInfo + "/" + ns + "/" + t1lr
+			bkt := utils.Bkt(ns, numWorkers)
+			queue.Workqueue[bkt].AddRateLimited(key)
+		},
+		UpdateFunc: func(old, obj interface{}) {
+			utils.AviLog.Debugf("Namespace NetworkInfo Update")
+			ns, t1lr, ingCIDRPresent, err := fetchNST1LR(obj)
+			if err != nil {
+				utils.AviLog.Errorf(err.Error())
+			}
+			objects.SharedWCPLister().UpdateNamespaceTier1LrCache(ns, t1lr)
+			key := utils.NamespaceNetworkInfo + "/" + ns + "/" + t1lr
+			bkt := utils.Bkt(ns, numWorkers)
+			queue.Workqueue[bkt].AddRateLimited(key)
+			if ingCIDRPresent {
+				objects.SharedWCPLister().UpdateNamespaceNetworkCache(ns, lib.GetVCFNetworkNameWithNS(ns))
+			} else {
+				objects.SharedWCPLister().RemoveNamespaceNetworkCache(ns)
+			}
+		},
+		DeleteFunc: func(obj interface{}) {
+			utils.AviLog.Debugf("Namespace NetworkInfo Delete")
+			namespace := obj.(*unstructured.Unstructured).Object["metadata"].(map[string]interface{})["namespace"].(string)
+			objects.SharedWCPLister().RemoveNamespaceTier1LrCache(namespace)
+			objects.SharedWCPLister().RemoveNamespaceNetworkCache(namespace)
+		},
+	}
+	c.dynamicInformers.VCFNetworkInfoInformer.Informer().AddEventHandler(namespaceNetworkInfoHandler)
 }
 
 func InformerStatusUpdatesForGateway(key string, gateway *advl4v1alpha1pre1.Gateway) {
@@ -336,6 +359,8 @@ func checkSvcForGatewayPortConflict(svc *corev1.Service, key string) {
 
 	// detect unsupported protocol
 	// TODO
+
+	return
 }
 
 func checkGWForGatewayPortConflict(key string, gw *advl4v1alpha1pre1.Gateway) {
@@ -377,19 +402,5 @@ func checkGWForGatewayPortConflict(key string, gw *advl4v1alpha1pre1.Gateway) {
 			status.UpdateGatewayStatusObject(key, gw, gwStatus)
 			return
 		}
-	}
-}
-
-func AddGatewaysFromNSToIngestionQueueWCP(numWorkers uint32, c *AviController, namespace string, msg string) {
-	gateways, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(namespace).List(labels.Set(nil).AsSelector())
-	if err != nil {
-		utils.AviLog.Warnf("Failed to list Gateways in the namespace %s", namespace)
-		return
-	}
-	for _, gw := range gateways {
-		key := lib.Gateway + "/" + utils.ObjKey(gw)
-		bkt := utils.Bkt(namespace, numWorkers)
-		c.workqueue[bkt].AddRateLimited(key)
-		utils.AviLog.Debugf("key: %s, msg: %s for namespace: %s", key, msg, namespace)
 	}
 }

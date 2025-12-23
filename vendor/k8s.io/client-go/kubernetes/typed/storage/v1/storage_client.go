@@ -19,10 +19,8 @@ limitations under the License.
 package v1
 
 import (
-	http "net/http"
-
-	storagev1 "k8s.io/api/storage/v1"
-	scheme "k8s.io/client-go/kubernetes/scheme"
+	v1 "k8s.io/api/storage/v1"
+	"k8s.io/client-go/kubernetes/scheme"
 	rest "k8s.io/client-go/rest"
 )
 
@@ -30,7 +28,6 @@ type StorageV1Interface interface {
 	RESTClient() rest.Interface
 	CSIDriversGetter
 	CSINodesGetter
-	CSIStorageCapacitiesGetter
 	StorageClassesGetter
 	VolumeAttachmentsGetter
 }
@@ -48,10 +45,6 @@ func (c *StorageV1Client) CSINodes() CSINodeInterface {
 	return newCSINodes(c)
 }
 
-func (c *StorageV1Client) CSIStorageCapacities(namespace string) CSIStorageCapacityInterface {
-	return newCSIStorageCapacities(c, namespace)
-}
-
 func (c *StorageV1Client) StorageClasses() StorageClassInterface {
 	return newStorageClasses(c)
 }
@@ -61,24 +54,12 @@ func (c *StorageV1Client) VolumeAttachments() VolumeAttachmentInterface {
 }
 
 // NewForConfig creates a new StorageV1Client for the given config.
-// NewForConfig is equivalent to NewForConfigAndClient(c, httpClient),
-// where httpClient was generated with rest.HTTPClientFor(c).
 func NewForConfig(c *rest.Config) (*StorageV1Client, error) {
 	config := *c
-	setConfigDefaults(&config)
-	httpClient, err := rest.HTTPClientFor(&config)
-	if err != nil {
+	if err := setConfigDefaults(&config); err != nil {
 		return nil, err
 	}
-	return NewForConfigAndClient(&config, httpClient)
-}
-
-// NewForConfigAndClient creates a new StorageV1Client for the given config and http client.
-// Note the http client provided takes precedence over the configured transport values.
-func NewForConfigAndClient(c *rest.Config, h *http.Client) (*StorageV1Client, error) {
-	config := *c
-	setConfigDefaults(&config)
-	client, err := rest.RESTClientForConfigAndClient(&config, h)
+	client, err := rest.RESTClientFor(&config)
 	if err != nil {
 		return nil, err
 	}
@@ -100,15 +81,17 @@ func New(c rest.Interface) *StorageV1Client {
 	return &StorageV1Client{c}
 }
 
-func setConfigDefaults(config *rest.Config) {
-	gv := storagev1.SchemeGroupVersion
+func setConfigDefaults(config *rest.Config) error {
+	gv := v1.SchemeGroupVersion
 	config.GroupVersion = &gv
 	config.APIPath = "/apis"
-	config.NegotiatedSerializer = rest.CodecFactoryForGeneratedClient(scheme.Scheme, scheme.Codecs).WithoutConversion()
+	config.NegotiatedSerializer = scheme.Codecs.WithoutConversion()
 
 	if config.UserAgent == "" {
 		config.UserAgent = rest.DefaultKubernetesUserAgent()
 	}
+
+	return nil
 }
 
 // RESTClient returns a RESTClient that is used to communicate

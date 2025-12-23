@@ -1,5 +1,5 @@
 /*
- * Copyright © 2025 Broadcom Inc. and/or its subsidiaries. All Rights Reserved.
+ * Copyright 2019-2020 VMware, Inc.
  * All Rights Reserved.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
@@ -15,6 +15,7 @@
 package nodes
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -23,14 +24,12 @@ import (
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/objects"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/status"
 
-	akov1beta1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1beta1"
-	akoErrors "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/errors"
+	akov1alpha1 "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/apis/ako/v1alpha1"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/pkg/utils"
 
 	routev1 "github.com/openshift/api/route/v1"
 	advl4v1alpha1pre1 "github.com/vmware-tanzu/service-apis/apis/v1alpha1pre1"
 	corev1 "k8s.io/api/core/v1"
-	v1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -65,14 +64,6 @@ var (
 		GetParentRoutes:    EPToRoute,
 		GetParentGateways:  EPToGateway,
 	}
-
-	EndpointSlices = GraphSchema{
-		Type:               utils.Endpointslices,
-		GetParentIngresses: EPToIng,
-		GetParentRoutes:    EPToRoute,
-		GetParentGateways:  EPToGateway,
-	}
-
 	Pod = GraphSchema{
 		Type:               "Pod",
 		GetParentIngresses: PodToIng,
@@ -126,12 +117,11 @@ var (
 		Type:                           lib.ServiceImport,
 		GetParentMultiClusterIngresses: ServiceImportToMultiClusterIng,
 	}
-	SSORule = GraphSchema{
-		Type:               lib.SSORule,
-		GetParentIngresses: SSORuleToIng,
-		GetParentRoutes:    SSORuleToIng,
+	NameSpaceNetworkInfos = GraphSchema{
+		Type:               utils.NamespaceNetworkInfo,
+		GetParentGateways:  t1LRNSToGateway,
+		GetParentIngresses: t1LRNSToIngress,
 	}
-
 	SupportedGraphTypes = GraphDescriptor{
 		Ingress,
 		IngressClass,
@@ -139,7 +129,6 @@ var (
 		SharedVipService,
 		Pod,
 		Endpoint,
-		EndpointSlices,
 		Secret,
 		Route,
 		Node,
@@ -150,8 +139,7 @@ var (
 		AviInfraSetting,
 		MultiClusterIngress,
 		ServiceImport,
-		SSORule,
-		L4Rule,
+		NameSpaceNetworkInfos,
 	}
 )
 
@@ -279,7 +267,7 @@ func EPToGateway(epName string, namespace string, key string) ([]string, bool) {
 func GatewayChanges(gwName string, namespace string, key string) ([]string, bool) {
 	var allGateways []string
 	allGateways = append(allGateways, namespace+"/"+gwName)
-	if utils.IsWCP() {
+	if lib.IsWCP() {
 		gateway, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(namespace).Get(gwName)
 		if err != nil && k8serrors.IsNotFound(err) {
 			// Remove all the Gateway to Services mapping.
@@ -609,80 +597,9 @@ func HostRuleToIng(hrname string, namespace string, key string) ([]string, bool)
 			objects.SharedCRDLister().UpdateFQDNHostruleMapping(fqdn, namespace+"/"+hrname)
 			fqdnType = string(hostrule.Spec.VirtualHost.FqdnType)
 			if fqdnType == "" {
-				fqdnType = string(akov1beta1.Exact)
+				fqdnType = string(akov1alpha1.Exact)
 			}
 			objects.SharedCRDLister().UpdateFQDNFQDNTypeMapping(fqdn, fqdnType)
-		}
-	}
-
-	// in case the hostname is updated, we need to find ingresses for the old ones as well to recompute
-	if oldFound {
-		allOldFqdns := SharedHostNameLister().GetHostsFromHostPathStore(oldFqdn, oldFqdnType)
-		for _, i := range allOldFqdns {
-			ok, oldobj := SharedHostNameLister().GetHostPathStore(i)
-			if !ok {
-				utils.AviLog.Debugf("key: %s, msg: Couldn't find hostpath info for host: %s in cache", key, i)
-			} else {
-				for _, ingresses := range oldobj {
-					for _, ing := range ingresses {
-						if !utils.HasElem(allIngresses, ing) {
-							allIngresses = append(allIngresses, ing)
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// find ingresses with host==fqdn, across all namespaces
-	allFqdns := SharedHostNameLister().GetHostsFromHostPathStore(fqdn, fqdnType)
-	for _, i := range allFqdns {
-		ok, obj := SharedHostNameLister().GetHostPathStore(i)
-		if !ok {
-			utils.AviLog.Debugf("key: %s, msg: Couldn't find hostpath info for host: %s in cache", key, i)
-		} else {
-			for _, ingresses := range obj {
-				for _, ing := range ingresses {
-					if !utils.HasElem(allIngresses, ing) {
-						allIngresses = append(allIngresses, ing)
-					}
-				}
-			}
-		}
-	}
-
-	utils.AviLog.Infof("key: %s, msg: Ingresses retrieved %s", key, allIngresses)
-	return allIngresses, true
-}
-
-func SSORuleToIng(srname string, namespace string, key string) ([]string, bool) {
-	var err error
-	var oldFqdn, fqdn string
-	var fqdnType, oldFqdnType = string(akov1beta1.Exact), string(akov1beta1.Exact)
-	var oldFound bool
-
-	allIngresses := make([]string, 0)
-	ssoRule, err := lib.AKOControlConfig().CRDInformers().SSORuleInformer.Lister().SSORules(namespace).Get(srname)
-	if k8serrors.IsNotFound(err) {
-		utils.AviLog.Debugf("key: %s, msg: SSORule Deleted", key)
-		oldFound, oldFqdn = objects.SharedCRDLister().GetSSORuleToFQDNMapping(namespace + "/" + srname)
-		if !strings.Contains(oldFqdn, lib.ShardVSSubstring) {
-			objects.SharedCRDLister().DeleteSSORuleFQDNMapping(namespace + "/" + srname)
-		}
-	} else if err != nil {
-		utils.AviLog.Errorf("key: %s, msg: Error getting SSORule: %v", key, err)
-		return nil, false
-	} else {
-		if ssoRule.Status.Status != lib.StatusAccepted {
-			return []string{}, false
-		}
-		fqdn = *ssoRule.Spec.Fqdn
-		oldFound, oldFqdn = objects.SharedCRDLister().GetSSORuleToFQDNMapping(namespace + "/" + srname)
-		if oldFound && !strings.Contains(oldFqdn, lib.ShardVSSubstring) {
-			objects.SharedCRDLister().DeleteSSORuleFQDNMapping(namespace + "/" + srname)
-		}
-		if !strings.Contains(fqdn, lib.ShardVSSubstring) {
-			objects.SharedCRDLister().UpdateFQDNSSORuleMapping(fqdn, namespace+"/"+srname)
 		}
 	}
 
@@ -787,9 +704,7 @@ func HTTPRuleToIng(rrname string, namespace string, key string) ([]string, bool)
 				}
 				utils.AviLog.Debugf("key: %s, msg: Computing for path %s in ingresses %v", key, path, ingresses)
 				for _, ing := range ingresses {
-					ing_namespace, _, _ := lib.ExtractTypeNameNamespace(ing)
-					// httprule is namespace specific. So only add those ingresses which are in same namespace of rule.
-					if namespace == ing_namespace && !utils.HasElem(allIngresses, ing) {
+					if !utils.HasElem(allIngresses, ing) {
 						allIngresses = append(allIngresses, ing)
 					}
 				}
@@ -809,9 +724,7 @@ func HTTPRuleToIng(rrname string, namespace string, key string) ([]string, bool)
 				}
 				utils.AviLog.Debugf("key: %s, msg: Computing for oldPath %s in oldIngresses %v", key, oldPath, oldIngresses)
 				for _, oldIng := range oldIngresses {
-					ing_namespace, _, _ := lib.ExtractTypeNameNamespace(oldIng)
-					// httprule is namespace specific. So only add those ingresses which are in same namespace of rule.
-					if namespace == ing_namespace && !utils.HasElem(allIngresses, oldIng) {
+					if !utils.HasElem(allIngresses, oldIng) {
 						allIngresses = append(allIngresses, oldIng)
 					}
 				}
@@ -841,15 +754,6 @@ func AviSettingToIng(infraSettingName, namespace, key string) ([]string, bool) {
 		}
 	}
 
-	if nsIngresses, found := infraSettingNSToIngress(infraSettingName, key); found {
-		// Go through the list of ingresses again to populate the ingress Service mapping and annotate services if needed
-		for _, ingress := range nsIngresses {
-			ns, ingr := utils.ExtractNamespaceObjectName(ingress)
-			IngressChanges(ingr, ns, key)
-		}
-		allIngresses = append(allIngresses, nsIngresses...)
-	}
-
 	utils.AviLog.Infof("key: %s, msg: Ingresses retrieved %s", key, allIngresses)
 	return allIngresses, true
 }
@@ -864,15 +768,9 @@ func AviSettingToRoute(infraSettingName, namespace, key string) ([]string, bool)
 		return allRoutes, false
 	}
 
-	if nsRoutes, found := infraSettingNSToRoutes(infraSettingName, key); found {
-		routes = append(routes, nsRoutes...)
-	}
-
 	for _, route := range routes {
 		if routeObj, isRoute := route.(*routev1.Route); isRoute {
 			RouteChanges(routeObj.Name, routeObj.Namespace, key)
-			routeNSName := routeObj.Namespace + "/" + routeObj.Name
-			allRoutes = append(allRoutes, routeNSName)
 		}
 	}
 
@@ -884,33 +782,27 @@ func AviSettingToGateway(infraSettingName string, namespace string, key string) 
 	allGateways := make([]string, 0)
 
 	// Get all GatewayClasses from AviInfraSetting.
-	if lib.UseServicesAPI() {
-		gwClasses, err := lib.AKOControlConfig().SvcAPIInformers().GatewayClassInformer.Informer().GetIndexer().ByIndex(lib.AviSettingGWClassIndex, lib.AkoGroup+"/"+lib.AviInfraSetting+"/"+infraSettingName)
-		if err != nil {
-			utils.AviLog.Warnf("key: %s, msg: Unable to fetch GatewayClasses corresponding to AviInfraSetting %s", key, infraSettingName)
-			return allGateways, false
-		}
+	gwClasses, err := lib.AKOControlConfig().SvcAPIInformers().GatewayClassInformer.Informer().GetIndexer().ByIndex(lib.AviSettingGWClassIndex, lib.AkoGroup+"/"+lib.AviInfraSetting+"/"+infraSettingName)
+	if err != nil {
+		utils.AviLog.Warnf("key: %s, msg: Unable to fetch GatewayClasses corresponding to AviInfraSetting %s", key, infraSettingName)
+		return allGateways, false
+	}
 
-		for _, gwClass := range gwClasses {
-			// Get all Gateways from GatewayClass.
-			gwClassObj, isGwClass := gwClass.(*servicesapi.GatewayClass)
-			if isGwClass {
-				gateways, err := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Informer().GetIndexer().ByIndex(lib.GatewayClassGatewayIndex, gwClassObj.Name)
-				if err != nil {
-					utils.AviLog.Warnf("key: %s, msg: Unable to fetch Gateways %v", key, err)
-					continue
-				}
-				for _, gateway := range gateways {
-					if gatewayObj, isGw := gateway.(*servicesapi.Gateway); isGw {
-						allGateways = append(allGateways, gatewayObj.Namespace+"/"+gatewayObj.Name)
-					}
+	for _, gwClass := range gwClasses {
+		// Get all Gateways from GatewayClass.
+		gwClassObj, isGwClass := gwClass.(*servicesapi.GatewayClass)
+		if isGwClass {
+			gateways, err := lib.AKOControlConfig().SvcAPIInformers().GatewayInformer.Informer().GetIndexer().ByIndex(lib.GatewayClassGatewayIndex, gwClassObj.Name)
+			if err != nil {
+				utils.AviLog.Warnf("key: %s, msg: Unable to fetch Gateways %v", key, err)
+				continue
+			}
+			for _, gateway := range gateways {
+				if gatewayObj, isGw := gateway.(*servicesapi.Gateway); isGw {
+					allGateways = append(allGateways, gatewayObj.Namespace+"/"+gatewayObj.Name)
 				}
 			}
 		}
-	}
-
-	if nsGateways, found := infraSettingNSToGateway(infraSettingName, key); found {
-		allGateways = append(allGateways, nsGateways...)
 	}
 
 	utils.AviLog.Debugf("key: %s, msg: Gateways retrieved %s", key, allGateways)
@@ -931,10 +823,6 @@ func AviSettingToSvc(infraSettingName string, namespace string, key string) ([]s
 		if isSvc {
 			allSvcs = append(allSvcs, svcObj.Namespace+"/"+svcObj.Name)
 		}
-	}
-
-	if nsServices, found := infraSettingNSToServices(infraSettingName, key); found {
-		allSvcs = append(allSvcs, nsServices...)
 	}
 
 	utils.AviLog.Debugf("key: %s, msg: total services retrieved from AviInfraSettings: %s", key, allSvcs)
@@ -996,13 +884,14 @@ func parseSecretsForIngress(ingSpec networkingv1.IngressSpec, key string) []stri
 func ParseL4ServiceForGateway(svc *corev1.Service, key string) (string, []string) {
 	var gateway string
 	var portProtocols []string
+
 	if lib.UseServicesAPI() && svc.Spec.Type == corev1.ServiceTypeLoadBalancer {
 		utils.AviLog.Infof("key: %s, msg: Service of Type LoadBalancer is not supported with Gateway APIs, will create dedicated VSes", key)
 		return gateway, portProtocols
 	}
 
 	var gwNameLabel, gwNamespaceLabel string
-	if utils.IsWCP() {
+	if lib.IsWCP() {
 		gwNameLabel = lib.GatewayNameLabelKey
 		gwNamespaceLabel = lib.GatewayNamespaceLabelKey
 	} else if lib.UseServicesAPI() {
@@ -1065,14 +954,14 @@ func validateGatewayForClass(key string, gateway *advl4v1alpha1pre1.Gateway) err
 		if !nameOk || !nsOk ||
 			(nameOk && gwName != gateway.Name) ||
 			(nsOk && gwNamespace != gateway.Namespace) {
-			return akoErrors.NewAkoError("Incorrect gateway matchLabels configuration")
+			return errors.New("Incorrect gateway matchLabels configuration")
 		}
 	}
 
 	// Additional check to see if the gatewayclass is a valid avi gateway class or not.
 	if gwClassObj.Spec.Controller != lib.AviGatewayController {
 		// Return an error since this is not our object.
-		return akoErrors.NewAkoError("Unexpected controller")
+		return errors.New("Unexpected controller")
 	}
 
 	return nil
@@ -1092,105 +981,43 @@ func validateSvcApiGatewayForClass(key string, gateway *svcapiv1alpha1.Gateway) 
 		if !nameOk || !nsOk ||
 			(nameOk && gwName != gateway.Name) ||
 			(nsOk && gwNamespace != gateway.Namespace) {
-			return akoErrors.NewAkoError("Incorrect gateway matchLabels configuration")
+			return errors.New("Incorrect gateway matchLabels configuration")
 		}
 	}
 
 	// Additional check to see if the gatewayclass is a valid avi gateway class or not.
 	if gwClassObj.Spec.Controller != lib.SvcApiAviGatewayController {
 		// Return an error since this is not our object.
-		return akoErrors.NewAkoError("Unexpected controller")
+		return errors.New("Unexpected controller")
 	}
 
 	return nil
 }
 
-func infraSettingNSToIngress(infraSettingName, key string) ([]string, bool) {
-	allIngresses := make([]string, 0)
-	namespaces, err := utils.GetInformers().NSInformer.Informer().GetIndexer().ByIndex(lib.AviSettingNamespaceIndex, infraSettingName)
-	if err != nil {
-		utils.AviLog.Errorf("key: %s, msg: Failed to fetch the namespace corresponding to the AviInfraSetting %s with error %s", key, infraSettingName, err.Error())
-		return allIngresses, false
-	}
-	for _, ns := range namespaces {
-		namespace, _ := ns.(*v1.Namespace)
-		ingresses, err := utils.GetInformers().IngressInformer.Lister().Ingresses(namespace.GetName()).List(labels.Set(nil).AsSelector())
-		if err != nil {
-			utils.AviLog.Warnf("key: %s, msg: Failed to list Ingresses in the namespace %s", key, namespace)
-			return allIngresses, false
-		}
-		for _, ing := range ingresses {
-			key := ing.GetNamespace() + "/" + ing.GetName()
-			allIngresses = append(allIngresses, key)
-		}
-	}
-	return allIngresses, true
-}
-
-func infraSettingNSToGateway(infraSettingName, key string) ([]string, bool) {
+func t1LRNSToGateway(t1LR, namespace, key string) ([]string, bool) {
 	allGateways := make([]string, 0)
-	namespaces, err := utils.GetInformers().NSInformer.Informer().GetIndexer().ByIndex(lib.AviSettingNamespaceIndex, infraSettingName)
+	gateways, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(namespace).List(labels.Set(nil).AsSelector())
 	if err != nil {
-		utils.AviLog.Errorf("key: %s, msg: Failed to fetch the namespace corresponding to the AviInfraSetting %s with error %s", key, infraSettingName, err.Error())
+		utils.AviLog.Warnf("key: %s, msg: Failed to list Gateways in the namespace %s", key, namespace)
 		return allGateways, false
 	}
-	for _, ns := range namespaces {
-		namespace, _ := ns.(*v1.Namespace)
-		gateways, err := lib.AKOControlConfig().AdvL4Informers().GatewayInformer.Lister().Gateways(namespace.GetName()).List(labels.Set(nil).AsSelector())
-		if err != nil {
-			utils.AviLog.Warnf("key: %s, msg: Failed to list Gateways in the namespace %s", key, namespace)
-			return allGateways, false
-		}
-		for _, gw := range gateways {
-			key := gw.GetNamespace() + "/" + gw.GetName()
-			allGateways = append(allGateways, key)
-		}
+	for _, gw := range gateways {
+		key := gw.GetNamespace() + "/" + gw.GetName()
+		allGateways = append(allGateways, key)
 	}
 	return allGateways, true
 }
 
-func infraSettingNSToServices(infraSettingName, key string) ([]string, bool) {
-	allServices := make([]string, 0)
-	namespaces, err := utils.GetInformers().NSInformer.Informer().GetIndexer().ByIndex(lib.AviSettingNamespaceIndex, infraSettingName)
+func t1LRNSToIngress(t1LR, namespace, key string) ([]string, bool) {
+	allIngresses := make([]string, 0)
+	ingresses, err := utils.GetInformers().IngressInformer.Lister().Ingresses(namespace).List(labels.Set(nil).AsSelector())
 	if err != nil {
-		utils.AviLog.Errorf("key: %s, msg: Failed to fetch the namespace corresponding to the AviInfraSetting %s with error %s", key, infraSettingName, err.Error())
-		return allServices, false
+		utils.AviLog.Warnf("key: %s, msg: Failed to list Ingresses in the namespace %s", key, namespace)
+		return allIngresses, false
 	}
-	for _, ns := range namespaces {
-		namespace, _ := ns.(*v1.Namespace)
-		services, err := utils.GetInformers().ServiceInformer.Lister().Services(namespace.GetName()).List(labels.Set(nil).AsSelector())
-		if err != nil {
-			utils.AviLog.Warnf("key: %s, msg: Failed to list Services in the namespace %s", key, namespace)
-			return allServices, false
-		}
-		for _, svc := range services {
-			if svc.Spec.Type != "LoadBalancer" {
-				continue
-			}
-			key := svc.GetNamespace() + "/" + svc.GetName()
-			allServices = append(allServices, key)
-		}
+	for _, ing := range ingresses {
+		key := ing.GetNamespace() + "/" + ing.GetName()
+		allIngresses = append(allIngresses, key)
 	}
-	return allServices, true
-}
-
-func infraSettingNSToRoutes(infraSettingName, key string) ([]interface{}, bool) {
-	allRoutes := make([]interface{}, 0)
-	namespaces, err := utils.GetInformers().NSInformer.Informer().GetIndexer().ByIndex(lib.AviSettingNamespaceIndex, infraSettingName)
-	if err != nil {
-		utils.AviLog.Errorf("key: %s, msg: Failed to fetch the namespace corresponding to the AviInfraSetting %s with error %s", key, infraSettingName, err.Error())
-		return allRoutes, false
-	}
-	for _, ns := range namespaces {
-		namespace, _ := ns.(*v1.Namespace)
-		routes, err := utils.GetInformers().RouteInformer.Lister().Routes(namespace.GetName()).List(labels.Set(nil).AsSelector())
-		if err != nil {
-			utils.AviLog.Warnf("key: %s, msg: Failed to list Routes in the namespace %s", key, namespace)
-			return allRoutes, false
-		}
-		for _, route := range routes {
-			allRoutes = append(allRoutes, route)
-		}
-	}
-	return allRoutes, true
+	return allIngresses, true
 }

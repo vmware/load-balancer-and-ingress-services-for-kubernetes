@@ -4,12 +4,9 @@ The HTTPRule CRD is primarily targetted for the developers. While the path match
 traffic routing rules to the microservices, the HTTPRule CRD can be used as a complimentary object to control additional layer 7
 properties like: algorithm, hash, tls re-encrypt use cases.
 
-***Note***
-With AKO 1.11.1, HTTPRule is transitioned to v1beta1 version. There are no schema changes between version v1alpha1 and v1beta1. AKO 1.11.1 supports both v1alpha1 and v1beta1 but recommendation is to create new CRD objects in v1beta1 version and transition existing objects to v1beta1 version. AKO will deprecate v1alpha1 version in future releases.
-
 A sample HTTPRule object looks like this:
 
-    apiVersion: ako.vmware.com/v1beta1
+    apiVersion: ako.vmware.com/v1alpha1
     kind: HTTPRule
     metadata:
        name: my-http-rule
@@ -114,26 +111,6 @@ While AKO can terminate TLS traffic, it also provides and option where the users
 
 In case of reencrypt, if `destinationCA` is specified in the HTTPRule CRD, as shown in the example, a corresponding PKI profile is created for that Pool (host path combination).
 Also Note that only one of `pkiProfile` or `destinationCA` can be provided to configure reencrypt for a Pool corresponding to the host path backend Service.
-
-#### Enable HTTP/2 protocol support for backend
-
-HTTPRule custom resource can be used to enable HTTP/2 traffic support to the backend for L7 virtual services. The user needs to set the `enableHTTP2` field to **true** for specific FQDN and path, and AKO will enable HTTP/2 traffic support in the corresponding pool created for the backend.
-
-A sample setting with this field would look like this:
-
-      - target: /foo 
-        enableHTTP2: true
-
-This field needs to be used along with an Aviinfrasetting custom resource object to enable end-to-end HTTP/2 traffic flow from client to server and vice versa. Aviinfrasetting custom resource can be used to enable HTTP/2 protocol support for front-end ports opened for L7 Shared or Dedicated virtual services. Please refer to [aviinfrasetting](../crds/avinfrasetting.md#custom-ports) for more details.
-
-        network:
-          listeners:
-          - enableHTTP2: true
-            enableSSL: true
-            port: 443
-
-***Note***
-1. This property is available only in HTTPRule `v1beta1` schema definition.
 
 #### Status Messages
 

@@ -1,16 +1,19 @@
 # See the OWNERS docs at https://go.k8s.io/owners
 reviewers:
-  - harshanarayana
-  - mengjiao-liu
+  - jayunit100
+  - hoegaarden
+  - andyxning
+  - neolit123
   - pohly
+  - yagonobre
+  - vincepri
+  - detiber
 approvers:
   - dims
-  - pohly
   - thockin
-emeritus_approvers:
-  - brancz
   - justinsb
-  - lavalamp
-  - piosz
-  - serathius
   - tallclair
+  - piosz
+  - brancz
+  - DirectXMan12
+  - lavalamp

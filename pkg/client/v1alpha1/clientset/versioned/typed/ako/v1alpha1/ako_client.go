@@ -26,7 +26,10 @@ import (
 
 type AkoV1alpha1Interface interface {
 	RESTClient() rest.Interface
+	AviInfraSettingsGetter
 	ClusterSetsGetter
+	HTTPRulesGetter
+	HostRulesGetter
 	MultiClusterIngressesGetter
 	ServiceImportsGetter
 }
@@ -36,8 +39,20 @@ type AkoV1alpha1Client struct {
 	restClient rest.Interface
 }
 
+func (c *AkoV1alpha1Client) AviInfraSettings() AviInfraSettingInterface {
+	return newAviInfraSettings(c)
+}
+
 func (c *AkoV1alpha1Client) ClusterSets(namespace string) ClusterSetInterface {
 	return newClusterSets(c, namespace)
+}
+
+func (c *AkoV1alpha1Client) HTTPRules(namespace string) HTTPRuleInterface {
+	return newHTTPRules(c, namespace)
+}
+
+func (c *AkoV1alpha1Client) HostRules(namespace string) HostRuleInterface {
+	return newHostRules(c, namespace)
 }
 
 func (c *AkoV1alpha1Client) MultiClusterIngresses(namespace string) MultiClusterIngressInterface {
