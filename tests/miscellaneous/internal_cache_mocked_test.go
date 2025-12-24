@@ -18,11 +18,9 @@
 package miscellaneous
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -30,9 +28,6 @@ import (
 	"github.com/vmware/alb-sdk/go/clients"
 	"github.com/vmware/alb-sdk/go/models"
 	"github.com/vmware/alb-sdk/go/session"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	k8sfake "k8s.io/client-go/kubernetes/fake"
 
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/cache"
 	"github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/internal/lib"
@@ -636,63 +631,6 @@ func TestConfigureSeGroupLabelsWithMock(t *testing.T) {
 			if (err != nil) != tt.wantError {
 				t.Errorf("ConfigureSeGroupLabels() error = %v, wantError %v", err, tt.wantError)
 			}
-		})
-	}
-}
-
-// TestPopulateControllerPropertiesWithMock tests controller property population
-func TestPopulateControllerPropertiesWithMock(t *testing.T) {
-	tests := []struct {
-		name      string
-		configMap *corev1.ConfigMap
-		wantError bool
-	}{
-		{
-			name: "Valid ConfigMap",
-			configMap: &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "avi-system",
-					Name:      "avi-k8s-config",
-				},
-				Data: map[string]string{
-					"cloudName":   "Default-Cloud",
-					"clusterName": "test-cluster",
-					"shardVSSize": "LARGE",
-				},
-			},
-			wantError: false,
-		},
-		{
-			name: "Missing required fields",
-			configMap: &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Namespace: "avi-system",
-					Name:      "avi-k8s-config",
-				},
-				Data: map[string]string{},
-			},
-			wantError: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			kubeClient := k8sfake.NewSimpleClientset()
-
-			if tt.configMap != nil {
-				kubeClient.CoreV1().ConfigMaps(tt.configMap.Namespace).Create(
-					context.TODO(), tt.configMap, metav1.CreateOptions{},
-				)
-			}
-
-			// Set environment variables
-			os.Setenv("POD_NAMESPACE", "avi-system")
-			defer os.Unsetenv("POD_NAMESPACE")
-
-			// This is a structural test - in actual implementation,
-			// you would initialize informers and call k8s.PopulateControllerProperties(kubeClient)
-			// and verify the results
-			t.Logf("Testing controller properties population with ConfigMap: %v", tt.configMap.Name)
 		})
 	}
 }

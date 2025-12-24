@@ -46,8 +46,6 @@ var ctrlonce sync.Once
 // These tags below are only applicable in case of advanced L4 features at the moment.
 
 // +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch;patch;update
-// +kubebuilder:rbac:groups=nsx.vmware.com,resources=namespacenetworkinfos;namespacenetworkinfos/status,verbs=get;list;watch
-// +kubebuilder:rbac:groups=nsx.vmware.com,resources=clusternetworkinfos;clusternetworkinfos/status,verbs=get;list;watch
 // +kubebuilder:rbac:groups=extensions;networking.k8s.io,resources=ingresses;ingresses/status,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=extensions;networking.k8s.io,resources=ingressclasses;ingressclasses/status,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=networking.x-k8s.io,resources=gateways;gateways/status,verbs=get;list;watch;update;patch
@@ -58,12 +56,8 @@ var ctrlonce sync.Once
 // +kubebuilder:rbac:groups=core,resources=configmaps,verbs=get;list;watch;
 // +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list;watch;
 // +kubebuilder:rbac:groups="",resources=events,verbs=get;list;watch;create;update;patch
-// +kubebuilder:rbac:groups=topology.tanzu.vmware.com,resources=availabilityzones,verbs=get;list;watch
-// +kubebuilder:rbac:groups=crd.nsx.vmware.com,resources=vpcnetworkconfigurations,verbs=get;list;watch
 // +kubebuilder:rbac:groups=ako.vmware.com,resources=aviinfrasettings;aviinfrasettings/status,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=discovery.k8s.io,resources=endpointslices,verbs=get;list;watch
-// +kubebuilder:rbac:groups=ako.vmware.com,resources=l4rules;l4rules/status,verbs=get;list;watch;update;patch
-// +kubebuilder:rbac:groups=ako.vmware.com,resources=healthmonitors;healthmonitors/status,verbs=get;list;watch
 
 type AviController struct {
 	worker_id uint32
