@@ -1232,6 +1232,11 @@ var FakeAviObjects = []string{
 	"tenant",
 	"vsvip",
 	"l4policyset",
+	"sslkeyandcertificate",
+	"pkiprofile",
+	"stringgroup",
+	"applicationpersistenceprofile",
+	"httppolicyset",
 }
 
 type InjectFault func(w http.ResponseWriter, r *http.Request)
