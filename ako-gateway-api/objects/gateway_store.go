@@ -327,6 +327,14 @@ func (g *GWLister) GetRouteToRouteStatusMapping(routeTypeNamespaceName string) *
 
 //=====All route <-> gateway mappings go here.
 
+func (g *GWLister) IsGatewayProcessedByRoute(routeTypeNsName, gwNSName string) bool {
+	found, gwList := g.GetRouteToGateway(routeTypeNsName)
+	if !found || !utils.HasElem(gwList, gwNSName) {
+		return false // can use found
+	}
+	return true
+}
+
 func (g *GWLister) GetRouteToGateway(routeTypeNsName string) (bool, []string) {
 	g.gwLock.RLock()
 	defer g.gwLock.RUnlock()

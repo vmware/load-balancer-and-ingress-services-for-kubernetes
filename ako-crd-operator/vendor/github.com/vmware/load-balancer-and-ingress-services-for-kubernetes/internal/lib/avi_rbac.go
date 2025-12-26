@@ -470,20 +470,59 @@ func createUser(aviClient *clients.AviClient, userPayload map[string]interface{}
 	return nil
 }
 
-// generateSecurePassword generates a cryptographically secure random password
+// generateSecurePassword generates a cryptographically secure random password that meets
+// Avi Controller password policy requirements: minimum 10 characters with at least
+// 1 uppercase, 1 lowercase, 1 numeric, and 1 special character.
+//
+// Returns a 16-character password with guaranteed character type compliance.
 func generateSecurePassword() (string, error) {
-	randomBytes := make([]byte, 16)
-	_, err := rand.Read(randomBytes)
-	if err != nil {
-		utils.AviLog.Errorf("Failed to generate secure password: %v", err)
-		return "", fmt.Errorf("failed to generate secure password: %v", err)
+	const (
+		lowercaseChars = "abcdefghijklmnopqrstuvwxyz"
+		uppercaseChars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+		digitChars     = "0123456789"
+		specialChars   = "!@#$%^&*()~" // Matches Avi Controller's allowed special characters
+		allChars       = lowercaseChars + uppercaseChars + digitChars + specialChars
+		passwordLength = 16
+	)
+
+	password := make([]byte, 0, passwordLength)
+
+	// Add one character from each required category to guarantee policy compliance
+	charSets := []string{lowercaseChars, uppercaseChars, digitChars, specialChars}
+	for _, charset := range charSets {
+		char, err := randomCharFromSet(charset)
+		if err != nil {
+			utils.AviLog.Errorf("Failed to generate secure password: %v", err)
+			return "", fmt.Errorf("failed to generate secure password: %v", err)
+		}
+		password = append(password, char)
 	}
 
-	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	password := make([]byte, 16)
-	for i, b := range randomBytes {
-		password[i] = charset[int(b)%len(charset)]
+	// Fill remaining length with random characters from all sets
+	for i := len(password); i < passwordLength; i++ {
+		char, err := randomCharFromSet(allChars)
+		if err != nil {
+			utils.AviLog.Errorf("Failed to generate secure password: %v", err)
+			return "", fmt.Errorf("failed to generate secure password: %v", err)
+		}
+		password = append(password, char)
 	}
 
 	return string(password), nil
+}
+
+// randomCharFromSet returns a cryptographically random character from the given character set
+func randomCharFromSet(charset string) (byte, error) {
+	if len(charset) == 0 {
+		return 0, fmt.Errorf("empty character set")
+	}
+
+	randomBytes := make([]byte, 1)
+	_, err := rand.Read(randomBytes)
+	if err != nil {
+		return 0, fmt.Errorf("failed to read random bytes: %v", err)
+	}
+
+	index := int(randomBytes[0]) % len(charset)
+	return charset[index], nil
 }
