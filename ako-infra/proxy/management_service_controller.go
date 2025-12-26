@@ -427,7 +427,9 @@ func getClusterConfigValues() (string, string, error) {
 }
 
 func (c *ManagementServiceController) CreateManagementServiceGrant(namespace string) error {
-	grantName := fmt.Sprintf("%s-%s", namespace, VKSManagementServiceGrant)
+	// Use fixed grant name - vCenter API is namespace-scoped via URL path
+	// (/api/vcenter/namespaces/{namespace}/management-services/access-grants/{grantName})
+	grantName := VKSManagementServiceGrant
 	existingGrant, err := c.GetManagementServiceGrant(namespace)
 	if err == nil {
 		if c.validateManagementServiceGrantConfig(existingGrant) {
@@ -469,7 +471,7 @@ func (c *ManagementServiceController) CreateManagementServiceGrant(namespace str
 }
 
 func (c *ManagementServiceController) GetManagementServiceGrant(namespace string) (map[string]interface{}, error) {
-	grantName := fmt.Sprintf("%s-%s", namespace, VKSManagementServiceGrant)
+	grantName := VKSManagementServiceGrant
 
 	dynamicClient := lib.GetDynamicClientSet()
 	if dynamicClient == nil {
@@ -512,7 +514,7 @@ func (c *ManagementServiceController) validateManagementServiceGrantConfig(grant
 }
 
 func (c *ManagementServiceController) DeleteManagementServiceGrant(namespace string) error {
-	grantName := fmt.Sprintf("%s-%s", namespace, VKSManagementServiceGrant)
+	grantName := VKSManagementServiceGrant
 	aviClient := avirest.VKSAviClientInstance()
 
 	payload := map[string]interface{}{
