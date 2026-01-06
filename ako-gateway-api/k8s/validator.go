@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
@@ -251,6 +252,17 @@ func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gate
 		Type(string(gatewayv1.ListenerConditionResolvedRefs)).
 		Status(metav1.ConditionFalse).
 		ObservedGeneration(gateway.ObjectMeta.Generation)
+
+	// This check is only added for VCF as it will be a greenfield deployment without any upgrade implications
+	if utils.IsVCFCluster() && listener.Protocol == gatewayv1.HTTPSProtocolType && listener.TLS == nil {
+		utils.AviLog.Errorf("key: %s, msg: TLS is not configured for HTTPS listener %s", key, listener.Name)
+		defaultCondition.
+			Message("TLS is not configured for HTTPS listener").
+			SetIn(&gatewayStatus.Listeners[index].Conditions)
+		programmedCondition.SetIn(&gatewayStatus.Listeners[index].Conditions)
+		return false
+	}
+
 	// has valid TLS config
 	if listener.TLS != nil {
 		if (listener.TLS.Mode != nil && *listener.TLS.Mode != gatewayv1.TLSModeTerminate) || len(listener.TLS.CertificateRefs) == 0 {
@@ -275,7 +287,7 @@ func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gate
 				return false
 			}
 			name := string(certRef.Name)
-			_, err := utils.GetInformers().ClientSet.CoreV1().Secrets(gateway.ObjectMeta.Namespace).Get(context.TODO(), name, metav1.GetOptions{})
+			secret, err := utils.GetInformers().ClientSet.CoreV1().Secrets(gateway.ObjectMeta.Namespace).Get(context.TODO(), name, metav1.GetOptions{})
 			if err != nil {
 				utils.AviLog.Errorf("key: %s, msg: Secret specified in CertificateRef does not exist %+v/%+v", key, gateway.Name, listener.Name)
 				gWNSName := gateway.ObjectMeta.Namespace + "/" + gateway.ObjectMeta.Name
@@ -285,6 +297,16 @@ func isValidListener(key string, gateway *gatewayv1.Gateway, gatewayStatus *gate
 				resolvedRefCondition.
 					Reason(string(gatewayv1.ListenerReasonInvalidCertificateRef)).
 					Message("Secret does not exist").
+					SetIn(&gatewayStatus.Listeners[index].Conditions)
+				programmedCondition.SetIn(&gatewayStatus.Listeners[index].Conditions)
+				return false
+			}
+			// This check is only added for VCF as it will be a greenfield deployment without any upgrade implications
+			if utils.IsVCFCluster() && secret.Type != corev1.SecretTypeTLS {
+				utils.AviLog.Errorf("key: %s, msg: Secret specified in CertificateRef is not of type TLS %+v/%+v", key, gateway.Name, listener.Name)
+				defaultCondition.SetIn(&gatewayStatus.Listeners[index].Conditions)
+				resolvedRefCondition.Reason(string(gatewayv1.ListenerReasonInvalidCertificateRef)).
+					Message("Secret is not of type TLS").
 					SetIn(&gatewayStatus.Listeners[index].Conditions)
 				programmedCondition.SetIn(&gatewayStatus.Listeners[index].Conditions)
 				return false

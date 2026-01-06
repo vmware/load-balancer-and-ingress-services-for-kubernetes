@@ -139,7 +139,7 @@ Continue with normal AKO uninstallation.
 
 | AKO Version (includes AKO CRD Operator) | Avi Controller Version | Kubernetes Version | OpenShift Version |
 |-----------------------------------------|------------------------|-------------------|-------------------|
-| 2.1.1                                   | 30.1.1+                | 1.29 - 1.34       | 4.16 - 4.18       |
+| 2.1.2                                   | 30.1.1+                | 1.29 - 1.35       | 4.16 - 4.18       |
 
 **Note**: AKO CRD Operator is bundled with AKO and shares the same version number.
 

@@ -15,12 +15,12 @@
 package utils
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/go-logr/logr"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
@@ -41,55 +41,50 @@ var LogLevelMap = map[string]zapcore.Level{
 }
 
 type AviLogger struct {
-	sugar  *zap.SugaredLogger
-	logger *zap.Logger // sugar is obtained from this logger
+	Sugar  *zap.SugaredLogger
+	logger *zap.Logger // Sugar is obtained from this logger
 	// Sugaring a Logger is quite inexpensive, so it's reasonable for a single application to use both Loggers and SugaredLoggers, converting between them on the boundaries of performance-sensitive code.
 	atom zap.AtomicLevel
 }
 
-// Init implements logr.LogSink.
-func (AviLogger) Init(info logr.RuntimeInfo) {
-	// Not used
-}
-
 func (aviLogger *AviLogger) Infof(template string, args ...interface{}) {
-	aviLogger.sugar.Infof(template, args...)
+	aviLogger.Sugar.Infof(template, args...)
 }
 
-func (aviLogger AviLogger) Info(level int, msg string, args ...interface{}) {
-	aviLogger.sugar.Info(msg)
+func (aviLogger *AviLogger) Info(msg string) {
+	aviLogger.Sugar.Info(msg)
 }
 
 func (aviLogger *AviLogger) Warnf(template string, args ...interface{}) {
-	aviLogger.sugar.Warnf(template, args...)
+	aviLogger.Sugar.Warnf(template, args...)
 }
 
 func (aviLogger *AviLogger) Warn(args ...interface{}) {
-	aviLogger.sugar.Warn(args...)
+	aviLogger.Sugar.Warn(args...)
 }
 
 func (aviLogger *AviLogger) Errorf(template string, args ...interface{}) {
-	aviLogger.sugar.Errorf(template, args...)
+	aviLogger.Sugar.Errorf(template, args...)
 }
 
-func (aviLogger AviLogger) Error(err error, msg string, args ...interface{}) {
-	aviLogger.sugar.Error(msg)
+func (aviLogger *AviLogger) Error(msg string) {
+	aviLogger.Sugar.Error(msg)
 }
 
 func (aviLogger *AviLogger) Debugf(template string, args ...interface{}) {
-	aviLogger.sugar.Debugf(template, args...)
+	aviLogger.Sugar.Debugf(template, args...)
 }
 
 func (aviLogger *AviLogger) Debug(args ...interface{}) {
-	aviLogger.sugar.Debug(args...)
+	aviLogger.Sugar.Debug(args...)
 }
 
 func (aviLogger *AviLogger) Fatal(args ...interface{}) {
-	aviLogger.sugar.Fatal(args...)
+	aviLogger.Sugar.Fatal(args...)
 }
 
 func (aviLogger *AviLogger) Fatalf(template string, args ...interface{}) {
-	aviLogger.sugar.Fatalf(template, args...)
+	aviLogger.Sugar.Fatalf(template, args...)
 }
 
 // SetLevel changes loglevel during runtime
@@ -97,22 +92,12 @@ func (aviLogger *AviLogger) SetLevel(l string) {
 	aviLogger.atom.SetLevel(LogLevelMap[l])
 }
 
-func (aviLogger AviLogger) Enabled(level int) bool {
-	return aviLogger.sugar != nil
+func (aviLogger *AviLogger) WithValues(keysAndValues ...interface{}) *AviLogger {
+	return &AviLogger{Sugar: aviLogger.Sugar.With(keysAndValues...)}
 }
 
-func (aviLogger AviLogger) V(level int) logr.LogSink {
-	return aviLogger
-}
-
-func (aviLogger AviLogger) WithValues(keysAndValues ...interface{}) logr.LogSink {
-	// Not used
-	return &aviLogger
-}
-
-func (aviLogger AviLogger) WithName(name string) logr.LogSink {
-	_ = aviLogger.sugar.Named(name)
-	return &aviLogger
+func (aviLogger *AviLogger) WithName(name string) *AviLogger {
+	return &AviLogger{Sugar: aviLogger.Sugar.Named(name)}
 
 }
 
@@ -134,7 +119,7 @@ func getPodName() string {
 	return strings.TrimLeft(os.Getenv("POD_NAME")+".", ".")
 }
 
-var AviLog AviLogger
+var AviLog *AviLogger
 
 func init() {
 	atom := zap.NewAtomicLevel()
@@ -161,7 +146,7 @@ func init() {
 
 		logger = logger.WithOptions(zap.AddCaller(), zap.AddCallerSkip(1))
 		sugar := logger.Sugar()
-		AviLog = AviLogger{sugar, logger, atom}
+		AviLog = &AviLogger{sugar, logger, atom}
 		return
 	}
 
@@ -192,5 +177,21 @@ func init() {
 	logger := zap.New(core, zap.AddCaller(), zap.AddCallerSkip(1))
 	sugar := logger.Sugar()
 	defer sugar.Sync()
-	AviLog = AviLogger{sugar, logger, atom}
+	AviLog = &AviLogger{sugar, logger, atom}
+}
+
+type loggerkey string
+
+var key loggerkey = "logger"
+
+func LoggerFromContext(ctx context.Context) *AviLogger {
+	logger, ok := ctx.Value(key).(*AviLogger)
+	if !ok {
+		return AviLog
+	}
+	return logger
+}
+
+func LoggerWithContext(ctx context.Context, logger *AviLogger) context.Context {
+	return context.WithValue(ctx, key, logger)
 }

@@ -955,3 +955,179 @@ func TestGatewayWithTrafficDisabledAnnotation(t *testing.T) {
 	tests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
 	tests.TeardownGatewayClass(t, gatewayClassName)
 }
+
+func TestGatewayTLSMultipleListernsInvalidToValid(t *testing.T) {
+
+	gatewayName := "gateway-13"
+	gatewayClassName := "gateway-class-13"
+	ports := []int32{8080, 8081}
+
+	secrets := []string{"secret-13"}
+
+	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	listeners := tests.GetListenersV1(ports, false, false, secrets...)
+	listeners[0].TLS = nil
+	listeners[0].Protocol = gatewayv1.ProtocolType("HTTP")
+	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+
+	g.Eventually(func() bool {
+		gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	modelName := lib.GetModelName(lib.GetTenant(), akogatewayapilib.GetGatewayParentName(DEFAULT_NAMESPACE, gatewayName))
+
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 25*time.Second).Should(gomega.Equal(true))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].PortProto).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].PortProto[0].EnableSSL).To(gomega.Equal(false))
+	g.Expect(nodes[0].SSLKeyCertRefs).To(gomega.HaveLen(0))
+	g.Expect(nodes[0].VSVIPRefs).To(gomega.HaveLen(1))
+
+	integrationtest.AddSecret(secrets[0], DEFAULT_NAMESPACE, "cert", "key")
+
+	g.Eventually(func() bool {
+		gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Listeners[1].Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	g.Eventually(func() int {
+		_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return len(nodes[0].PortProto)
+	}, 40*time.Second).Should(gomega.Equal(2))
+
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].PortProto).To(gomega.HaveLen(2))
+	g.Expect(nodes[0].PortProto[0].EnableSSL).To(gomega.Equal(false))
+	g.Expect(nodes[0].PortProto[1].EnableSSL).To(gomega.Equal(true))
+	g.Expect(nodes[0].PortProto[1].Protocol).To(gomega.Equal("HTTPS"))
+	g.Expect(nodes[0].PortProto[1].Port).To(gomega.Equal(int32(8081)))
+	g.Expect(nodes[0].SSLKeyCertRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].SSLKeyCertRefs[0].Name).To(gomega.Equal("ako-gw-cluster--d0fcbfc3b01dc308aa1567fed9853d8f25b8d196"))
+
+	tests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+	tests.TeardownGatewayClass(t, gatewayClassName)
+	integrationtest.DeleteSecret(secrets[0], DEFAULT_NAMESPACE)
+}
+
+// TestGatewayTLSMultipleListenersValidToInvalid tests the transition of a gateway
+// from valid (with TLS secret) to invalid (after secret deletion).
+// This verifies that the gateway is properly revalidated when its referenced secret is deleted.
+func TestGatewayTLSMultipleListenersValidToInvalid(t *testing.T) {
+
+	gatewayName := "gateway-14"
+	gatewayClassName := "gateway-class-14"
+	ports := []int32{8080, 8081}
+
+	secrets := []string{"secret-14"}
+
+	// Create secret first
+	integrationtest.AddSecret(secrets[0], DEFAULT_NAMESPACE, "cert", "key")
+
+	tests.SetupGatewayClass(t, gatewayClassName, akogatewayapilib.GatewayController)
+	listeners := tests.GetListenersV1(ports, false, false, secrets...)
+	listeners[0].TLS = nil
+	listeners[0].Protocol = gatewayv1.ProtocolType("HTTP")
+	tests.SetupGateway(t, gatewayName, DEFAULT_NAMESPACE, gatewayClassName, nil, listeners)
+
+	g := gomega.NewGomegaWithT(t)
+
+	// Verify gateway is accepted with both listeners valid
+	g.Eventually(func() bool {
+		gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		return apimeta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionAccepted)) != nil
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	modelName := lib.GetModelName(lib.GetTenant(), akogatewayapilib.GetGatewayParentName(DEFAULT_NAMESPACE, gatewayName))
+
+	// Verify model is created with both listeners
+	g.Eventually(func() bool {
+		found, _ := objects.SharedAviGraphLister().Get(modelName)
+		return found
+	}, 25*time.Second).Should(gomega.Equal(true))
+
+	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].PortProto).To(gomega.HaveLen(2))
+	g.Expect(nodes[0].PortProto[0].EnableSSL).To(gomega.Equal(false))
+	g.Expect(nodes[0].PortProto[0].Protocol).To(gomega.Equal("HTTP"))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(nodes[0].PortProto[1].EnableSSL).To(gomega.Equal(true))
+	g.Expect(nodes[0].PortProto[1].Protocol).To(gomega.Equal("HTTPS"))
+	g.Expect(nodes[0].PortProto[1].Port).To(gomega.Equal(int32(8081)))
+	g.Expect(nodes[0].SSLKeyCertRefs).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].VSVIPRefs).To(gomega.HaveLen(1))
+
+	// Verify TLS listener is accepted
+	g.Eventually(func() bool {
+		gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		condition := apimeta.FindStatusCondition(gateway.Status.Listeners[1].Conditions, string(gatewayv1.ListenerConditionAccepted))
+		return condition != nil && condition.Status == metav1.ConditionTrue
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Delete the secret to make the TLS listener invalid
+	integrationtest.DeleteSecret(secrets[0], DEFAULT_NAMESPACE)
+
+	// Verify TLS listener becomes invalid after secret deletion
+	g.Eventually(func() bool {
+		gateway, err := tests.GatewayClient.GatewayV1().Gateways(DEFAULT_NAMESPACE).Get(context.TODO(), gatewayName, metav1.GetOptions{})
+		if err != nil || gateway == nil {
+			t.Logf("Couldn't get the gateway, err: %+v", err)
+			return false
+		}
+		condition := apimeta.FindStatusCondition(gateway.Status.Listeners[1].Conditions, string(gatewayv1.ListenerConditionResolvedRefs))
+		return condition != nil && condition.Status == metav1.ConditionFalse && condition.Reason == string(gatewayv1.ListenerReasonInvalidCertificateRef)
+	}, 30*time.Second).Should(gomega.Equal(true))
+
+	// Verify model is updated to remove the invalid TLS listener
+	g.Eventually(func() int {
+		_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+		if aviModel == nil {
+			return 0
+		}
+		nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		if len(nodes) == 0 {
+			return 0
+		}
+		return len(nodes[0].PortProto)
+	}, 40*time.Second).Should(gomega.Equal(1))
+
+	// Verify only HTTP listener remains after secret deletion
+	_, aviModel = objects.SharedAviGraphLister().Get(modelName)
+	nodes = aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+	g.Expect(nodes).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].PortProto).To(gomega.HaveLen(1))
+	g.Expect(nodes[0].PortProto[0].EnableSSL).To(gomega.Equal(false))
+	g.Expect(nodes[0].PortProto[0].Protocol).To(gomega.Equal("HTTP"))
+	g.Expect(nodes[0].PortProto[0].Port).To(gomega.Equal(int32(8080)))
+	g.Expect(nodes[0].SSLKeyCertRefs).To(gomega.HaveLen(0))
+
+	tests.TeardownGateway(t, gatewayName, DEFAULT_NAMESPACE)
+	tests.TeardownGatewayClass(t, gatewayClassName)
+}

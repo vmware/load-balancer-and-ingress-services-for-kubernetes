@@ -325,7 +325,10 @@ func (rest *RestOperations) AviVsSniBuild(vs_meta *nodes.AviVsNode, rest_method 
 
 	cloudRef := fmt.Sprintf("/api/cloud?name=%s", utils.CloudName)
 	network_prof := "/api/networkprofile/?name=" + "System-TCP-Proxy"
-	seGroupRef := fmt.Sprintf("/api/serviceenginegroup?name=%s", lib.GetSEGName())
+	if vs_meta.ServiceEngineGroup == "" {
+		vs_meta.ServiceEngineGroup = lib.GetSEGName()
+	}
+	seGroupRef := fmt.Sprintf("/api/serviceenginegroup?name=%s", vs_meta.ServiceEngineGroup)
 	svc_mdata_json, _ := json.Marshal(&vs_meta.ServiceMetadata)
 	svc_mdata := string(svc_mdata_json)
 	sniChild := &avimodels.VirtualService{

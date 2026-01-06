@@ -125,6 +125,7 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 	childNode.VHParentName = parentNode[0].Name
 	childNode.Tenant = parentNode[0].Tenant
 	childNode.EVHParent = false
+	childNode.Caller = utils.GATEWAY_API
 
 	ruleName := utils.Stringify(utils.Hash(utils.Stringify(rule.Matches)))
 	if rule.Name != "" {
@@ -137,7 +138,7 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 	}
 
 	childNode.ApplicationProfile = utils.DEFAULT_L7_APP_PROFILE
-	childNode.ServiceEngineGroup = lib.GetSEGName()
+	childNode.ServiceEngineGroup = parentNode[0].ServiceEngineGroup
 	childNode.VrfContext = lib.GetVrf()
 	childNode.AviMarkers = utils.AviObjectMarkers{
 		GatewayName:        parentName,
@@ -149,6 +150,7 @@ func (o *AviObjectGraph) BuildChildVS(key string, routeModel RouteModel, parentN
 	if rule.Name != "" {
 		childNode.AviMarkers.HTTPRouteRuleName = rule.Name
 	}
+
 	updateHostname(key, parentNsName, parentNode[0])
 
 	// create vhmatch from the match
