@@ -15,10 +15,7 @@
 package nodes
 
 import (
-	"context"
-
 	k8serrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	akogatewayapilib "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/lib"
 	akogatewayapiobjects "github.com/vmware/load-balancer-and-ingress-services-for-kubernetes/ako-gateway-api/objects"
@@ -108,34 +105,22 @@ func DequeueIngestion(key string, fullsync bool) {
 		// Seq: GW first and the secret created.
 		modelNil := !modelFound || modelIntf == nil
 		if objType == utils.Secret {
+			// Secret event - rebuild Gateway model to handle secret creation/update/deletion
+			// and update TLS certificates, listener ports, SSL configuration
+			handleGateway(parentNs, parentName, fullsync, key)
+			modelFound, modelIntf = objects.SharedAviGraphLister().Get(modelName)
+			modelNil = !modelFound || modelIntf == nil
 			if modelNil {
-				handleGateway(parentNs, parentName, fullsync, key)
-				modelFound, modelIntf = objects.SharedAviGraphLister().Get(modelName)
-				modelNil = !modelFound || modelIntf == nil
-				if modelNil {
-					utils.AviLog.Warnf("key: %s, msg: no model found: %s", key, modelName)
-					continue
-				}
-				// Fetch routes for a gateway
-				routeTypeNsNameList, found = GatewayToRoutes(parentNs, parentName, key)
-				if !found {
-					utils.AviLog.Errorf("key: %s, msg: got error while getting route objects for gateway %s/%s", key, parentNs, parentName)
-					continue
-				}
-				utils.AviLog.Infof("key: %s, msg: Routes for gateway %s/%s are: %v", key, parentNs, parentName, utils.Stringify(routeTypeNsNameList))
-			} else {
-				model := &AviObjectGraph{modelIntf.(*nodes.AviObjectGraph)}
-				vsToDelete := handleSecrets(parentNs, parentName, key, model)
-				if vsToDelete {
-					utils.AviLog.Warnf("key: %s, msg: No valid listener on Gateway %s/%s. Removing Parent VS from Controller", key, parentNs, parentName)
-					objects.SharedAviGraphLister().Save(modelName, nil)
-					if !fullsync {
-						sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
-						nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
-						continue
-					}
-				}
+				utils.AviLog.Warnf("key: %s, msg: no model found for the gateway: %s", key, modelName)
+				continue
 			}
+			// Fetch routes for the gateway after rebuild
+			routeTypeNsNameList, found = GatewayToRoutes(parentNs, parentName, key)
+			if !found {
+				utils.AviLog.Errorf("key: %s, msg: got error while getting route objects for gateway %s/%s", key, parentNs, parentName)
+				continue
+			}
+			utils.AviLog.Infof("key: %s, msg: Routes for gateway %s/%s are: %v", key, parentNs, parentName, utils.Stringify(routeTypeNsNameList))
 		}
 		if modelNil {
 			utils.AviLog.Warnf("key: %s, msg: no model found: %s", key, modelName)
@@ -223,26 +208,7 @@ func DequeueIngestion(key string, fullsync bool) {
 
 	utils.AviLog.Infof("key: %s, msg: finished graph Sync", key)
 }
-func handleSecrets(gatewayNamespace string, gatewayName string, key string, object *AviObjectGraph) bool {
-	_, _, secretName := lib.ExtractTypeNameNamespace(key)
-	utils.AviLog.Infof("key: %s, msg: Processing secret update %s has been added.", key, secretName)
-	cs := utils.GetInformers().ClientSet
-	gatewayObj, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(gatewayNamespace).Get(gatewayName)
-	if err != nil {
-		utils.AviLog.Errorf("key: %s, msg: unable to get the gateway object. err: %s", key, err)
-		return false
-	}
-	secretObj, err := cs.CoreV1().Secrets(gatewayNamespace).Get(context.TODO(), secretName, metav1.GetOptions{})
-	if err != nil || secretObj == nil {
-		utils.AviLog.Warnf("key: %s, msg: secret %s has been deleted, err: %s", key, secretName, err)
-		vsToDelete := DeleteTLSNode(key, object, gatewayObj, secretObj)
-		return vsToDelete
-	} else {
-		utils.AviLog.Infof("key: %s, msg: secret %s has been added.", key, secretName)
-		AddTLSNode(key, object, gatewayObj, secretObj)
-	}
-	return false
-}
+
 func handleGateway(namespace, name string, fullsync bool, key string) {
 	utils.AviLog.Debugf("key: %s, msg: processing gateway: %s", key, name)
 
@@ -283,6 +249,19 @@ func handleGateway(namespace, name string, fullsync bool, key string) {
 		}
 		return
 	}
+
+	// Check if Gateway is invalid (no valid listeners) and should be deleted. This is a new behaviour, earlier we were not deleting parentVs if it has no valid listeners.
+	gwStatus := akogatewayapiobjects.GatewayApiLister().GetGatewayToGatewayStatusMapping(namespace + "/" + name)
+	if akogatewayapilib.IsGatewayInvalid(gwStatus) {
+		utils.AviLog.Warnf("key: %s, msg: Gateway %s/%s has no valid listeners. Removing Parent VS from Controller", key, namespace, name)
+		objects.SharedAviGraphLister().Save(modelName, nil)
+		if !fullsync {
+			sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)
+			nodes.PublishKeyToRestLayer(modelName, key, sharedQueue)
+		}
+		return
+	}
+
 	gwClass := string(gatewayObj.Spec.GatewayClassName)
 	utils.AviLog.Debugf("key: %s, msg: fetching gateway class %s for gateway: %s/%s", key, gwClass, namespace, name)
 	found, isAkoCtrl := akogatewayapiobjects.GatewayApiLister().IsGatewayClassControllerAKO(gwClass)
@@ -311,6 +290,7 @@ func handleGateway(namespace, name string, fullsync bool, key string) {
 		tenant = lib.GetTenant()
 	}
 	modelName = lib.GetModelName(tenant, akogatewayapilib.GetGatewayParentName(namespace, name))
+
 	modelChanged := saveAviModel(modelName, aviModelGraph.AviObjectGraph, key)
 	if modelChanged && !fullsync {
 		sharedQueue := utils.SharedWorkQueue().GetQueueByName(utils.GraphLayer)

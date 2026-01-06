@@ -288,6 +288,23 @@ func DeleteSecret(secretName string, namespace string) {
 	KubeClient.CoreV1().Secrets(namespace).Delete(context.TODO(), secretName, metav1.DeleteOptions{})
 }
 
+// AddTLSSecret creates a secret with kubernetes.io/tls type for TLS certificate validation tests.
+// This is used to test Gateway listener TLS configuration validation.
+func AddTLSSecret(secretName string, namespace string, cert string, key string) {
+	fakeSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Namespace: namespace,
+			Name:      secretName,
+		},
+		Type: corev1.SecretTypeTLS,
+		Data: map[string][]byte{
+			"tls.crt": []byte(cert),
+			"tls.key": []byte(key),
+		},
+	}
+	KubeClient.CoreV1().Secrets(namespace).Create(context.TODO(), fakeSecret, metav1.CreateOptions{})
+}
+
 // Fake ingress
 type FakeIngress struct {
 	DnsNames     []string
@@ -1232,6 +1249,11 @@ var FakeAviObjects = []string{
 	"tenant",
 	"vsvip",
 	"l4policyset",
+	"sslkeyandcertificate",
+	"pkiprofile",
+	"stringgroup",
+	"applicationpersistenceprofile",
+	"httppolicyset",
 }
 
 type InjectFault func(w http.ResponseWriter, r *http.Request)

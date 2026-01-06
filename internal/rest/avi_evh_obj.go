@@ -515,7 +515,10 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 
 	cloudRef := fmt.Sprintf("/api/cloud?name=%s", utils.CloudName)
 	network_prof := "/api/networkprofile/?name=" + "System-TCP-Proxy"
-	seGroupRef := fmt.Sprintf("/api/serviceenginegroup?name=%s", lib.GetSEGName())
+	if vs_meta.ServiceEngineGroup == "" {
+		vs_meta.ServiceEngineGroup = lib.GetSEGName()
+	}
+	seGroupRef := fmt.Sprintf("/api/serviceenginegroup?name=%s", vs_meta.ServiceEngineGroup)
 	svc_mdata_json, _ := json.Marshal(&vs_meta.ServiceMetadata)
 	svc_mdata := string(svc_mdata_json)
 	evhChild := &avimodels.VirtualService{
@@ -629,6 +632,10 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 			Tenant:  vs_meta.Tenant,
 			Model:   "VirtualService",
 		}
+		// This will be populated for GW in GwAPI deployment
+		if vs_meta.Caller != "" {
+			rest_op.Caller = vs_meta.Caller
+		}
 		rest_ops = append(rest_ops, &rest_op)
 
 	} else {
@@ -640,6 +647,10 @@ func (rest *RestOperations) AviVsChildEvhBuild(vs_meta *nodes.AviEvhVsNode, rest
 			Obj:     evhChild,
 			Tenant:  vs_meta.Tenant,
 			Model:   "VirtualService",
+		}
+		// This will be populated for GW in GwAPI deployment
+		if vs_meta.Caller != "" {
+			rest_op.Caller = vs_meta.Caller
 		}
 		rest_ops = append(rest_ops, &rest_op)
 

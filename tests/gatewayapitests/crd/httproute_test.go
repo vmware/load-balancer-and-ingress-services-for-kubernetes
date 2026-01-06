@@ -61,7 +61,7 @@ func validateHTTPRouteWithT1LR(g *gomega.GomegaWithT, tenant, gatewayName, t1lr 
 		return len(nodes[0].EvhNodes)
 	}, 50*time.Second, 5*time.Second).Should(gomega.Equal(2))
 
-	validateChildNode := func(childNode *avinodes.AviEvhVsNode) {
+	validateChildNode := func(childNode *avinodes.AviEvhVsNode, serviceEngineGroup string) {
 		g.Expect(childNode.Tenant).Should(gomega.Equal("nonadmin"))
 		g.Expect(childNode.PoolGroupRefs).To(gomega.HaveLen(1))
 		g.Expect(childNode.PoolGroupRefs[0].Tenant).Should(gomega.Equal("nonadmin"))
@@ -69,12 +69,13 @@ func validateHTTPRouteWithT1LR(g *gomega.GomegaWithT, tenant, gatewayName, t1lr 
 		g.Expect(childNode.PoolRefs[0].Tenant).Should(gomega.Equal("nonadmin"))
 		g.Expect(len(childNode.VHMatches)).To(gomega.Equal(2))
 		g.Expect(childNode.PoolRefs[0].T1Lr).Should(gomega.Equal(t1lr))
+		g.Expect(childNode.ServiceEngineGroup).Should(gomega.Equal(serviceEngineGroup))
 	}
 
 	_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 	nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
-	validateChildNode(nodes[0].EvhNodes[0]) // childNode1
-	validateChildNode(nodes[0].EvhNodes[1]) // childNode2
+	validateChildNode(nodes[0].EvhNodes[0], nodes[0].ServiceEngineGroup) // childNode1
+	validateChildNode(nodes[0].EvhNodes[1], nodes[0].ServiceEngineGroup) // childNode2
 }
 
 func TestHTTPRouteWithInfraSetting(t *testing.T) {
@@ -173,6 +174,13 @@ func TestHTTPRouteCreateInfraSetting(t *testing.T) {
 			nodes[0].EvhNodes[1].PoolRefs[0].T1Lr == "avi-domain-c9:1234"
 	}, 25*time.Second).Should(gomega.Equal(true))
 
+	g.Eventually(func() bool {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return nodes[0].EvhNodes[0].ServiceEngineGroup == "thisisaviref-infrasetting-02-seGroup" &&
+			nodes[0].EvhNodes[1].ServiceEngineGroup == "thisisaviref-infrasetting-02-seGroup"
+	}, 25*time.Second).Should(gomega.Equal(true))
+
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName1)
 	integrationtest.DelEPS(t, DEFAULT_NAMESPACE, svcName1)
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName2)
@@ -231,6 +239,13 @@ func TestHTTPRouteUpdateInfraSettingStatusToAccepted(t *testing.T) {
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
 		return nodes[0].EvhNodes[0].PoolRefs[0].T1Lr == "avi-domain-c9:1234" &&
 			nodes[0].EvhNodes[1].PoolRefs[0].T1Lr == "avi-domain-c9:1234"
+	}, 25*time.Second).Should(gomega.Equal(true))
+
+	g.Eventually(func() bool {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return nodes[0].EvhNodes[0].ServiceEngineGroup == "thisisaviref-infrasetting-03-seGroup" &&
+			nodes[0].EvhNodes[1].ServiceEngineGroup == "thisisaviref-infrasetting-03-seGroup"
 	}, 25*time.Second).Should(gomega.Equal(true))
 
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName1)
@@ -292,6 +307,13 @@ func TestHTTPRouteUpdateInfraSettingStatusToRejected(t *testing.T) {
 			nodes[0].EvhNodes[1].PoolRefs[0].T1Lr == "test-t1lr"
 	}, 25*time.Second).Should(gomega.Equal(true))
 
+	g.Eventually(func() bool {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		return nodes[0].EvhNodes[0].ServiceEngineGroup == "Default-Group" &&
+			nodes[0].EvhNodes[1].ServiceEngineGroup == "Default-Group"
+	}, 25*time.Second).Should(gomega.Equal(true))
+
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName1)
 	integrationtest.DelEPS(t, DEFAULT_NAMESPACE, svcName1)
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName2)
@@ -347,8 +369,24 @@ func TestHTTPRouteDeleteInfraSetting(t *testing.T) {
 	g.Eventually(func() bool {
 		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
 		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		if len(nodes) == 0 || len(nodes[0].EvhNodes) < 2 {
+			return false
+		}
+		if len(nodes[0].EvhNodes[0].PoolRefs) == 0 || len(nodes[0].EvhNodes[1].PoolRefs) == 0 {
+			return false
+		}
 		return nodes[0].EvhNodes[0].PoolRefs[0].T1Lr == "test-t1lr" &&
 			nodes[0].EvhNodes[1].PoolRefs[0].T1Lr == "test-t1lr"
+	}, 25*time.Second).Should(gomega.Equal(true))
+
+	g.Eventually(func() bool {
+		_, aviModel := objects.SharedAviGraphLister().Get(modelName)
+		nodes := aviModel.(*avinodes.AviObjectGraph).GetAviEvhVS()
+		if len(nodes) == 0 || len(nodes[0].EvhNodes) < 2 {
+			return false
+		}
+		return nodes[0].EvhNodes[0].ServiceEngineGroup == "Default-Group" &&
+			nodes[0].EvhNodes[1].ServiceEngineGroup == "Default-Group"
 	}, 25*time.Second).Should(gomega.Equal(true))
 
 	integrationtest.DelSVC(t, DEFAULT_NAMESPACE, svcName1)

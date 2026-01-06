@@ -242,68 +242,6 @@ func BuildVsVipNodeForGateway(key string, gateway *gatewayv1.Gateway, parentVsNo
 	return vsvipNode
 }
 
-func DeleteTLSNode(key string, object *AviObjectGraph, gateway *gatewayv1.Gateway, secretObj *corev1.Secret) bool {
-	var tlsNodes []*nodes.AviTLSKeyCertNode
-	_, certNamespace, secretName := lib.ExtractTypeNameNamespace(key)
-	// TODO: Add lock here
-	evhVsCertRefs := object.GetAviEvhVS()[0].SSLKeyCertRefs
-	gwStatus := akogatewayapiobjects.GatewayApiLister().GetGatewayToGatewayStatusMapping(gateway.Namespace + "/" + gateway.Name)
-	encodedCertName := akogatewayapilib.GetTLSKeyCertNodeName(gateway.Namespace, gateway.Name, certNamespace, secretName)
-	for evhVsCertRef := range evhVsCertRefs {
-		if evhVsCertRefs[evhVsCertRef].Name != encodedCertName {
-			tlsNodes = append(tlsNodes, evhVsCertRefs[evhVsCertRef])
-		}
-	}
-	if len(tlsNodes) > 0 {
-		object.GetAviEvhVS()[0].SSLKeyCertRefs = tlsNodes
-	} else {
-		utils.AviLog.Warnf("key: %s, msg: No certificate present for Parent VS %s", key, object.GetAviEvhVS()[0].Name)
-		object.GetAviEvhVS()[0].SSLKeyCertRefs = nil
-	}
-	utils.AviLog.Infof("key: %s, msg: Updated cert_refs in parentVS: %s", key, object.GetAviEvhVS()[0].Name)
-	return akogatewayapilib.IsGatewayInvalid(gwStatus)
-}
-
-func AddTLSNode(key string, object *AviObjectGraph, gateway *gatewayv1.Gateway, secretObj *corev1.Secret) {
-	_, certNamespace, secretName := lib.ExtractTypeNameNamespace(key)
-	// TODO: Add lock here
-	parentVSNode := object.GetAviEvhVS()[0]
-	tlsNodes := parentVSNode.SSLKeyCertRefs
-	gwStatus := akogatewayapiobjects.GatewayApiLister().GetGatewayToGatewayStatusMapping(gateway.Namespace + "/" + gateway.Name)
-	foundMatchingCertRef := false
-	for i, listener := range gateway.Spec.Listeners {
-		if akogatewayapilib.IsListenerInvalid(gwStatus, i) {
-			continue
-		}
-		if listener.TLS != nil {
-			for _, certRef := range listener.TLS.CertificateRefs {
-				name := string(certRef.Name)
-				listenerCertRefNamespace := gateway.Namespace
-				if certRef.Namespace != nil {
-					listenerCertRefNamespace = string(*certRef.Namespace)
-				}
-				if name == secretName && listenerCertRefNamespace == certNamespace {
-					tlsNode := TLSNodeFromSecret(secretObj, parentVSNode, gateway.Namespace, gateway.Name, certNamespace, secretName, key)
-					indexOfTLSNode := utils.HasElemWithName(tlsNodes, tlsNode)
-					if indexOfTLSNode == -1 {
-						tlsNodes = append(tlsNodes, tlsNode)
-					} else {
-						tlsNodes[indexOfTLSNode] = tlsNode
-					}
-					foundMatchingCertRef = true
-					break
-				}
-			}
-		}
-		if foundMatchingCertRef {
-			break
-		}
-	}
-
-	utils.AviLog.Infof("key: %s, msg: Updated cert_refs in parentVS: %s", key, object.GetAviEvhVS()[0].Name)
-	object.GetAviEvhVS()[0].SSLKeyCertRefs = tlsNodes
-}
-
 // We are only supporting SE Group and T1LR fields in InfraSetting right now, support for other fields will be added on need basis
 func buildWithInfraSettingForGateway(key string, vs *nodes.AviEvhVsNode, vsvip *nodes.AviVSVIPNode, infraSetting *v1beta1.AviInfraSetting) {
 	if infraSetting != nil && infraSetting.Status.Status == lib.StatusAccepted {
