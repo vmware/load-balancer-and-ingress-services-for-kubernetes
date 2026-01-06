@@ -120,6 +120,9 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 			} else if lib.GetCloudType() == lib.CLOUD_NSXT && lib.GetVPCMode() {
 				vpcArr := strings.Split(vsvip_meta.T1Lr, "/vpcs/")
 				projectArr := strings.Split(vpcArr[0], "/projects/")
+				if vsvip_meta.LBVipType == "" {
+					vsvip_meta.LBVipType = "PUBLIC"
+				}
 				vipNetwork := fmt.Sprintf("%s_AVISEPARATOR_%s_AVISEPARATOR_%s", projectArr[len(projectArr)-1], vpcArr[len(vpcArr)-1], vsvip_meta.LBVipType)
 				vip.SubnetUUID = &vipNetwork
 				vsvip.Vip = []*avimodels.Vip{vip}
@@ -200,6 +203,9 @@ func (rest *RestOperations) AviVsVipBuild(vsvip_meta *nodes.AviVSVIPNode, vsCach
 		} else if lib.GetCloudType() == lib.CLOUD_NSXT && lib.GetVPCMode() {
 			vpcArr := strings.Split(vsvip_meta.T1Lr, "/vpcs/")
 			projectArr := strings.Split(vpcArr[0], "/projects/")
+			if vsvip_meta.LBVipType == "" {
+				vsvip_meta.LBVipType = "PUBLIC"
+			}
 			vipNetwork := fmt.Sprintf("%s_AVISEPARATOR_%s_AVISEPARATOR_%s", projectArr[len(projectArr)-1], vpcArr[len(vpcArr)-1], vsvip_meta.LBVipType)
 			vip.SubnetUUID = &vipNetwork
 		} else {

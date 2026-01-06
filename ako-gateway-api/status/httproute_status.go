@@ -101,6 +101,12 @@ func (o *httproute) Update(key string, option status.StatusOptions) {
 		if err := o.updateHTTPRouteStatusWithVSUUID(key, httpRoute, option.Options); err != nil {
 			utils.AviLog.Warnf("key: %s, msg: failed to update HTTPRoute status with VS UUID: %v", key, err)
 		}
+		// Update HTTPRoute status with error message from REST operation failure
+		if option.Options.Message != "" {
+			if err := o.updateHTTPRouteStatusWithErrorMessage(key, httpRoute, option.Options); err != nil {
+				utils.AviLog.Warnf("key: %s, msg: failed to update HTTPRoute status with error: %v", key, err)
+			}
+		}
 	}
 }
 
@@ -325,4 +331,51 @@ func (o *httproute) buildJSONMessage(conditions []metav1.Condition, ruleName, vi
 	}
 
 	return string(messageBytes), nil
+}
+
+// updateHTTPRouteStatusWithError updates HTTPRoute status with an error message when a REST operation fails.
+// This updates the Accepted condition with the error message from the failed operation.
+func (o *httproute) updateHTTPRouteStatusWithErrorMessage(key string, httpRoute *gatewayv1.HTTPRoute, options *status.UpdateOptions) error {
+	gatewayNSName := options.ServiceMetadata.Gateway
+	if gatewayNSName == "" {
+		utils.AviLog.Debugf("key: %s, msg: Missing gateway name for HTTPRoute error status update", key)
+		return nil
+	}
+
+	// Parse gateway namespace and name
+	gatewayParts := strings.Split(gatewayNSName, "/")
+	if len(gatewayParts) != 2 {
+		return fmt.Errorf("invalid gateway name format: %s", gatewayNSName)
+	}
+	gatewayNamespace := gatewayParts[0]
+	gatewayName := gatewayParts[1]
+
+	// Get existing HTTPRoute status
+	httpRouteStatus := akogatewayapiobjects.GatewayApiLister().GetRouteToRouteStatusMapping(lib.HTTPRoute + "/" + options.ServiceMetadata.HTTPRoute)
+	if httpRouteStatus.Parents == nil {
+		utils.AviLog.Debugf("key: %s, msg: No parent status found for HTTPRoute", key)
+		return nil
+	}
+
+	// Find parent status for this gateway and update with error
+	for i := range httpRouteStatus.Parents {
+		if string(httpRouteStatus.Parents[i].ParentRef.Name) == gatewayName &&
+			(httpRouteStatus.Parents[i].ParentRef.Namespace == nil || string(*httpRouteStatus.Parents[i].ParentRef.Namespace) == gatewayNamespace) {
+
+			// Update the Accepted condition with the error message
+			newCondition := NewCondition().
+				Type(string(gatewayv1.RouteConditionAccepted)).
+				Status(metav1.ConditionTrue).
+				Reason(string(gatewayv1.RouteReasonAccepted)).
+				ObservedGeneration(httpRoute.ObjectMeta.Generation).
+				Message(fmt.Sprintf("ProgrammingFailed: %s", options.Message))
+			newCondition.SetIn(&httpRouteStatus.Parents[i].Conditions)
+			utils.AviLog.Infof("key: %s, msg: Updated HTTPRoute %s/%s status with error: %s", key, httpRoute.Namespace, httpRoute.Name, options.Message)
+			break
+		}
+	}
+
+	akogatewayapiobjects.GatewayApiLister().UpdateRouteToRouteStatusMapping(lib.HTTPRoute+"/"+options.ServiceMetadata.HTTPRoute, httpRouteStatus)
+	// Patch the HTTPRoute status
+	return o.Patch(key, httpRoute, &status.Status{HTTPRouteStatus: httpRouteStatus})
 }

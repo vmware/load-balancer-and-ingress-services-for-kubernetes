@@ -1116,6 +1116,7 @@ func ProcessInsecureHostsForEVH(routeIgrObj RouteIngressModel, key string, parse
 				buildWithInfraSettingForEvh(key, routeIgrObj.GetNamespace(), vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
 				if vsNode[0].IsSharedVS() {
 					for _, evh := range vsNode[0].EvhNodes {
+						evh.ServiceEngineGroup = vsNode[0].ServiceEngineGroup
 						if len(evh.GetVHDomainNames()) > 0 {
 							evh.SetPortProtocols(vsNode[0].GetPortProtocols())
 							BuildOnlyRegexAppRoot(evh.GetVHDomainNames()[0], key, evh)
@@ -1493,6 +1494,7 @@ func evhNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 				buildWithInfraSettingForEvh(key, namespace, vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
 				if vsNode[0].IsSharedVS() {
 					for _, evh := range vsNode[0].EvhNodes {
+						evh.ServiceEngineGroup = vsNode[0].ServiceEngineGroup
 						if len(evh.GetVHDomainNames()) > 0 {
 							evh.SetPortProtocols(vsNode[0].GetPortProtocols())
 							BuildOnlyRegexAppRoot(evh.GetVHDomainNames()[0], key, evh)

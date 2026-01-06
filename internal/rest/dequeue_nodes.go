@@ -229,6 +229,10 @@ func (rest *RestOperations) vrfCU(key, vrfName string, avimodel *nodes.AviObject
 		vsKeysPending := rest.cache.VsCacheMeta.AviGetAllKeys()
 		utils.AviLog.Infof("key: %s, msg: Number of VS deletion pending: %d", key, len(vsKeysPending))
 		if len(vsKeysPending) == 0 {
+			// All VSes got deleted, check for orphaned VSVIPs when deleteConfig is true
+			if lib.GetDeleteConfigMap() {
+				rest.deleteOrphanedVSVIPs(lib.GetTenant(), key)
+			}
 			utils.AviLog.Debugf("key: %s, msg: sending signal for vs deletion notification", key)
 			close(lib.ConfigDeleteSyncChan)
 			lib.ConfigDeleteSyncChan = nil
@@ -574,7 +578,11 @@ func (rest *RestOperations) DeleteVSOper(vsKey avicache.NamespaceName, vs_cache_
 			vsKeysPending := rest.cache.VsCacheMeta.AviGetAllKeys()
 			utils.AviLog.Infof("key: %s, msg: Number of VS deletion pending: %d", key, len(vsKeysPending))
 			if len(vsKeysPending) == 0 {
-				// All VSes got deleted, done with deleteConfig operation. Now notify the user
+				// All VSes got deleted, check for orphaned VSVIPs when deleteConfig is true
+				if lib.GetDeleteConfigMap() {
+					rest.deleteOrphanedVSVIPs(namespace, key)
+				}
+				// Done with deleteConfig operation. Now notify the user
 				if lib.ConfigDeleteSyncChan != nil {
 					utils.AviLog.Debugf("key: %s, msg: sending signal for vs deletion notification", key)
 					close(lib.ConfigDeleteSyncChan)
@@ -593,6 +601,32 @@ func (rest *RestOperations) DeleteVSOper(vsKey avicache.NamespaceName, vs_cache_
 	}
 
 	return true
+}
+
+// deleteOrphanedVSVIPs deletes all VSVIPs that are still in cache when deleteConfig is true
+// This handles the case where shared mode VSVIPs without VS references are not deleted
+func (rest *RestOperations) deleteOrphanedVSVIPs(namespace string, key string) {
+	utils.AviLog.Infof("key: %s, msg: Checking for orphaned VSVIPs to delete", key)
+	var orphanedVSVIPs []avicache.NamespaceName
+
+	// Get all VSVIPs from cache
+	allVSVIPKeys := rest.cache.VSVIPCache.AviGetAllKeys()
+	for _, vsvipKey := range allVSVIPKeys {
+		// Only delete VSVIPs in the same namespace/tenant
+		if vsvipKey.Namespace == namespace {
+			orphanedVSVIPs = append(orphanedVSVIPs, vsvipKey)
+		}
+	}
+
+	if len(orphanedVSVIPs) > 0 {
+		utils.AviLog.Infof("key: %s, msg: Found %d orphaned VSVIPs to delete: %s", key, len(orphanedVSVIPs), utils.Stringify(orphanedVSVIPs))
+		var rest_ops []*utils.RestOp
+		rest_ops = rest.VSVipDelete(orphanedVSVIPs, namespace, rest_ops, key)
+		vsKey := avicache.NamespaceName{Namespace: namespace, Name: lib.DummyVSForStaleData}
+		rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, nil, key, false)
+	} else {
+		utils.AviLog.Infof("key: %s, msg: No orphaned VSVIPs found", key)
+	}
 }
 
 func (rest *RestOperations) deleteSniVs(vsKey avicache.NamespaceName, vs_cache_obj *avicache.AviVsCache, avimodel *nodes.AviObjectGraph, namespace, key string) bool {
@@ -669,7 +703,7 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 			utils.AviLog.Warnf("key: %s, msg: there was an error sending the macro %v", key, err.Error())
 			models.RestStatus.UpdateAviApiRestStatus("", err)
 
-			retry, fastRetry, processNextObj = rest.RefreshCacheForPartialOperation(rest_ops, aviObjKey, aviclient, avimodel, key, isEvh, publishKey)
+			retry, fastRetry, processNextObj = rest.RefreshCacheForPartialOperation(rest_ops, aviObjKey, aviclient, avimodel, key, isEvh, publishKey, err)
 			if retry {
 				if fastRetry {
 					rest.PublishKeyToRetryLayer(nsPublishKey, key)
@@ -683,7 +717,7 @@ func (rest *RestOperations) ExecuteRestAndPopulateCache(rest_ops []*utils.RestOp
 	return true, true
 }
 
-func (rest *RestOperations) RefreshCacheForPartialOperation(rest_ops []*utils.RestOp, aviObjKey avicache.NamespaceName, aviclient *clients.AviClient, avimodel *nodes.AviObjectGraph, key string, isEvh bool, publishKey string) (bool, bool, bool) {
+func (rest *RestOperations) RefreshCacheForPartialOperation(rest_ops []*utils.RestOp, aviObjKey avicache.NamespaceName, aviclient *clients.AviClient, avimodel *nodes.AviObjectGraph, key string, isEvh bool, publishKey string, err error) (bool, bool, bool) {
 	var retry, fastRetry, processNextObj bool
 	for i := len(rest_ops) - 1; i >= 0; i-- {
 		// Go over each of the failed requests and enqueue them to the worker queue for retry.
@@ -694,7 +728,7 @@ func (rest *RestOperations) RefreshCacheForPartialOperation(rest_ops []*utils.Re
 				continue
 			}
 			if rest_ops[i].Obj != nil && rest_ops[i].Caller != "" {
-				updateGatewayStatusWithVsError(key, rest_ops[i])
+				updateGatewayStatusWithVsError(key, rest_ops[i], err)
 			}
 			// If it's for a SNI child, publish the parent VS's key
 			refreshCacheForRetry := false
@@ -752,7 +786,10 @@ func (rest *RestOperations) RefreshCacheForPartialOperation(rest_ops []*utils.Re
 	return retry, fastRetry, processNextObj
 }
 
-func updateGatewayStatusWithVsError(key string, rest_op *utils.RestOp) {
+// updateGatewayStatusWithVsError updates Gateway or HTTPRoute status when a VS REST operation fails.
+// For parent VS (VS_TYPE_VH_PARENT), it updates the Gateway status with the error message.
+// For child VS (VS_TYPE_VH_CHILD) with HTTPRoute metadata, it updates the HTTPRoute status.
+func updateGatewayStatusWithVsError(key string, rest_op *utils.RestOp, err error) {
 	if rest_op.Model == "VirtualService" {
 		var vs avimodels.VirtualService
 		switch rest_op.Obj.(type) {
@@ -763,31 +800,65 @@ func updateGatewayStatusWithVsError(key string, rest_op *utils.RestOp) {
 		default:
 			return
 		}
+
+		if vs.ServiceMetadata == nil {
+			return
+		}
+		var serviceMetadataObj lib.ServiceMetadataObj
+		utils.AviLog.Infof("key:%s, msg: Service Metadata: %s", key, *vs.ServiceMetadata)
+		if err := json.Unmarshal([]byte(*vs.ServiceMetadata), &serviceMetadataObj); err != nil {
+			utils.AviLog.Warnf("Error parsing service metadata :%v", err)
+			return
+		}
+		errMsg := err.Error()
+		webSyncError, ok := err.(*utils.WebSyncError)
+		if ok {
+			aviSessionError, ok := webSyncError.GetWebAPIError().(session.AviError)
+			if ok {
+				if aviSessionError.Message != nil {
+					errMsg = *aviSessionError.Message
+				} else {
+					errMsg = aviSessionError.Error()
+				}
+			}
+		}
+
 		if vs.Type != nil && *vs.Type == utils.VS_TYPE_VH_PARENT {
-			if vs.ServiceMetadata != nil {
-				var svc_mdata_obj lib.ServiceMetadataObj
-				utils.AviLog.Infof("key:%s, msg: Service Metadata: %s", key, *vs.ServiceMetadata)
-				if err := json.Unmarshal([]byte(*vs.ServiceMetadata),
-					&svc_mdata_obj); err != nil {
-					utils.AviLog.Warnf("Error parsing service metadata :%v", err)
-					return
+			if serviceMetadataObj.Gateway != "" {
+				updateOptions := status.UpdateOptions{
+					ServiceMetadata: serviceMetadataObj,
+					Key:             key,
+					VSName:          rest_op.ObjName,
+					Message:         errMsg,
+					Tenant:          rest_op.Tenant,
 				}
-				if svc_mdata_obj.Gateway != "" {
-					updateOptions := status.UpdateOptions{
-						ServiceMetadata: svc_mdata_obj,
-						Key:             key,
-						VSName:          rest_op.ObjName,
-						Message:         rest_op.Err.Error(),
-						Tenant:          rest_op.Tenant,
-					}
-					statusOption := status.StatusOptions{
-						ObjType: lib.Gateway,
-						Op:      lib.UpdateStatus,
-						Key:     key,
-						Options: &updateOptions,
-					}
-					status.PublishToStatusQueue(updateOptions.ServiceMetadata.Gateway, statusOption)
+				statusOption := status.StatusOptions{
+					ObjType: lib.Gateway,
+					Op:      lib.UpdateStatus,
+					Key:     key,
+					Options: &updateOptions,
 				}
+				utils.AviLog.Infof("key: %s, msg: Publishing Gateway error status: %s", key, serviceMetadataObj.Gateway)
+				status.PublishToStatusQueue(serviceMetadataObj.Gateway, statusOption)
+			}
+		} else if vs.Type != nil && *vs.Type == utils.VS_TYPE_VH_CHILD {
+			// Handle child VS for HTTPRoute
+			if serviceMetadataObj.HTTPRoute != "" {
+				updateOptions := status.UpdateOptions{
+					ServiceMetadata: serviceMetadataObj,
+					Key:             key,
+					VSName:          rest_op.ObjName,
+					Message:         errMsg,
+					Tenant:          rest_op.Tenant,
+				}
+				statusOption := status.StatusOptions{
+					ObjType: utils.HTTPRoute,
+					Op:      lib.UpdateStatus,
+					Key:     key,
+					Options: &updateOptions,
+				}
+				utils.AviLog.Infof("key: %s, msg: Publishing HTTPRoute error status: %s", key, serviceMetadataObj.HTTPRoute)
+				status.PublishToStatusQueue(serviceMetadataObj.HTTPRoute, statusOption)
 			}
 		}
 	}

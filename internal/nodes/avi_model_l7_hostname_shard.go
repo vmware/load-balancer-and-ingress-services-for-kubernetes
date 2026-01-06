@@ -638,6 +638,7 @@ func sniNodeHostName(routeIgrObj RouteIngressModel, tlssetting TlsSettings, ingN
 				buildWithInfraSetting(key, namespace, vsNode[0], vsNode[0].VSVIPRefs[0], infraSetting)
 				if vsNode[0].IsSharedVS() {
 					for _, sni := range vsNode[0].SniNodes {
+						sni.ServiceEngineGroup = vsNode[0].ServiceEngineGroup
 						if len(sni.GetVHDomainNames()) > 0 {
 							sni.SetPortProtocols(vsNode[0].GetPortProtocols())
 							BuildOnlyRegexAppRoot(sni.GetVHDomainNames()[0], key, sni)

@@ -57,8 +57,10 @@ func DequeueStatus(objIntf interface{}) error {
 		utils.AviLog.Debugf("key: %s, msg: unknown object received", option.Key)
 		return nil
 	}
-	if option.Options != nil && option.Options.ServiceMetadata.HTTPRoute != "" && option.Options.Status == nil && option.Options.VirtualServiceUUID == "" {
-		utils.AviLog.Debugf("key: %s, msg: Status update for ChildVs received", option.Options.ServiceMetadata.HTTPRoute)
+	// Skip status updates for child VS that have no meaningful update (no Status, no VirtualServiceUUID, no error Message)
+	if option.Options != nil && option.Options.ServiceMetadata.HTTPRoute != "" &&
+		option.Options.Status == nil && option.Options.VirtualServiceUUID == "" && option.Options.Message == "" {
+		utils.AviLog.Debugf("key: %s, msg: Status update for ChildVs received with no actionable data", option.Options.ServiceMetadata.HTTPRoute)
 		return nil
 	}
 
