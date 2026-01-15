@@ -799,7 +799,7 @@ func TestDedicatedGatewayWithTLS(t *testing.T) {
 			Name:     "listener-https",
 			Port:     443,
 			Protocol: gatewayv1.HTTPSProtocolType,
-			TLS: &gatewayv1.GatewayTLSConfig{
+			TLS: &gatewayv1.ListenerTLSConfig{
 				Mode: func() *gatewayv1.TLSModeType {
 					mode := gatewayv1.TLSModeTerminate
 					return &mode
