@@ -312,6 +312,7 @@ func (c *CRDLister) DeleteSharedVSModelFQDNMapping(modelName string) bool {
 
 // FQDNToAliasesCache
 
+// No need to add lock here as Get() has already has a Rlock.
 func (c *CRDLister) GetFQDNToAliasesMapping(fqdn string) (bool, []string) {
 	found, aliases := c.FQDNToAliasesCache.Get(fqdn)
 	if !found {
@@ -320,6 +321,7 @@ func (c *CRDLister) GetFQDNToAliasesMapping(fqdn string) (bool, []string) {
 	return true, aliases.([]string)
 }
 
+// No need to add a lock a GetAllObjectNames have RLock and returns copy of the object
 func (c *CRDLister) GetAllFQDNToAliasesMapping() map[string]interface{} {
 	return c.FQDNToAliasesCache.GetAllObjectNames()
 }
@@ -331,7 +333,26 @@ func (c *CRDLister) UpdateFQDNToAliasesMappings(fqdn string, aliases []string) {
 }
 
 func (c *CRDLister) DeleteFQDNToAliasesMapping(fqdn string) bool {
+	c.NSLock.Lock()
+	defer c.NSLock.Unlock()
 	return c.FQDNToAliasesCache.Delete(fqdn)
+}
+
+// BatchDeleteFQDNToAliasesMappings deletes multiple FQDN to aliases mappings
+// in a single lock acquisition, reducing lock contention
+func (c *CRDLister) BatchDeleteFQDNToAliasesMappings(fqdns []string) int {
+	if len(fqdns) == 0 {
+		return 0
+	}
+	c.NSLock.Lock()
+	defer c.NSLock.Unlock()
+	deletedCount := 0
+	for _, fqdn := range fqdns {
+		if c.FQDNToAliasesCache.Delete(fqdn) {
+			deletedCount++
+		}
+	}
+	return deletedCount
 }
 
 // FqdnSSORuleCache
