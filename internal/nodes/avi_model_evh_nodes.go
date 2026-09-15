@@ -1685,10 +1685,10 @@ func (o *AviObjectGraph) BuildModelGraphForSecureEVH(routeIgrObj RouteIngressMod
 			}
 			utils.AviLog.Warnf("key: %s, msg: certificate could not be built. Virtual service will not be built for the host %s.", key, hostsToRemove)
 			vsNode[0].RemoveFQDNsFromModel(hostsToRemove, key)
-			// TODO: uncomment after fixing race condition in get/delete in fqdntoaliases mapping
-			// if len(vsNode[0].VSVIPRefs) != 0 {
-			// 	objects.SharedCRDLister().UpdateFQDNToAliasesMappings(host, vsNode[0].VSVIPRefs[0].FQDNs)
-			// }
+
+			if len(vsNode[0].VSVIPRefs) != 0 {
+				objects.SharedCRDLister().UpdateFQDNToAliasesMappings(host, vsNode[0].VSVIPRefs[0].FQDNs)
+			}
 
 		}
 	}
@@ -2119,10 +2119,9 @@ func (o *AviObjectGraph) DeletePoolForHostnameForEvh(vsName, hostname string, ro
 		hosts = append(hosts, FQDNAliases...)
 		// Remove these hosts from the overall FQDN list
 		vsNode[0].RemoveFQDNsFromModel(hosts, key)
-		// TODO: uncomment after fixing race condition in get/delete in fqdntoaliases mapping
-		// if len(vsNode[0].VSVIPRefs) != 0 {
-		// 	objects.SharedCRDLister().UpdateFQDNToAliasesMappings(hostname, vsNode[0].VSVIPRefs[0].FQDNs)
-		// }
+		if len(vsNode[0].VSVIPRefs) != 0 {
+			objects.SharedCRDLister().UpdateFQDNToAliasesMappings(hostname, vsNode[0].VSVIPRefs[0].FQDNs)
+		}
 	}
 	if removeRedir && !keepEvh {
 		var hostnames []string
