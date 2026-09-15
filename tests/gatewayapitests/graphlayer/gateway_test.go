@@ -268,7 +268,7 @@ func TestGatewayNoTLSToTLS(t *testing.T) {
 		integrationtest.AddSecret(secret, DEFAULT_NAMESPACE, "cert", "key")
 	}
 	certRefs := []gatewayv1.SecretObjectReference{{Name: gatewayv1.ObjectName(secrets[0])}}
-	listeners[0].TLS = &gatewayv1.GatewayTLSConfig{
+	listeners[0].TLS = &gatewayv1.ListenerTLSConfig{
 		Mode:            &tlsMode,
 		CertificateRefs: certRefs,
 	}

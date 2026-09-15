@@ -125,7 +125,7 @@ func AddGatewayListener(gw *gatewayv1.Gateway, name string, port int32, protocol
 }
 
 func SetListenerTLS(l *gatewayv1.Listener, tlsMode gatewayv1.TLSModeType, secretName, secretNS string) {
-	l.TLS = &gatewayv1.GatewayTLSConfig{Mode: &tlsMode}
+	l.TLS = &gatewayv1.ListenerTLSConfig{Mode: &tlsMode}
 	namespace := gatewayv1.Namespace(secretNS)
 	kind := gatewayv1.Kind("Secret")
 	l.TLS.CertificateRefs = []gatewayv1.SecretObjectReference{
@@ -137,7 +137,7 @@ func SetListenerTLS(l *gatewayv1.Listener, tlsMode gatewayv1.TLSModeType, secret
 	}
 }
 func UnsetListenerTLS(l *gatewayv1.Listener) {
-	l.TLS = &gatewayv1.GatewayTLSConfig{}
+	l.TLS = &gatewayv1.ListenerTLSConfig{}
 }
 
 func SetListenerHostname(l *gatewayv1.Listener, hostname string) {
@@ -177,7 +177,7 @@ func GetListenersV1(ports []int32, emptyHostName, samehost bool, secrets ...stri
 				certRefs = append(certRefs, secretRef)
 			}
 			tlsMode := "Terminate"
-			listener.TLS = &gatewayv1.GatewayTLSConfig{
+			listener.TLS = &gatewayv1.ListenerTLSConfig{
 				Mode:            (*gatewayv1.TLSModeType)(&tlsMode),
 				CertificateRefs: certRefs,
 			}
@@ -1664,7 +1664,7 @@ func GetDedicatedListenersV1(ports []int32, secrets ...string) []gatewayv1.Liste
 				certRefs = append(certRefs, secretRef)
 			}
 			tlsMode := gatewayv1.TLSModeTerminate
-			listener.TLS = &gatewayv1.GatewayTLSConfig{
+			listener.TLS = &gatewayv1.ListenerTLSConfig{
 				Mode:            &tlsMode,
 				CertificateRefs: certRefs,
 			}
