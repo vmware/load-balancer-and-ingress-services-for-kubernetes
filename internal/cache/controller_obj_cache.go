@@ -89,39 +89,91 @@ func SharedAviObjCache() *AviObjCache {
 	return cacheInstance
 }
 
-func (c *AviObjCache) AviRefreshObjectCache(client []*clients.AviClient, cloud string) {
+func (c *AviObjCache) AviRefreshObjectCache(client []*clients.AviClient, cloud string) error {
 	var wg sync.WaitGroup
+	errChan := make(chan error, 1)
+	doneChan := make(chan struct{})
+
 	// We want to run 9 go routines which will simultanesouly fetch objects from the controller.
 	wg.Add(5)
 	go func() {
 		defer wg.Done()
-		c.PopulateSSLKeyToCache(client[4], cloud)
+		if err := c.PopulateSSLKeyToCache(client[4], cloud); err != nil {
+			select {
+			case errChan <- fmt.Errorf("failed to populate SSL key cache: %w", err):
+			default:
+			}
+		}
 	}()
 	go func() {
 		defer wg.Done()
-		c.PopulateVsVipDataToCache(client[7], cloud)
+		if err := c.PopulateVsVipDataToCache(client[7], cloud); err != nil {
+			select {
+			case errChan <- fmt.Errorf("failed to populate VS VIP cache: %w", err):
+			default:
+			}
+		}
 	}()
-	c.PopulatePkiProfilesToCache(client[0])
-	c.PopulateAppPersistenceProfileToCache(client[0])
-	c.PopulatePoolsToCache(client[1], cloud)
-	c.PopulatePgDataToCache(client[2], cloud)
-	c.PopulateStringGroupDataToCache(client[8], cloud)
+
+	if err := c.PopulatePkiProfilesToCache(client[0]); err != nil {
+		return fmt.Errorf("failed to populate PKI profiles cache: %w", err)
+	}
+	if err := c.PopulateAppPersistenceProfileToCache(client[0]); err != nil {
+		return fmt.Errorf("failed to populate app persistence profile cache: %w", err)
+	}
+	if err := c.PopulatePoolsToCache(client[1], cloud); err != nil {
+		return fmt.Errorf("failed to populate pools cache: %w", err)
+	}
+	if err := c.PopulatePgDataToCache(client[2], cloud); err != nil {
+		return fmt.Errorf("failed to populate PG cache: %w", err)
+	}
+	if err := c.PopulateStringGroupDataToCache(client[8], cloud); err != nil {
+		return fmt.Errorf("failed to populate string group cache: %w", err)
+	}
 
 	go func() {
 		defer wg.Done()
-		c.PopulateDSDataToCache(client[3], cloud)
+		if err := c.PopulateDSDataToCache(client[3], cloud); err != nil {
+			select {
+			case errChan <- fmt.Errorf("failed to populate DS cache: %w", err):
+			default:
+			}
+		}
 	}()
 	go func() {
 		defer wg.Done()
-		c.PopulateHttpPolicySetToCache(client[5], cloud)
+		if err := c.PopulateHttpPolicySetToCache(client[5], cloud); err != nil {
+			select {
+			case errChan <- fmt.Errorf("failed to populate HTTP policy cache: %w", err):
+			default:
+			}
+		}
 	}()
 	go func() {
 		defer wg.Done()
-		c.PopulateL4PolicySetToCache(client[6], cloud)
+		if err := c.PopulateL4PolicySetToCache(client[6], cloud); err != nil {
+			select {
+			case errChan <- fmt.Errorf("failed to populate L4 policy cache: %w", err):
+			default:
+			}
+		}
 	}()
 
-	wg.Wait()
-	utils.AviLog.Infof("Finished syncing all objects except virtualservices")
+	// Wait for all goroutines to complete or return early on error
+	go func() {
+		wg.Wait()
+		close(doneChan)
+	}()
+
+	select {
+	case err := <-errChan:
+		// Return immediately on first error without waiting for other goroutines
+		return err
+	case <-doneChan:
+		// All goroutines completed successfully
+		utils.AviLog.Infof("Finished syncing all objects except virtualservices")
+		return nil
+	}
 }
 
 func (c *AviObjCache) AviCacheRefresh(client *clients.AviClient, cloud string) {
@@ -137,7 +189,10 @@ func (c *AviObjCache) AviObjCachePopulate(client []*clients.AviClient, version s
 	}
 	// Populate the VS cache
 	utils.AviLog.Infof("Refreshing all object cache")
-	c.AviRefreshObjectCache(client, cloud)
+	err = c.AviRefreshObjectCache(client, cloud)
+	if err != nil {
+		return vsCacheCopy, allVsKeys, err
+	}
 	utils.AviLog.Infof("Finished Refreshing all object cache")
 	vsCacheCopy = c.VsCacheMeta.AviCacheGetAllParentVSKeys()
 	allVsKeys = c.VsCacheMeta.AviGetAllKeys()
@@ -539,13 +594,16 @@ func (c *AviObjCache) AviPopulateAllPGs(client *clients.AviClient, cloud string,
 	return pgData, result.Count, nil
 }
 
-func (c *AviObjCache) PopulatePgDataToCache(client *clients.AviClient, cloud string) {
+func (c *AviObjCache) PopulatePgDataToCache(client *clients.AviClient, cloud string) error {
 	var pgData []AviPGCache
 	setDefaultTenant := session.SetTenant(lib.GetTenant())
 	setTenant := session.SetTenant(lib.GetQueryTenant())
 	setTenant(client.AviSession)
 	defer setDefaultTenant(client.AviSession)
-	c.AviPopulateAllPGs(client, cloud, &pgData)
+	_, _, err := c.AviPopulateAllPGs(client, cloud, &pgData)
+	if err != nil {
+		return err
+	}
 
 	// Get all the PG cache data and copy them.
 	pgCacheData := c.PgCache.ShallowCopy()
@@ -578,6 +636,7 @@ func (c *AviObjCache) PopulatePgDataToCache(client *clients.AviClient, cloud str
 		utils.AviLog.Debugf("Deleting key from pg cache :%s", key)
 		c.PgCache.AviCacheDelete(key)
 	}
+	return nil
 }
 
 func (c *AviObjCache) AviPopulateAllPkiPRofiles(client *clients.AviClient, pkiData *[]AviPkiProfileCache, overrideUri ...NextPage) (*[]AviPkiProfileCache, int, error) {
@@ -722,13 +781,16 @@ func (c *AviObjCache) AviPopulateAllPools(client *clients.AviClient, cloud strin
 	return poolData, result.Count, nil
 }
 
-func (c *AviObjCache) PopulatePkiProfilesToCache(client *clients.AviClient) {
+func (c *AviObjCache) PopulatePkiProfilesToCache(client *clients.AviClient) error {
 	var pkiProfData []AviPkiProfileCache
 	setDefaultTenant := session.SetTenant(lib.GetTenant())
 	setTenant := session.SetTenant(lib.GetQueryTenant())
 	setTenant(client.AviSession)
 	defer setDefaultTenant(client.AviSession)
-	c.AviPopulateAllPkiPRofiles(client, &pkiProfData)
+	_, _, err := c.AviPopulateAllPkiPRofiles(client, &pkiProfData)
+	if err != nil {
+		return err
+	}
 
 	pkiCacheData := c.PKIProfileCache.ShallowCopy()
 	for i, pkiCacheObj := range pkiProfData {
@@ -758,15 +820,19 @@ func (c *AviObjCache) PopulatePkiProfilesToCache(client *clients.AviClient) {
 		utils.AviLog.Infof("Deleting key from pki cache :%s", key)
 		c.PKIProfileCache.AviCacheDelete(key)
 	}
+	return nil
 }
 
-func (c *AviObjCache) PopulatePoolsToCache(client *clients.AviClient, cloud string) {
+func (c *AviObjCache) PopulatePoolsToCache(client *clients.AviClient, cloud string) error {
 	var poolsData []AviPoolCache
 	setDefaultTenant := session.SetTenant(lib.GetTenant())
 	setTenant := session.SetTenant(lib.GetQueryTenant())
 	setTenant(client.AviSession)
 	defer setDefaultTenant(client.AviSession)
-	c.AviPopulateAllPools(client, cloud, &poolsData)
+	_, _, err := c.AviPopulateAllPools(client, cloud, &poolsData)
+	if err != nil {
+		return err
+	}
 
 	poolCacheData := c.PoolCache.ShallowCopy()
 	for i, poolCacheObj := range poolsData {
@@ -796,6 +862,7 @@ func (c *AviObjCache) PopulatePoolsToCache(client *clients.AviClient, cloud stri
 		utils.AviLog.Debugf("Deleting key from pool cache :%s", key)
 		c.PoolCache.AviCacheDelete(key)
 	}
+	return nil
 }
 
 func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud string, vsVipData *[]AviVSVIPCache, nextPage ...NextPage) (*[]AviVSVIPCache, error) {
@@ -904,13 +971,16 @@ func (c *AviObjCache) AviPopulateAllVSVips(client *clients.AviClient, cloud stri
 	return vsVipData, nil
 }
 
-func (c *AviObjCache) PopulateVsVipDataToCache(client *clients.AviClient, cloud string) {
+func (c *AviObjCache) PopulateVsVipDataToCache(client *clients.AviClient, cloud string) error {
 	var vsVipData []AviVSVIPCache
 	setDefaultTenant := session.SetTenant(lib.GetTenant())
 	setTenant := session.SetTenant(lib.GetQueryTenant())
 	setTenant(client.AviSession)
 	defer setDefaultTenant(client.AviSession)
-	c.AviPopulateAllVSVips(client, cloud, &vsVipData)
+	_, err := c.AviPopulateAllVSVips(client, cloud, &vsVipData)
+	if err != nil {
+		return err
+	}
 
 	vsVipCacheData := c.VSVIPCache.ShallowCopy()
 	for i, vsVipCacheObj := range vsVipData {
@@ -940,6 +1010,7 @@ func (c *AviObjCache) PopulateVsVipDataToCache(client *clients.AviClient, cloud 
 		utils.AviLog.Debugf("Deleting key from vsvip cache :%s", key)
 		c.VSVIPCache.AviCacheDelete(key)
 	}
+	return nil
 }
 
 func (c *AviObjCache) AviPopulateAllDSs(client *clients.AviClient, cloud string, DsData *[]AviDSCache, nextPage ...NextPage) (*[]AviDSCache, int, error) {
@@ -1014,13 +1085,16 @@ func (c *AviObjCache) AviPopulateAllDSs(client *clients.AviClient, cloud string,
 	return DsData, result.Count, nil
 }
 
-func (c *AviObjCache) PopulateDSDataToCache(client *clients.AviClient, cloud string) {
+func (c *AviObjCache) PopulateDSDataToCache(client *clients.AviClient, cloud string) error {
 	var DsData []AviDSCache
 	setDefaultTenant := session.SetTenant(lib.GetTenant())
 	setTenant := session.SetTenant(lib.GetQueryTenant())
 	setTenant(client.AviSession)
 	defer setDefaultTenant(client.AviSession)
-	c.AviPopulateAllDSs(client, cloud, &DsData)
+	_, _, err := c.AviPopulateAllDSs(client, cloud, &DsData)
+	if err != nil {
+		return err
+	}
 	dsCacheData := c.DSCache.ShallowCopy()
 	for i, DsCacheObj := range DsData {
 		k := NamespaceName{Namespace: DsCacheObj.Tenant, Name: DsCacheObj.Name}
@@ -1049,6 +1123,7 @@ func (c *AviObjCache) PopulateDSDataToCache(client *clients.AviClient, cloud str
 		utils.AviLog.Debugf("Deleting key from ds cache :%s", key)
 		c.DSCache.AviCacheDelete(key)
 	}
+	return nil
 }
 
 func (c *AviObjCache) AviPopulateAllSSLKeys(client *clients.AviClient, cloud string, SslData *[]AviSSLCache, nextPage ...NextPage) (*[]AviSSLCache, int, error) {
@@ -1734,13 +1809,16 @@ func (c *AviObjCache) AviPopulateOneVsL4PolCache(client *clients.AviClient,
 	return nil
 }
 
-func (c *AviObjCache) PopulateSSLKeyToCache(client *clients.AviClient, cloud string) {
+func (c *AviObjCache) PopulateSSLKeyToCache(client *clients.AviClient, cloud string) error {
 	var SslKeyData []AviSSLCache
 	setDefaultTenant := session.SetTenant(lib.GetTenant())
 	setTenant := session.SetTenant(lib.GetQueryTenant())
 	setTenant(client.AviSession)
 	defer setDefaultTenant(client.AviSession)
-	c.AviPopulateAllSSLKeys(client, cloud, &SslKeyData)
+	_, _, err := c.AviPopulateAllSSLKeys(client, cloud, &SslKeyData)
+	if err != nil {
+		return err
+	}
 	sslCacheData := c.SSLKeyCache.ShallowCopy()
 	for i, SslKeyCacheObj := range SslKeyData {
 		k := NamespaceName{Namespace: SslKeyCacheObj.Tenant, Name: SslKeyCacheObj.Name}
@@ -1769,6 +1847,7 @@ func (c *AviObjCache) PopulateSSLKeyToCache(client *clients.AviClient, cloud str
 		utils.AviLog.Debugf("Deleting key from sslkey cache :%s", key)
 		c.SSLKeyCache.AviCacheDelete(key)
 	}
+	return nil
 }
 
 func (c *AviObjCache) AviPopulateAllHttpPolicySets(client *clients.AviClient, cloud string, httpPolicyData *[]AviHTTPPolicyCache, nextPage ...NextPage) (*[]AviHTTPPolicyCache, int, error) {
@@ -1923,15 +2002,18 @@ func (c *AviObjCache) AviPopulateHttpPolicySetbyUUID(client *clients.AviClient, 
 	return nil
 }
 
-func (c *AviObjCache) PopulateHttpPolicySetToCache(client *clients.AviClient, cloud string) {
+func (c *AviObjCache) PopulateHttpPolicySetToCache(client *clients.AviClient, cloud string) error {
 	var HttPolData []AviHTTPPolicyCache
 	setDefaultTenant := session.SetTenant(lib.GetTenant())
 	setTenant := session.SetTenant(lib.GetQueryTenant())
 	setTenant(client.AviSession)
 	defer setDefaultTenant(client.AviSession)
 	_, count, err := c.AviPopulateAllHttpPolicySets(client, cloud, &HttPolData)
-	if err != nil || len(HttPolData) != count {
-		return
+	if err != nil {
+		return err
+	}
+	if len(HttPolData) != count {
+		return fmt.Errorf("http policy count mismatch: expected %d, got %d", count, len(HttPolData))
 	}
 	httpCacheData := c.HTTPPolicyCache.ShallowCopy()
 	for i, HttpPolCacheObj := range HttPolData {
@@ -1961,6 +2043,7 @@ func (c *AviObjCache) PopulateHttpPolicySetToCache(client *clients.AviClient, cl
 		utils.AviLog.Debugf("Deleting key from httppol cache :%s", key)
 		c.HTTPPolicyCache.AviCacheDelete(key)
 	}
+	return nil
 }
 
 func (c *AviObjCache) AviPopulateAllL4PolicySets(client *clients.AviClient, cloud string, l4PolicyData *[]AviL4PolicyCache, nextPage ...NextPage) (*[]AviL4PolicyCache, int, error) {
@@ -2052,15 +2135,18 @@ func (c *AviObjCache) AviPopulateAllL4PolicySets(client *clients.AviClient, clou
 	return l4PolicyData, result.Count, nil
 }
 
-func (c *AviObjCache) PopulateL4PolicySetToCache(client *clients.AviClient, cloud string) {
+func (c *AviObjCache) PopulateL4PolicySetToCache(client *clients.AviClient, cloud string) error {
 	var l4PolData []AviL4PolicyCache
 	setDefaultTenant := session.SetTenant(lib.GetTenant())
 	setTenant := session.SetTenant(lib.GetQueryTenant())
 	setTenant(client.AviSession)
 	defer setDefaultTenant(client.AviSession)
 	_, count, err := c.AviPopulateAllL4PolicySets(client, cloud, &l4PolData)
-	if err != nil || len(l4PolData) != count {
-		return
+	if err != nil {
+		return err
+	}
+	if len(l4PolData) != count {
+		return fmt.Errorf("l4 policy count mismatch: expected %d, got %d", count, len(l4PolData))
 	}
 	l4CacheData := c.L4PolicyCache.ShallowCopy()
 	for i, l4PolCacheObj := range l4PolData {
@@ -2078,6 +2164,7 @@ func (c *AviObjCache) PopulateL4PolicySetToCache(client *clients.AviClient, clou
 		utils.AviLog.Debugf("Deleting key from l4policy cache :%s", key)
 		c.L4PolicyCache.AviCacheDelete(key)
 	}
+	return nil
 }
 
 func (c *AviObjCache) AviPopulateAllStringGroups(client *clients.AviClient, cloud string, StringGroupData *[]AviStringGroupCache, nextPage ...NextPage) (*[]AviStringGroupCache, int, error) {
@@ -2144,13 +2231,16 @@ func (c *AviObjCache) AviPopulateAllStringGroups(client *clients.AviClient, clou
 	return StringGroupData, result.Count, nil
 }
 
-func (c *AviObjCache) PopulateStringGroupDataToCache(client *clients.AviClient, cloud string) {
+func (c *AviObjCache) PopulateStringGroupDataToCache(client *clients.AviClient, cloud string) error {
 	var StringGroupData []AviStringGroupCache
 	setDefaultTenant := session.SetTenant(lib.GetTenant())
 	setTenant := session.SetTenant(lib.GetQueryTenant())
 	setTenant(client.AviSession)
 	defer setDefaultTenant(client.AviSession)
-	c.AviPopulateAllStringGroups(client, cloud, &StringGroupData)
+	_, _, err := c.AviPopulateAllStringGroups(client, cloud, &StringGroupData)
+	if err != nil {
+		return err
+	}
 	stringGroupCacheData := c.StringGroupCache.ShallowCopy()
 	for i, stringGroupCacheObj := range StringGroupData {
 		k := NamespaceName{Namespace: stringGroupCacheObj.Tenant, Name: stringGroupCacheObj.Name}
@@ -2179,6 +2269,7 @@ func (c *AviObjCache) PopulateStringGroupDataToCache(client *clients.AviClient, 
 		utils.AviLog.Debugf("Deleting key from stringgroup cache :%s", key)
 		c.StringGroupCache.AviCacheDelete(key)
 	}
+	return nil
 }
 
 func (c *AviObjCache) AviPopulateOneStringGroupCache(client *clients.AviClient,
@@ -2293,13 +2384,16 @@ func (c *AviObjCache) AviPopulateAllAppPersistenceProfiles(client *clients.AviCl
 	return appPersProfileData, result.Count, nil
 }
 
-func (c *AviObjCache) PopulateAppPersistenceProfileToCache(client *clients.AviClient) {
+func (c *AviObjCache) PopulateAppPersistenceProfileToCache(client *clients.AviClient) error {
 	var appPersProfileData []AviPersistenceProfileCache
 	setDefaultTenant := session.SetTenant(lib.GetTenant())
 	setTenant := session.SetTenant(lib.GetQueryTenant())
 	setTenant(client.AviSession)
 	defer setDefaultTenant(client.AviSession)
-	c.AviPopulateAllAppPersistenceProfiles(client, &appPersProfileData)
+	_, _, err := c.AviPopulateAllAppPersistenceProfiles(client, &appPersProfileData)
+	if err != nil {
+		return err
+	}
 
 	persistenceCacheData := c.AppPersProfileCache.ShallowCopy()
 	for i, persistenceProfile := range appPersProfileData {
@@ -2329,6 +2423,7 @@ func (c *AviObjCache) PopulateAppPersistenceProfileToCache(client *clients.AviCl
 		utils.AviLog.Infof("Deleting key from persistence cache :%s", key)
 		c.AppPersProfileCache.AviCacheDelete(key)
 	}
+	return nil
 }
 func (c *AviObjCache) AviObjVrfCachePopulate(client *clients.AviClient, cloud string) error {
 	if lib.GetDisableStaticRoute() {

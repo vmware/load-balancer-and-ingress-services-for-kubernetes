@@ -1,0 +1,67 @@
+{
+  "count": 1,
+  "results": [
+    {
+      "_last_modified": "1670855940740365",
+      "created_by": "ako-k8s-siteb-cluster",
+      "is_internal_policy": false,
+      "l4_connection_policy": {
+        "rules": [
+          {
+            "action": {
+              "select_pool": {
+                "action_type": "L4_RULE_ACTION_SELECT_POOL",
+                "pool_ref": "https://10.102.46.92/api/pool/pool-11a38043-e51e-4c93-8187-b390d7d81abd#default-route1-aviroute-pool-8080-tcp"
+              }
+            },
+            "enable": true,
+            "index": 0,
+            "match": {
+              "port": {
+                "match_criteria": "IS_IN",
+                "ports": [
+                  80
+                ]
+              },
+              "protocol": {
+                "match_criteria": "IS_IN",
+                "protocol": "PROTOCOL_TCP"
+              }
+            },
+            "name": "/api/pool?name=default-route1-aviroute-pool-8080-tcp"
+          }
+        ]
+      },
+      "markers": [
+        {
+          "key": "clustername",
+          "values": [
+            "k8s-siteb-cluster"
+          ]
+        },
+        {
+          "key": "Namespace",
+          "values": [
+            "default"
+          ]
+        },
+        {
+          "key": "ServiceName",
+          "values": [
+            "ns-app"
+          ]
+        },
+        {
+          "key": "Protocol",
+          "values": [
+            "TCP"
+          ]
+        }
+      ],
+      "name": "cluster--red-ns-testsvc",
+      "tenant_ref": "https://10.102.46.92/api/tenant/admin#admin",
+      "url": "https://10.102.46.92/api/l4policyset/l4policyset-27057cd6-2b0a-4188-a81c-0e7b93ccfc33#cluster--red-ns-testsvc",
+      "uuid": "l4policyset-27057cd6-2b0a-4188-a81c-0e7b93ccfc33"
+    }
+  ]
+}

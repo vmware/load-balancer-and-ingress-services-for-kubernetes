@@ -1,0 +1,58 @@
+{
+  "count": 1,
+  "results": [
+    {
+      "_last_modified": "1708532981462161",
+      "certificate": {
+        "certificate": "-----BEGIN CERTIFICATE-----\nMIIDXTCCAkWgAwIBAgIJAKZ5m0tKuZhNMA0GCSqGSIb3DQEBCwUAMEUxCzAJBgNV\nBAYTAkFVMRMwEQYDVQQIDApTb21lLVN0YXRlMSEwHwYDVQQKDBhJbnRlcm5ldCBX\naWRnaXRzIFB0eSBMdGQwHhcNMTYwODI0MTY0NjA3WhcNMjYwODIyMTY0NjA3WjBF\nMQswCQYDVQQGEwJBVTETMBEGA1UECAwKU29tZS1TdGF0ZTEhMB8GA1UECgwYSW50\nZXJuZXQgV2lkZ2l0cyBQdHkgTHRkMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIB\nCgKCAQEAr1nYY1ymCTaeL1xnfX6I9zzctYEYWMD6ae+ozXZk0+w/tKdH3zzb+EpL\n-----END CERTIFICATE-----",
+        "expiry_status": "SSL_CERTIFICATE_GOOD",
+        "fingerprint": "SHA1 Fingerprint=00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33",
+        "issuer": {
+          "common_name": "Test CA",
+          "organization": "Test Org"
+        },
+        "not_after": "2026-08-22T16:46:07Z",
+        "not_before": "2016-08-24T16:46:07Z",
+        "public_key_algorithm": "RSA",
+        "serial_number": "A6799B4B4AB9984D",
+        "signature_algorithm": "sha256WithRSAEncryption",
+        "subject": {
+          "common_name": "*.example.com",
+          "organization": "Test Org"
+        },
+        "subject_alt_names": [
+          "*.example.com",
+          "example.com"
+        ],
+        "version": "3"
+      },
+      "certificate_base64": false,
+      "created_by": "ako-test",
+      "enable_ocsp_stapling": false,
+      "format": "SSL_PEM",
+      "key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCvWdhjXKYJNp4v\nXGd9foj3PNy1gRhYwPpp76jNdmTT7D+0p0ffPNv4SktFd5z3ZWlLU/2narQzVXLh\n-----END PRIVATE KEY-----",
+      "key_base64": false,
+      "key_params": {
+        "algorithm": "SSL_KEY_ALGORITHM_RSA",
+        "rsa_params": {
+          "key_size": "SSL_KEY_2048_BITS",
+          "exponent": 65537
+        }
+      },
+      "markers": [
+        {
+          "key": "clustername",
+          "values": [
+            "cluster"
+          ]
+        }
+      ],
+      "name": "ako-gw-cluster--default-gateway-01-cert",
+      "status": "SSL_CERTIFICATE_FINISHED",
+      "tenant_ref": "https://100.65.9.44/api/tenant/admin",
+      "type": "SSL_CERTIFICATE_TYPE_VIRTUALSERVICE",
+      "url": "https://100.65.9.44/api/sslkeyandcertificate/sslkeyandcertificate-3bfaf659-52f3-4867-9372-f26ce555a67e",
+      "uuid": "sslkeyandcertificate-3bfaf659-52f3-4867-9372-f26ce555a67e"
+    }
+  ]
+}
