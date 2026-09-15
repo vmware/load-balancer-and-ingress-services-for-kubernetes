@@ -14,9 +14,13 @@
 
 package webhook
 
+// These RBAC rules are needed for NSX VPC integration
+
+// +kubebuilder:rbac:groups=crd.nsx.vmware.com,resources=vpcnetworkconfigurations,verbs=get;list;watch
+// +kubebuilder:rbac:groups=ako.vmware.com,resources=l4rules;l4rules/status,verbs=get;list;watch;update;patch
 // +kubebuilder:rbac:groups=admissionregistration.k8s.io,resources=mutatingwebhookconfigurations,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=cluster.x-k8s.io,resources=clusters,verbs=get;list;watch;update;patch
-// +kubebuilder:rbac:groups=cert-manager.io,resources=certificates;issuers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=cert-manager.io,resources=certificates;issuers,verbs=get;list;watch;create;update;patch;delete,namespace=true
 // +kubebuilder:rbac:groups=addons.kubernetes.vmware.com,resources=addoninstalls,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=iaas.vmware.com,resources=capabilities,verbs=get;list;watch
 // +kubebuilder:rbac:groups=run.tanzu.vmware.com,resources=clusterbootstraps,verbs=get;list;watch

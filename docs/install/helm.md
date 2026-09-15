@@ -14,26 +14,26 @@ kubectl create ns avi-system
 Step 2: Search the available charts for AKO
 
 ```
-helm show chart oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 2.2.1
+helm show chart oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 2.1.2
 
-Pulled: projects.packages.broadcom.com/ako/helm-charts/ako:2.2.1
+Pulled: projects.packages.broadcom.com/ako/helm-charts/ako:2.1.2
 Digest: sha256:xxxxxxxx
 apiVersion: v2
-appVersion: 2.2.1
+appVersion: 2.1.2
 dependencies:
 - condition: ako-crd-operator.enabled
   name: ako-crd-operator
   repository: oci://projects.packages.broadcom.com/ako/helm-charts
-  version: 2.2.1
+  version: 2.1.2
 description: A helm chart for Avi Kubernetes Operator
 name: ako
 type: application
-version: 2.2.1
+version: 2.1.2
 ```
 
 Step 2: Pull AKO helm chart
 ```
-helm pull oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 2.2.1 --untar
+helm pull oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 2.1.2 --untar
 ```
 
 Step 3: Update helm dependency after going into ako directory
@@ -45,7 +45,7 @@ helm dependency build
 Step 4: Update the values.yaml
 Values and their corresponding index can be found [here](#parameters).
 
-**Note**: Starting from AKO-2.2.1, the AKO Helm chart has a dependency chart `ako-crd-operator`. The installation can be enabled/disabled by setting `ako-crd-operator.enabled` in the AKO values.yaml.
+**Note**: Starting from AKO-2.1.2, the AKO Helm chart has a dependency chart `ako-crd-operator`. The installation can be enabled/disabled by setting `ako-crd-operator.enabled` in the AKO values.yaml.
 
 Step 5: Install AKO
 Starting from AKO-1.7.1, multiple AKO instances can be installed in a cluster.
@@ -61,7 +61,7 @@ helm install --generate-name . --set ControllerSettings.controllerHost=<controll
 
 <b>Secondary AKO installation</b>
 ```
-helm install --generate-name . --version 2.2.1  --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --set AKOSettings.primaryInstance=false --namespace=avi-secondary-system --set ako-crd-operator.enabled=false
+helm install --generate-name . --version 2.1.2  --set ControllerSettings.controllerHost=<controller IP or Hostname> --set avicredentials.username=<avi-ctrl-username> --set avicredentials.password=<avi-ctrl-password> --set AKOSettings.primaryInstance=false --namespace=avi-secondary-system --set ako-crd-operator.enabled=false
 
 ```
 Note: Since only one instance of ako-crd-operator can run in the cluster, for secondary AKO Installation, set ako-crd-operator.enabled to false.
@@ -71,8 +71,8 @@ Step 6: Check the installation
 ```
 helm list -n avi-system
 
-NAME          	NAMESPACE 	REVISION	UPDATED     STATUS  	CHART    	APP VERSION
-ako-1691752136	avi-system	1       	2025-09-28	deployed	ako-2.2.1	2.2.1
+NAME          	NAMESPACE 	REVISION	UPDATED          STATUS  	   CHART           APP VERSION
+ako-1691752136	avi-system	1       	2025-09-28	 deployed	   ako-2.1.2	   2.1.2
 ```
 
 ## Uninstall using *helm*
@@ -102,7 +102,7 @@ Follow these steps if you are upgrading from an older AKO release.
 Helm does not upgrade the CRDs during a release upgrade. Before you upgrade a release, run the following command to download and upgrade the CRDs:
 
 ```
-helm pull oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 2.2.1 --untar
+helm pull oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 2.1.2 --untar
 cd ako
 helm dependency build
 
@@ -124,13 +124,13 @@ Note: This step is not necessary for CRDs included in the ako-crd-operator, as t
 ```
 helm list -n avi-system
 
-NAME          	NAMESPACE 	REVISION	UPDATED                             	    STATUS  	CHART    	APP VERSION
-ako-1593523840	avi-system	1       	2024-08-04 13:44:31.609195757 +0000 UTC	    deployed	ako-1.12.2.2.12.2
+NAME          	NAMESPACE 	REVISION	UPDATED                             	  STATUS        CHART        APP VERSION
+ako-1593523840	avi-system	1       	2024-08-04 13:44:31.609195757 +0000 UTC	  deployed	ako-1.12.2   1.12.2
 ```
 
 *Step4*
 
-Update the values.yaml in ako directory for AKO version 2.2.1 as per the requirement.
+Update the values.yaml in ako directory for AKO version 2.1.2 as per the requirement.
 ```
 vi values.yaml
 ```

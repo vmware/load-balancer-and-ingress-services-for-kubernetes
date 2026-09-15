@@ -119,12 +119,12 @@ func (l *leader) UpdateL4LBStatus(options []UpdateOptions, bulk bool) {
 }
 
 func updateSvcAnnotationsWithVSUUID(svc *corev1.Service, updateOption UpdateOptions, oldSvc *corev1.Service) error {
+	if svc == nil {
+		svc = oldSvc
+	}
 	if updateOption.VirtualServiceUUID == "" {
 		utils.AviLog.Debugf("key: %s, msg: VirtualServiceUUID is empty, not updating the VS annotations for service %s/%s", updateOption.Key, svc.Namespace, svc.Name)
 		return nil
-	}
-	if svc == nil {
-		svc = oldSvc
 	}
 	if svc.Annotations == nil {
 		svc.Annotations = make(map[string]string)

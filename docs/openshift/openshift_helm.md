@@ -17,7 +17,7 @@ oc new-project avi-system
 Pull AKO helm chart:
 
 ```
-helm pull oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 2.1.1 --untar
+helm pull oci://projects.packages.broadcom.com/ako/helm-charts/ako --version 2.1.2 --untar
 ```
 
 *Step 3*
@@ -33,7 +33,7 @@ helm dependency build
 
 Update the values.yaml file according to your environment. Values and their corresponding index can be found [here](../install/helm.md#parameters).
 
-> **Note**: Starting from AKO-2.1.1, the AKO Helm chart has a dependency chart `ako-crd-operator`. The installation can be enabled/disabled by setting `ako-crd-operator.enabled` in the AKO values.yaml.
+> **Note**: Starting from AKO-2.1.2, the AKO Helm chart has a dependency chart `ako-crd-operator`. The installation can be enabled/disabled by setting `ako-crd-operator.enabled` in the AKO values.yaml.
 
 *Step 5*
 
@@ -51,5 +51,5 @@ Verify the installation:
 helm list -n avi-system
 
 NAME          	NAMESPACE 	REVISION	UPDATED     STATUS  	CHART    	APP VERSION
-ako-1691752136	avi-system	1       	2025-09-28	deployed	ako-2.1.1	2.1.1
+ako-1691752136	avi-system	1       	2025-09-28	deployed	ako-2.1.2	2.1.2
 ```

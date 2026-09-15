@@ -198,13 +198,16 @@ func NewDynamicInformers(client dynamic.Interface, akoInfra bool) *DynamicInform
 	}
 
 	if utils.IsVCFCluster() && akoInfra {
-		informers.VCFNetworkInfoInformer = f.ForResource(NetworkInfoGVR)
-		informers.VCFClusterNetworkInformer = f.ForResource(ClusterNetworkGVR)
-		informers.AvailabilityZoneInformer = f.ForResource(AvailabilityZoneVR)
-		informers.VPCNetworkConfigurationInformer = f.ForResource(VPCNetworkConfigurationGVR)
-		informers.SupervisorCapabilityInformer = f.ForResource(SupervisorCapabilityGVR)
-		informers.AddonInstallInformer = f.ForResource(AddonInstallGVR)
-		informers.ClusterInformer = f.ForResource(ClusterGVR)
+		if GetVPCMode() {
+			informers.VPCNetworkConfigurationInformer = f.ForResource(VPCNetworkConfigurationGVR)
+			informers.SupervisorCapabilityInformer = f.ForResource(SupervisorCapabilityGVR)
+			informers.AddonInstallInformer = f.ForResource(AddonInstallGVR)
+			informers.ClusterInformer = f.ForResource(ClusterGVR)
+		} else {
+			informers.VCFNetworkInfoInformer = f.ForResource(NetworkInfoGVR)
+			informers.VCFClusterNetworkInformer = f.ForResource(ClusterNetworkGVR)
+			informers.AvailabilityZoneInformer = f.ForResource(AvailabilityZoneVR)
+		}
 	}
 
 	// Initialize HealthMonitor informer only when L4Rules are enabled AND AKO CRD Operator is enabled

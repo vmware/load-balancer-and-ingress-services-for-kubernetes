@@ -229,6 +229,10 @@ func (rest *RestOperations) vrfCU(key, vrfName string, avimodel *nodes.AviObject
 		vsKeysPending := rest.cache.VsCacheMeta.AviGetAllKeys()
 		utils.AviLog.Infof("key: %s, msg: Number of VS deletion pending: %d", key, len(vsKeysPending))
 		if len(vsKeysPending) == 0 {
+			// All VSes got deleted, check for orphaned VSVIPs when deleteConfig is true
+			if lib.GetDeleteConfigMap() {
+				rest.deleteOrphanedVSVIPs(lib.GetTenant(), key)
+			}
 			utils.AviLog.Debugf("key: %s, msg: sending signal for vs deletion notification", key)
 			close(lib.ConfigDeleteSyncChan)
 			lib.ConfigDeleteSyncChan = nil
@@ -574,7 +578,11 @@ func (rest *RestOperations) DeleteVSOper(vsKey avicache.NamespaceName, vs_cache_
 			vsKeysPending := rest.cache.VsCacheMeta.AviGetAllKeys()
 			utils.AviLog.Infof("key: %s, msg: Number of VS deletion pending: %d", key, len(vsKeysPending))
 			if len(vsKeysPending) == 0 {
-				// All VSes got deleted, done with deleteConfig operation. Now notify the user
+				// All VSes got deleted, check for orphaned VSVIPs when deleteConfig is true
+				if lib.GetDeleteConfigMap() {
+					rest.deleteOrphanedVSVIPs(namespace, key)
+				}
+				// Done with deleteConfig operation. Now notify the user
 				if lib.ConfigDeleteSyncChan != nil {
 					utils.AviLog.Debugf("key: %s, msg: sending signal for vs deletion notification", key)
 					close(lib.ConfigDeleteSyncChan)
@@ -593,6 +601,32 @@ func (rest *RestOperations) DeleteVSOper(vsKey avicache.NamespaceName, vs_cache_
 	}
 
 	return true
+}
+
+// deleteOrphanedVSVIPs deletes all VSVIPs that are still in cache when deleteConfig is true
+// This handles the case where shared mode VSVIPs without VS references are not deleted
+func (rest *RestOperations) deleteOrphanedVSVIPs(namespace string, key string) {
+	utils.AviLog.Infof("key: %s, msg: Checking for orphaned VSVIPs to delete", key)
+	var orphanedVSVIPs []avicache.NamespaceName
+
+	// Get all VSVIPs from cache
+	allVSVIPKeys := rest.cache.VSVIPCache.AviGetAllKeys()
+	for _, vsvipKey := range allVSVIPKeys {
+		// Only delete VSVIPs in the same namespace/tenant
+		if vsvipKey.Namespace == namespace {
+			orphanedVSVIPs = append(orphanedVSVIPs, vsvipKey)
+		}
+	}
+
+	if len(orphanedVSVIPs) > 0 {
+		utils.AviLog.Infof("key: %s, msg: Found %d orphaned VSVIPs to delete: %s", key, len(orphanedVSVIPs), utils.Stringify(orphanedVSVIPs))
+		var rest_ops []*utils.RestOp
+		rest_ops = rest.VSVipDelete(orphanedVSVIPs, namespace, rest_ops, key)
+		vsKey := avicache.NamespaceName{Namespace: namespace, Name: lib.DummyVSForStaleData}
+		rest.ExecuteRestAndPopulateCache(rest_ops, vsKey, nil, key, false)
+	} else {
+		utils.AviLog.Infof("key: %s, msg: No orphaned VSVIPs found", key)
+	}
 }
 
 func (rest *RestOperations) deleteSniVs(vsKey avicache.NamespaceName, vs_cache_obj *avicache.AviVsCache, avimodel *nodes.AviObjectGraph, namespace, key string) bool {

@@ -137,6 +137,10 @@ func setupVKSTest(t *testing.T, clusterName, namespaceName, cniRefName string) *
 			os.Setenv("VCF_CLUSTER", oldVCFCluster)
 		}
 	})
+
+	// Set VPC_MODE environment variable to enable VPC-specific dynamic informers (ClusterInformer)
+	os.Setenv("VPC_MODE", "true")
+
 	// Create namespace with required VKS annotations
 	namespace := &corev1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{

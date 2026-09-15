@@ -824,6 +824,12 @@ func validateReferredHTTPRoute(key, name, namespace string, allowedRoutesAll boo
 				if parentRef.Namespace != nil {
 					namespace = string(*parentRef.Namespace)
 				}
+				gwNSName := fmt.Sprintf("%s/%s", namespace, string(gwName))
+				gwProcessedByRoute := akogatewayapiobjects.GatewayApiLister().IsGatewayProcessedByRoute(routeTypeNsName, gwNSName)
+				if !gwProcessedByRoute {
+					utils.AviLog.Warnf("key: %s, msg: Gateway %s is not processed by HTTPRoute: %s/%s", key, gwNSName, httpRoute.Namespace, httpRoute.Name)
+					continue
+				}
 				gateway, err := akogatewayapilib.AKOControlConfig().GatewayApiInformers().GatewayInformer.Lister().Gateways(namespace).Get(string(gwName))
 				if err != nil {
 					utils.AviLog.Errorf("key: %s, msg: unable to get the gateway object %s . err: %s", key, gwName, err)
@@ -834,7 +840,9 @@ func validateReferredHTTPRoute(key, name, namespace string, allowedRoutesAll boo
 				if !isAKOCtrl {
 					utils.AviLog.Warnf("key: %s, msg: controller for the parent reference %s of HTTPRoute object %s is not ako", key, name, httpRoute.Name)
 				} else {
-					httpRouteStatus.Parents = append(httpRouteStatus.Parents, httpRouteStatusInCache.Parents[indexInCache])
+					if len(httpRouteStatusInCache.Parents) > indexInCache {
+						httpRouteStatus.Parents = append(httpRouteStatus.Parents, httpRouteStatusInCache.Parents[indexInCache])
+					}
 				}
 			}
 		}
@@ -855,7 +863,7 @@ func validateReferredHTTPRoute(key, name, namespace string, allowedRoutesAll boo
 		httpRouteToGatewayOperation(httpRoute, key, name, namespace)
 		routeTypeNsNameList, found := HTTPRouteChanges(httpRoute.Namespace, httpRoute.Name, key)
 		if !found {
-			utils.AviLog.Warnf("key: %s, msg: got error while getting HTTPRoute changes: %v", key, err)
+			utils.AviLog.Warnf("key: %s, msg: got error while getting HTTPRoute changes", key)
 			continue
 		}
 		routes = append(routes, routeTypeNsNameList...)
