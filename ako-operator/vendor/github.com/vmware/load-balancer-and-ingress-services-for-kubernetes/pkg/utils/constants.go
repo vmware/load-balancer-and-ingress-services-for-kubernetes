@@ -28,7 +28,6 @@ const (
 	PodInformer                   = "PodInformer"
 	SecretInformer                = "SecretInformer"
 	NodeInformer                  = "NodeInformer"
-	EndpointInformer              = "EndpointInformer"
 	EndpointSlicesInformer        = "EndpointSlicesInformer"
 	ConfigMapInformer             = "ConfigMapInformer"
 	MultiClusterIngressInformer   = "MultiClusterIngressInformer"
@@ -44,7 +43,6 @@ const (
 	L4LBService                   = "L4LBService"
 	LoadBalancer                  = "LoadBalancer"
 	Pod                           = "Pod"
-	Endpoints                     = "Endpoints"
 	Endpointslices                = "Endpointslices"
 	Ingress                       = "Ingress"
 	IngressClass                  = "IngressClass"
@@ -98,12 +96,15 @@ const (
 	ENV_CTRL_CADATA               = "CTRL_CA_DATA"
 	POD_NAMESPACE                 = "POD_NAMESPACE"
 	VCF_CLUSTER                   = "VCF_CLUSTER"
+	VPC_MODE                      = "VPC_MODE"
 	MCI_ENABLED                   = "MCI_ENABLED"
 	USE_DEFAULT_SECRETS_ONLY      = "USE_DEFAULT_SECRETS_ONLY"
 	Namespace                     = "Namespace"
 	MaxAviVersion                 = "30.2.1"
 	ControllerAPIHeader           = "userHeader"
 	ControllerAPIScheme           = "scheme"
+	XAviUserAgentHeader           = "X-Avi-UserAgent"
+	HelmSecretType                = "helm.sh/release.v1"
 
 	RefreshAuthTokenInterval = 12  //hours
 	AuthTokenExpiry          = 240 //hours
@@ -123,4 +124,8 @@ const (
 	// Constants used in Gateway context
 	WILDCARD         = "*"
 	FQDN_LABEL_REGEX = "([a-z0-9-]{1,})"
+
+	// Constants used for VKS Managed Mode
+	VKS_MANAGED      = "MANAGED"
+	ENV_CTRL_ADDRESS = "CTRL_ADDRESS"
 )
